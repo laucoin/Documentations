@@ -1,0 +1,19 @@
+{
+  "name": "laucoin-documentation",
+  "version": "1.0.0",
+  "description": "Here a multi-project documentation about Luc’s personal works.",
+  "keywords": [
+    "VitePress",
+    "Documentation"
+  ],
+  "author": "laucoin",
+  "packageManager": "pnpm@11.6.0",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "2.0.0-alpha.17"
+  }
+}
