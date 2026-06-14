@@ -8,13 +8,13 @@ Atlas turns a single machine sitting in my home into a small, opinionated cloud.
 
 ## Scope and non-goals
 
-| In scope                                               | Out of scope                                                       |
-| ------------------------------------------------------ | ------------------------------------------------------------------ |
-| Single bare-metal node at home                         | Multi-node HA cluster                                              |
-| A small group of trusted users (single-digit count)    | Public SaaS or anonymous users                                     |
-| GitOps-driven deployment                               | Click-ops administration                                           |
-| Self-hosted identity, registry, secrets, observability | Mail server, file sync, media streaming (later, separate projects) |
-| Free / open-source software only                       | Paid managed services for core infra                               |
+| In scope                                                                              | Out of scope                                                       |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Single bare-metal node at home                                                        | Multi-node HA cluster                                              |
+| A small group of trusted users (single-digit count)                                   | Public SaaS or anonymous users                                     |
+| GitOps-driven deployment                                                              | Click-ops administration                                           |
+| Self-hosted identity, registry, secrets, observability, code quality, home automation | Mail server, file sync, media streaming (later, separate projects) |
+| Free / open-source software only                                                      | Paid managed services for core infra                               |
 
 ## Documentation map
 

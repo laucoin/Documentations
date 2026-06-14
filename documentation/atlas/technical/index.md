@@ -6,7 +6,7 @@ This section covers the engineering of Atlas: the high-level architecture, the b
 
 | Page                                   | Purpose                                                                                                      |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [Getting Started](./getting-started)   | Full guided installation procedure, with the L3 identity/secret handshake detailed resource-by-resource      |
+| [Getting Started](./getting-started)   | Full guided installation procedure, including the in-cluster identity/secret handshake                       |
 | [Architecture](./architecture)         | Topology, component map, summary of the bootstrap chain                                                      |
 | [Bootstrap Orchestration](./bootstrap) | The five-layer model that resolves the chicken-and-egg dependencies between Argo CD, Authentik and Infisical |
 | [ADR index](./adr/)                    | All Architecture Decision Records, in causal order                                                           |
@@ -20,13 +20,15 @@ This section covers the engineering of Atlas: the high-level architecture, the b
 | Infrastructure as Code | OpenTofu                                          |
 | GitOps                 | Argo CD (app-of-apps)                             |
 | Ingress                | Traefik                                           |
-| TLS                    | cert-manager (DNS-01 ACME)                        |
+| TLS                    | cert-manager (HTTP-01 ACME)                       |
 | Image registry         | Harbor                                            |
 | Identity (OIDC)        | Authentik                                         |
 | Secrets                | Infisical + External Secrets Operator             |
 | Metrics                | Prometheus + Alertmanager                         |
 | Logs                   | Loki                                              |
 | Visualization          | Grafana                                           |
+| Code quality           | SonarQube (PostgreSQL via CloudNativePG operator) |
+| Home automation        | Home Assistant                                    |
 | Storage                | local-path-provisioner                            |
 | Backup                 | Restic to external S3-compatible bucket           |
 

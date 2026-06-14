@@ -28,7 +28,7 @@ A web UI and API where I store API keys, tokens, and credentials needed by my pr
 
 ## Grafana — dashboards and alerts
 
-A single place to look when I want to know whether anything is on fire. Grafana shows me cluster health, application metrics, and recent logs. Alerts go out when something has been broken long enough to deserve attention.
+A single place to look when I want to know whether anything is on fire. Grafana shows me cluster health, application metrics, and recent logs. Alerts go out when something has been broken long enough to deserve attention. Beyond the built-in cluster dashboards, every Atlas service has its own curated dashboard (Traefik, Argo CD, Harbor, Authentik, Velero, External Secrets, cert-manager, Home Assistant, SonarQube), grouped under a **Services** folder.
 
 - **Who uses it**: the Platform Operator daily; Power Users when they wire their own apps to Prometheus or Loki; Guest Users only on dashboards I explicitly share.
 - **What it replaces**: ad-hoc `kubectl logs` sessions, no monitoring at all.
@@ -47,6 +47,26 @@ The dashboard for the engine that reconciles every workload against the Git repo
 
 - **Who uses it**: the Platform Operator. Behind Authentik.
 - **Visible URL**: `argocd.<my-domain>`.
+
+## Home Assistant — home automation
+
+The hub that ties smart-home devices and routines together — lights, sensors, switches, and the automations that connect them. It runs entirely on Atlas, so device state and history never leave the node.
+
+- **Who uses it**: the Platform Operator and household members at home.
+- **What it replaces**: vendor clouds and one mobile app per device brand, each with its own account and its own outage.
+- **Visible URL**: `home-assistant.<my-domain>`.
+
+> Sign-in uses Home Assistant's own login rather than Authentik SSO: HA has no usable OIDC support, and putting it behind forward-auth would break its companion mobile apps and API.
+
+## SonarQube — code quality
+
+Static analysis for the code I write: bugs, code smells, security hotspots, and coverage trends across scans. I point a scanner at a repository from CI or my laptop and read the results here.
+
+- **Who uses it**: Power Users reviewing their own projects; the Platform Operator maintains it.
+- **What it replaces**: SonarCloud's limited free tier for private projects, and having no objective quality gate at all.
+- **Visible URL**: `sonarqube.<my-domain>`.
+
+> Sign-in uses SonarQube's built-in login (no Authentik SSO yet). Its analysis data lives in a dedicated PostgreSQL managed by the CloudNativePG operator.
 
 ## Services that are intentionally not exposed publicly
 
