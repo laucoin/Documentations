@@ -13,25 +13,14 @@ lastUpdated: false
   </header>
 
   <div class="portal-grid">
-    <!-- Project A -->
+    <!-- Atlas -->
     <div class="card card--portal">
-      <div class="card-icon">🚀</div>
+      <div class="card-icon">🛰️</div>
       <div class="card-body">
-        <h3 class="card-title">Project A (Core Framework)</h3>
-        <p class="card-description">Our flagship automation engine. Learn how to scaffold projects, manage microservices, and configure core plugins.</p>
+        <h3 class="card-title">Atlas (Homelab Platform)</h3>
+        <p class="card-description">Self-hosted, GitOps-driven Talos Linux platform: image registry, identity, secrets, ingress and observability — all deployed with IaC.</p>
         <div class="card-actions">
-          <a href="/project-a/" class="btn btn--primary">Documentation →</a>
-        </div>
-      </div>
-    </div>
-    <!-- Project B -->
-    <div class="card card--portal">
-      <div class="card-icon">📊</div>
-      <div class="card-body">
-        <h3 class="card-title">Project B (Analytics Engine)</h3>
-        <p class="card-description">Real-time data streaming and metrics aggregation. Includes setup guides, SDK configurations, and query examples.</p>
-        <div class="card-actions">
-          <a href="/project-b/" class="btn btn--primary">Documentation →</a>
+          <a href="/atlas/" class="btn btn--primary">Documentation →</a>
         </div>
       </div>
     </div>
