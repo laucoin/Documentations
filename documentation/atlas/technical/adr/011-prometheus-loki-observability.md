@@ -30,6 +30,12 @@ Use **Prometheus** for metrics, **Loki** for logs, **Alertmanager** for alert ro
 - **OIDC SSO with Authentik** ([ADR 008](./008-authentik-oidc)) — guests reach dashboards I share with them without separate Grafana accounts.
 - **Loki is operationally lighter than ELK** for the log volumes a homelab produces.
 
+### Per-service dashboards
+
+On top of the cluster dashboards the chart ships, each Atlas service gets one curated community dashboard. Rather than vendoring large dashboard JSON into Git, they are referenced by their grafana.com ID (`gnetId`) with a **pinned revision** in the kube-prometheus-stack Helm values; the chart's init container downloads each at start-up and a file provider loads them into a **Services** folder. This keeps the values file small and declarative, at the cost of an egress dependency on grafana.com at pod start.
+
+A dashboard is only meaningful if the service is actually scraped, so each one is paired with a `ServiceMonitor`/`PodMonitor` (Prometheus' selectors are intentionally empty, so any monitor in any namespace is discovered). Two cases are worth noting: cert-manager's ServiceMonitor is enabled in the OpenTofu baseline (it lives below the GitOps layer), and Home Assistant's `/api/prometheus` endpoint needs a long-lived token created once in its UI before its dashboard fills in.
+
 ### Negative
 
 - **Resource footprint is non-trivial.** kube-prometheus-stack alone (operator + Prometheus + Alertmanager + node-exporter + kube-state-metrics) is ~600 MB RAM at idle. Plus Loki, plus Grafana, the observability layer is the biggest single resource consumer on the node.

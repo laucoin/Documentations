@@ -51,7 +51,9 @@ Public traffic reaches Atlas through ports 80 and 443 forwarded from the home ro
                                                └──────────────┘  └──────────────┘
 ```
 
-cert-manager runs in the background and provisions TLS certificates for every public host via DNS-01 ACME against my registrar's API.
+Two further public services — **SonarQube** (code quality, with a PostgreSQL database managed by the CloudNativePG operator) and **Home Assistant** (home automation) — are routed by Traefik and TLS-protected the same way, but sit **outside** the Authentik box: both keep their own native login (Home Assistant has no usable OIDC and breaks under forward-auth; SonarQube Community Build's SSO is not wired). They are otherwise standard GitOps workloads under `apps/`.
+
+cert-manager runs in the background and provisions TLS certificates for every public host via the HTTP-01 ACME challenge (Let's Encrypt), validated over the port-80 forward through Traefik. DNS-01 against the registrar's API is available as an opt-out (see [ADR 006](./adr/006-cert-manager-tls)) but is not the shipped default.
 
 ## Bootstrap chain
 
@@ -59,14 +61,14 @@ Atlas is built layer-by-layer so the circular dependencies between Argo CD, Auth
 
 At a glance:
 
-| Layer | Owner                   | What happens                                                                                                                                                      |
-| ----- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| L0    | Operator (once)         | `talosctl` brings the node up; Talos secrets land in the password manager.                                                                                        |
-| L1    | OpenTofu                | Argo CD installed; bootstrap K8s Secrets seeded for Infisical, Authentik, cert-manager.                                                                           |
-| L2    | Argo CD                 | Platform foundations come up: cert-manager, Traefik, ESO, Infisical, Authentik.                                                                                   |
-| L3    | OpenTofu (second apply) | Identity/secret handshake: Authentik OIDC clients created, their secrets pushed into Infisical. See [ADR 012](./adr/012-opentofu-owns-identity-secret-bootstrap). |
-| L4    | Argo CD                 | Identity-aware workloads come up: Harbor, Grafana, Prometheus, Loki, Alertmanager.                                                                                |
-| L5    | Argo CD                 | Bootstrap UIs (Argo CD, Traefik dashboard) get forward-auth applied — the platform is now closed.                                                                 |
+| Layer | Owner                | What happens                                                                                                                                                                                                                                                         |
+| ----- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L0    | Operator (once)      | OpenTofu (`bootstrap/talos`) installs Talos and brings the node up; Talos secrets and OpenTofu state land in the password manager.                                                                                                                                   |
+| L1    | OpenTofu             | `bootstrap/baseline` (local-path, MetalLB, cert-manager) then `bootstrap/argo` (Argo CD + root ApplicationSet). The operator also hand-creates the out-of-band bootstrap & machine-identity Secrets.                                                                 |
+| L2    | Argo CD              | Platform foundations come up: ESO, Traefik, Infisical, Authentik (cert-manager already installed at L1).                                                                                                                                                             |
+| L3    | In-cluster (Argo CD) | Identity/secret handshake: the `infisical-seeder` Job generates secrets, Authentik blueprints create the OIDC/proxy clients, the `harbor-oidc-config` Job wires Harbor. See [ADR 012](./adr/012-opentofu-owns-identity-secret-bootstrap).                            |
+| L4    | Argo CD              | Identity-aware workloads come up consuming the seeded secrets via ESO: Harbor, Grafana, Prometheus, Loki, Alertmanager, Velero. The standalone apps SonarQube (database via the CloudNativePG operator) and Home Assistant land here too, on their own native login. |
+| L5    | Argo CD              | Bootstrap UIs (Argo CD via OIDC, Traefik dashboard via forward-auth) are protected — the platform is now closed.                                                                                                                                                     |
 
 From L5 onwards, every change is a Git commit that Argo CD reconciles. Drift is reported in the Argo CD UI; nothing is applied with `kubectl` by hand.
 
@@ -112,13 +114,15 @@ Restore is the same procedure in reverse, scripted in the GitOps repo.
 
 ## What lives where
 
-| Concern                   | Location                                       |
-| ------------------------- | ---------------------------------------------- |
-| Talos secrets (PKI, etcd) | My password manager (sealed)                   |
-| Cluster bootstrap config  | OpenTofu state, encrypted backend              |
-| Workload manifests        | GitOps repo (`apps/`)                          |
-| Runtime secrets           | Infisical                                      |
-| User identities           | Authentik (Postgres)                           |
-| Container images          | Harbor (object storage on local PV)            |
-| Metrics & logs            | Prometheus + Loki (local PVs, short retention) |
-| Long-term backups         | Restic snapshots in external S3                |
+| Concern                   | Location                                           |
+| ------------------------- | -------------------------------------------------- |
+| Talos secrets (PKI, etcd) | My password manager (sealed)                       |
+| Cluster bootstrap config  | OpenTofu state, encrypted backend                  |
+| Workload manifests        | GitOps repo (`apps/`)                              |
+| Runtime secrets           | Infisical                                          |
+| User identities           | Authentik (Postgres)                               |
+| Container images          | Harbor (object storage on local PV)                |
+| Metrics & logs            | Prometheus + Loki (local PVs, short retention)     |
+| Code-quality analysis     | SonarQube (PostgreSQL via CloudNativePG, local PV) |
+| Home-automation state     | Home Assistant (local PV)                          |
+| Long-term backups         | Restic snapshots in external S3                    |

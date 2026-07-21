@@ -29,9 +29,11 @@ Every meaningful component in Atlas has a corresponding ADR explaining why it wa
 | [009](./009-infisical-secrets)             | Infisical as secret manager                                  |
 | [010](./010-harbor-registry)               | Harbor as image registry                                     |
 | [011](./011-prometheus-loki-observability) | Prometheus + Loki + Alertmanager + Grafana for observability |
+| [013](./013-sonarqube-code-quality)        | SonarQube for code quality (Postgres via CloudNativePG)      |
+| [014](./014-home-assistant)                | Home Assistant for home automation                           |
 
 ### Bootstrap orchestration
 
-| #                                                    | Title                                                      |
-| ---------------------------------------------------- | ---------------------------------------------------------- |
-| [012](./012-opentofu-owns-identity-secret-bootstrap) | OpenTofu owns the identity/secret bootstrap handshake (L3) |
+| #                                                    | Title                                                                   |
+| ---------------------------------------------------- | ----------------------------------------------------------------------- |
+| [012](./012-opentofu-owns-identity-secret-bootstrap) | In-cluster automation owns the identity/secret bootstrap handshake (L3) |
