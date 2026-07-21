@@ -2,6 +2,17 @@
 
 This file documents conventions for AI agents (Claude Code, Copilot, etc.) working on this repository. Follow these rules precisely so that all pages remain visually and structurally consistent.
 
+## General AI Rules & Workflow
+
+1. **Language:** All documentation across all projects (functional, technical, landing pages) **must be written strictly in English**.
+2. **Interactive First:** Always guide the user interactively. Present structured choices/options and ALWAYS include an `"Other (please specify)"` choice.
+3. **Sequential Documentation Flow:**
+   - **Step 1 — Functional First:** Focus on complete business domain requirements, roles & permissions (RBAC), user flows (BDD Gherkin scenarios), domain entities, and functional specs in `documentation/[project-name]/functional/`.
+   - **Step 2 — Technical Second:** Never draft, complete, or make technical decisions (`documentation/[project-name]/technical/`) before the functional specs and security baseline are completed and fully established.
+4. **Project Hub Context:** Remember this repository acts both as a central global documentation system and a hub to navigate between projects.
+
+---
+
 ## Commands
 
 | Command        | Purpose                  |
@@ -10,24 +21,33 @@ This file documents conventions for AI agents (Claude Code, Copilot, etc.) worki
 | `pnpm build`   | Build for production     |
 | `pnpm preview` | Preview production build |
 
-## Repository layout
+---
+
+## Repository Layout
 
 ```
 .
-├── .vitepress/config.mts       — site config: title, sidebar, footer, search
+├── .github/
+│   └── prompts/                — Single source of truth for AI skills
+│       ├── step-1-functional.md
+│       └── step-2-technical.md
+├── .vitepress/config.mts       — Site config: title, sidebar, footer, search
 ├── documentation/
-│   ├── index.md                — portal home (layout: page, custom HTML/CSS)
+│   ├── index.md                — Portal home / hub (layout: page, custom HTML/CSS)
 │   ├── resume/index.md         — CV page (layout: page, custom HTML/CSS)
 │   └── [project]/
-│       ├── index.md            — project landing (layout: home, VitePress YAML frontmatter)
-│       ├── functional/         — business domain: entities, features, workflows
+│       ├── index.md            — Project landing (layout: home, VitePress YAML frontmatter)
+│       ├── functional/         — STEP 1: Business domain, roles/permissions matrix, BDD specs
+│       │   ├── roles-and-permissions.md
 │       │   └── index.md
-│       └── technical/          — engineering: ADR, diagrams, runbooks
+│       └── technical/          — STEP 2: Engineering: ADR, architecture diagrams, API specs
 │           └── index.md
 └── README.md
 ```
 
-## CSS conventions — OOCSS
+---
+
+## CSS Conventions — OOCSS
 
 All inline `<style scoped>` blocks follow **OOCSS** (Object-Oriented CSS). Split every style block into two clearly labelled sections:
 
@@ -41,30 +61,31 @@ All inline `<style scoped>` blocks follow **OOCSS** (Object-Oriented CSS). Split
    ============================================= */
 ```
 
-### Rules
+## Rules
 
-- **Never** use container-descendant selectors (e.g. `.card-header h4`). Always add an explicit class to the element.
-- **Separate structure from skin**: `.card` holds `border-radius` + `padding`; `.card--soft` holds `background-color` + `border` + `transition`.
+- Never use container-descendant selectors (e.g. `.card-header h4`). Always add an explicit class to the element.
+- Separate structure from skin: `.card` holds `border-radius` + `padding`; `.card--soft` holds `background-color` + `border` + `transition`.
 - Use `--modifier` suffix for skin variants on the same object (`.btn--primary`, `.btn--alt`, `.badge--date`, `.badge--skill`).
 - Shared link skin across pages: `.link-brand` for brand-coloured anchor tags.
 - Shared badge pattern: `.badge` base + `.badge--date` or `.badge--skill` modifier.
 
-## Adding a new project
+## Adding a New Project Workflow
 
-Follow this checklist in order.
+Follow this checklist in order. Always execute via the interactive Skills (`/functional` then `/technical`).
 
-### 1. Create the directory structure
+### 1. Create the Directory Structure
 
 ```
 documentation/[project-name]/
-├── index.md            ← project landing page (required)
+├── index.md            ← Project landing page (required)
 ├── functional/
-│   └── index.md        ← functional section entry point (required)
+│   ├── roles-and-permissions.md ← Global security baseline (required)
+│   └── index.md        ← STEP 1: Functional section entry point (required)
 └── technical/
-    └── index.md        ← technical section entry point (required)
+    └── index.md        ← STEP 2: Technical section entry point (required)
 ```
 
-### 2. `index.md` — project landing page
+### 2. `index.md` — Project Landing Page
 
 Must use `layout: home`. Minimum required frontmatter:
 
@@ -79,23 +100,33 @@ hero:
 
 features:
   - title: Functional Documentation
-    details: Business objects and features.
+    details: Business scope, features, and domain models — described from a user's point of view.
     link: /[project-name]/functional/
+    linkText: Explore
   - title: Technical Documentation
-    details: Architecture decisions and diagrams.
+    details: Architecture overview, decision records (ADR), and system design.
     link: /[project-name]/technical/
+    linkText: Explore
 ---
 ```
 
-### 3. `functional/index.md` — functional section entry
+### 3. `functional/index.md` — Functional Section Entry (Step 1)
 
-Plain markdown doc page (no special frontmatter needed). Use it as the entry point to the business domain documentation: domain entities, features, workflows.
+Plain markdown doc page.
 
-### 4. `technical/index.md` — technical section entry
+- Focus: Business domain, functional specs, domain entities, user journeys, BDD scenarios, and feature permission matrix.
+- Rule 1 (Security Baseline): `functional/roles-and-permissions.md` must define global authentication status, tenant scopes, and available roles.
+- Rule 2 (Reciprocity): Adding a new role requires defining its permissions across ALL existing features.
+- Rule 3 (Language): Must be drafted and validated in English before starting technical specifications.
 
-Plain markdown doc page. Use it as the entry point to engineering documentation: ADR (Architecture Decision Records), system diagrams, deployment topology, runbooks.
+### 4. `technical/index.md` — Technical Section Entry (Step 2)
 
-### 5. Portal card in `documentation/index.md`
+Plain markdown doc page.
+
+- Focus: Engineering specs, Architecture Decision Records (ADR), system diagrams, deployment topology, runbooks.
+- Gatekeeper Rule: Do not fill or outline this section until Step 1 (Functional Documentation and Roles Matrix) is completed and validated.
+
+### 5. Portal Card in `documentation/index.md`
 
 Add a `<div class="card card--portal">` block to the `.portal-grid`. Structure:
 
@@ -104,8 +135,10 @@ Add a `<div class="card card--portal">` block to the `.portal-grid`. Structure:
   - `.card-title` — project name (`<h3>`)
   - `.card-description` — short description (`<p>`)
   - `.card-actions` — row of buttons
-    - **Mandatory** `.btn.btn--primary` → links to `/[project-name]/`
-    - **Optional** `.btn.btn--alt` → links to the live solution (external URL). Omit if no deployed solution exists.
+
+Mandatory `.btn.btn--primary` → links to `/[project-name]/`
+
+Optional `.btn.btn--alt` → links to the live solution (external URL). Omit if no deployed solution exists.
 
 ```html
 <div class="card card--portal">
@@ -134,6 +167,7 @@ Add a sidebar entry under `themeConfig.sidebar`:
     collapsed: false,
     items: [
       { text: "Overview", link: "/[project-name]/functional/" },
+      { text: "Roles & Permissions", link: "/[project-name]/functional/roles-and-permissions" },
     ],
   },
   {
@@ -148,6 +182,10 @@ Add a sidebar entry under `themeConfig.sidebar`:
 
 ## What NOT to do
 
+- Do not write documentation in any language other than English (e.g., French).
+- Do not populate `technical/` before `functional/` and `roles-and-permissions.md` are completed.
+- Do not bypass interactive choices (always provide options + "Other").
+- Do not create features without explicitly defining permissions for every role.
 - Do not modify `documentation/resume/index.md` for project-related content.
 - Do not wrap portal cards in an `<a>` tag — navigation is handled by the explicit `.btn` elements inside `.card-actions`.
 - Do not use element selectors scoped to a container (e.g. `.portal-header h1`) — add an explicit class instead.
