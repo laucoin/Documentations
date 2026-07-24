@@ -1,0 +1,81 @@
+/* Click-to-zoom affordance for Mermaid diagrams */
+.mermaid-zoomable {
+  cursor: zoom-in;
+  transition: box-shadow 0.15s ease;
+  border-radius: 8px;
+}
+.mermaid-zoomable:hover {
+  box-shadow: 0 0 0 2px var(--vp-c-brand-1);
+}
+.mermaid-zoomable:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+/* Prevent the page from scrolling while the lightbox is open */
+.mermaid-zoom-lock {
+  overflow: hidden;
+}
+
+.mermaid-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(2px);
+}
+
+.mermaid-zoom-stage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+.mermaid-zoom-stage:active {
+  cursor: grabbing;
+}
+
+.mermaid-zoom-content {
+  transform-origin: center center;
+  transition: transform 0.05s linear;
+  user-select: none;
+}
+.mermaid-zoom-content svg {
+  max-width: none;
+  max-height: none;
+}
+
+.mermaid-zoom-toolbar {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 101;
+  display: flex;
+  gap: 8px;
+}
+.mermaid-zoom-toolbar button {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 8px;
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.mermaid-zoom-toolbar button:hover {
+  background: var(--vp-c-bg-soft);
+  border-color: var(--vp-c-brand-1);
+}
