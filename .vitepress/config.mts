@@ -1,11 +1,27 @@
 import { defineConfig } from "vitepress";
+import { withMermaid } from "vitepress-plugin-mermaid";
 
 // https://vitepress.dev/reference/site-config
-export default defineConfig({
+export default withMermaid(
+  defineConfig({
   srcDir: "documentation",
+
+  // Pre-bundle mermaid so esbuild resolves its transitive UMD deps (dayjs)
+  // through mermaid itself and fixes the CJS→ESM interop. Including "dayjs"
+  // directly fails under pnpm since it isn't hoisted to the project root.
+  vite: {
+    optimizeDeps: {
+      include: ["mermaid"],
+    },
+    ssr: {
+      noExternal: ["mermaid"],
+    },
+  },
 
   title: "Luc’s projects",
   description: "Here a multi-project documentation about Luc’s personal works.",
+  // Dev/example URLs and non-doc references that are not resolvable pages.
+  ignoreDeadLinks: [/^https?:\/\/localhost/, /\/AGENTS$/],
   rewrites: {
     "../packages/atlas/docs/:page*": "atlas/:page*",
   },
@@ -109,6 +125,135 @@ export default defineConfig({
           ],
         },
       ],
+      "/registry/": [
+        { text: "Introduction", link: "/registry/" },
+        {
+          text: "Functional",
+          collapsed: false,
+          items: [
+            { text: "Overview", link: "/registry/functional/" },
+            { text: "Personas", link: "/registry/functional/personas" },
+            {
+              text: "Roles & Permissions",
+              link: "/registry/functional/roles-and-permissions",
+            },
+            { text: "Domain Model", link: "/registry/functional/domain-model" },
+            { text: "Workflows", link: "/registry/functional/workflows" },
+            {
+              text: "Features",
+              collapsed: false,
+              items: [
+                {
+                  text: "Projects",
+                  link: "/registry/functional/features/projects",
+                },
+                {
+                  text: "Members & Profiles",
+                  link: "/registry/functional/features/project-profiles",
+                },
+                {
+                  text: "Participants",
+                  link: "/registry/functional/features/participants",
+                },
+                {
+                  text: "Groups",
+                  link: "/registry/functional/features/groups",
+                },
+                {
+                  text: "Movements",
+                  link: "/registry/functional/features/movements",
+                },
+                {
+                  text: "Vehicles",
+                  link: "/registry/functional/features/vehicles",
+                },
+                {
+                  text: "Activities",
+                  link: "/registry/functional/features/activities",
+                },
+                {
+                  text: "Communications",
+                  link: "/registry/functional/features/communications",
+                },
+                {
+                  text: "Alerts",
+                  link: "/registry/functional/features/alerts",
+                },
+                {
+                  text: "Users",
+                  link: "/registry/functional/features/users",
+                },
+                {
+                  text: "Preferences",
+                  link: "/registry/functional/features/preferences",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          text: "Technical",
+          collapsed: false,
+          items: [
+            { text: "Overview", link: "/registry/technical/" },
+            {
+              text: "Getting Started",
+              link: "/registry/technical/getting-started",
+            },
+            { text: "Architecture", link: "/registry/technical/architecture" },
+            { text: "Security", link: "/registry/technical/security" },
+            { text: "Data Model", link: "/registry/technical/data-model" },
+            { text: "API Reference", link: "/registry/technical/api-reference" },
+            {
+              text: "ADRs",
+              collapsed: true,
+              items: [
+                { text: "Index", link: "/registry/technical/adr/" },
+                {
+                  text: "001 — Hexagonal Architecture",
+                  link: "/registry/technical/adr/001-hexagonal-architecture",
+                },
+                {
+                  text: "002 — Reactive WebFlux + R2DBC",
+                  link: "/registry/technical/adr/002-reactive-webflux-r2dbc",
+                },
+                {
+                  text: "003 — Kotlin + Java 25",
+                  link: "/registry/technical/adr/003-kotlin-java25",
+                },
+                {
+                  text: "004 — OIDC Resource Server",
+                  link: "/registry/technical/adr/004-oidc-resource-server-auth",
+                },
+                {
+                  text: "005 — DB-driven Project RBAC",
+                  link: "/registry/technical/adr/005-db-driven-project-rbac",
+                },
+                {
+                  text: "006 — Flyway + Trigram Search",
+                  link: "/registry/technical/adr/006-flyway-trigram-search",
+                },
+                {
+                  text: "007 — Inverted Adapter Naming",
+                  link: "/registry/technical/adr/007-inverted-adapter-naming",
+                },
+                {
+                  text: "008 — Frontend Runtime Config",
+                  link: "/registry/technical/adr/008-frontend-runtime-config",
+                },
+                {
+                  text: "009 — NGXS State Management",
+                  link: "/registry/technical/adr/009-ngxs-state-management",
+                },
+                {
+                  text: "010 — Container Delivery",
+                  link: "/registry/technical/adr/010-container-delivery-semantic-release",
+                },
+              ],
+            },
+          ],
+        },
+      ],
     },
     socialLinks: [
       { icon: "linkedin", link: "https://www.linkedin.com/in/luc-aucoin/" },
@@ -116,4 +261,5 @@ export default defineConfig({
       { icon: "github", link: "https://github.com/laucoin" },
     ],
   },
-});
+  }),
+);

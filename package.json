@@ -7,13 +7,15 @@
     "Documentation"
   ],
   "author": "laucoin",
-  "packageManager": "pnpm@11.6.0",
+  "packageManager": "pnpm@11.7.0",
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
     "preview": "vitepress preview"
   },
   "devDependencies": {
-    "vitepress": "2.0.0-alpha.18"
+    "mermaid": "^11.16.0",
+    "vitepress": "2.0.0-alpha.18",
+    "vitepress-plugin-mermaid": "^2.0.17"
   }
 }
