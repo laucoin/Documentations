@@ -25,6 +25,7 @@ export default withMermaid(
   rewrites: {
     "../packages/atlas/docs/:page*": "atlas/:page*",
   },
+  head: [['link', { rel: 'icon', href: '/favicon.ico' }]],
   themeConfig: {
     footer: {
       copyright: `© ${new Date().getFullYear()} Luc Aucoin. Unless otherwise stated, the content of this site is made available under the terms of the CC BY-NC-ND 4.0 license.`,
@@ -33,6 +34,101 @@ export default withMermaid(
       provider: "local",
     },
     sidebar: {
+      "/ponos/": [
+        { text: "Introduction", link: "/ponos/" },
+        {
+          text: "Functional",
+          collapsed: false,
+          items: [
+            { text: "Overview", link: "/ponos/functional/" },
+            { text: "Personas", link: "/ponos/functional/personas" },
+            {
+              text: "Actors & Trust Boundary",
+              link: "/ponos/functional/roles-and-permissions",
+            },
+            { text: "Workflows", link: "/ponos/functional/workflows" },
+            {
+              text: "Features",
+              collapsed: false,
+              items: [
+                {
+                  text: "Bootstrap Orchestration",
+                  link: "/ponos/functional/features/bootstrap",
+                },
+                {
+                  text: "Packages & Interactive Choices",
+                  link: "/ponos/functional/features/package-management",
+                },
+                {
+                  text: "Dotfiles & Shell Environment",
+                  link: "/ponos/functional/features/dotfiles",
+                },
+                {
+                  text: "Language Toolchains & Fonts",
+                  link: "/ponos/functional/features/toolchains",
+                },
+                {
+                  text: "Developer CLI Extensions",
+                  link: "/ponos/functional/features/cli-extensions",
+                },
+                {
+                  text: "Git Configuration & Hooks",
+                  link: "/ponos/functional/features/git-governance",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          text: "Technical",
+          collapsed: false,
+          items: [
+            { text: "Overview", link: "/ponos/technical/" },
+            {
+              text: "Getting Started",
+              link: "/ponos/technical/getting-started",
+            },
+            { text: "Architecture", link: "/ponos/technical/architecture" },
+            { text: "CLI Reference", link: "/ponos/technical/cli-reference" },
+            { text: "Configuration", link: "/ponos/technical/configuration" },
+            {
+              text: "ADRs",
+              collapsed: true,
+              items: [
+                { text: "Index", link: "/ponos/technical/adr/" },
+                {
+                  text: "001 — Idempotent Bash Orchestrator",
+                  link: "/ponos/technical/adr/001-idempotent-bash-orchestrator",
+                },
+                {
+                  text: "002 — Homebrew Bundle",
+                  link: "/ponos/technical/adr/002-homebrew-bundle",
+                },
+                {
+                  text: "003 — Symlinked Dotfiles",
+                  link: "/ponos/technical/adr/003-symlinked-dotfiles",
+                },
+                {
+                  text: "004 — Per-language Version Managers",
+                  link: "/ponos/technical/adr/004-per-language-version-managers",
+                },
+                {
+                  text: "005 — Python + Click CLIs",
+                  link: "/ponos/technical/adr/005-python-click-cli",
+                },
+                {
+                  text: "006 — Git Template Hooks",
+                  link: "/ponos/technical/adr/006-git-template-hooks",
+                },
+                {
+                  text: "007 — Persisted Interactive Choices",
+                  link: "/ponos/technical/adr/007-persisted-interactive-choices",
+                },
+              ],
+            },
+          ],
+        },
+      ],
       "/atlas/": [
         { text: "Introduction", link: "/atlas/" },
         {
