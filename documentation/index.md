@@ -13,6 +13,17 @@ lastUpdated: false
   </header>
 
   <div class="portal-grid">
+    <!-- Ponos -->
+    <div class="card card--portal">
+      <div class="card-icon">🛠️</div>
+      <div class="card-body">
+        <h3 class="card-title">Ponos (Mac Bootstrap)</h3>
+        <p class="card-description">Reproducible macOS developer environment as code: one idempotent script for Homebrew packages, symlinked dotfiles, language toolchains, Git governance, and a set of developer CLI helpers.</p>
+        <div class="card-actions">
+          <a href="/ponos/" class="btn btn--primary">Documentation →</a>
+        </div>
+      </div>
+    </div>
     <!-- Atlas -->
     <div class="card card--portal">
       <div class="card-icon">🛰️</div>
@@ -31,7 +42,7 @@ lastUpdated: false
         <h3 class="card-title">Registry (Presence Platform)</h3>
         <p class="card-description">Multi-tenant participant &amp; event registry: register people, organize groups, record check-in/out movements, and track live presence — behind SSO with fine-grained, per-event permissions.</p>
         <div class="card-actions">
-          <a href="https://registry.sgdf.fr" target="_blank" class="btn btn--alt">Checkout</a>
+          <a href="https://registry.sgdf.fr" target="_blank" class="btn btn--alt">Explore</a>
           <a href="/registry/" class="btn btn--primary">Documentation →</a>
         </div>
       </div>
@@ -39,7 +50,7 @@ lastUpdated: false
   </div>
 
   <footer class="portal-footer">
-    <p class="portal-footer-text">This portal was built with <a class="link-brand" target="_blank" href="https://vitepress.dev/">VitePress</a>. You can checkout the repository <a class="link-brand" target="_blank" href="https://github.com/laucoin/documentation">here</a>.</p>
+    <p class="portal-footer-text">This portal was built with <a class="link-brand" target="_blank" href="https://vitepress.dev/">VitePress</a>. You can checkout the repository <a class="link-brand" target="_blank" href="https://github.com/laucoin/Documentations">here</a>.</p>
   </footer>
 
 </div>
