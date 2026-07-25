@@ -26,7 +26,7 @@ Read by `setup_git`; expected in `~/.zshenv` so they reach the script's non-inte
 
 ### Read by the CLI extensions
 
-Set in `.zshrc` (except `GIT_PATH`, see the note in [CLI Reference → rhooks](./cli-reference#rhooks)).
+Set in `.zshrc` (except `GIT_PATH`, see the note in [CLI Reference → rhooks](/ponos/technical/cli-reference#rhooks)).
 
 | Variable | Default value in `.zshrc` | Used by |
 | -------- | ------------------------- | ------- |
@@ -61,7 +61,7 @@ The base package set (authoritative list lives in the repository's `Brewfile`):
 | **Communication** | `whatsapp`, `discord` |
 | **Other** | `bitwarden`, `spotify`, `steam` |
 
-At run time `sync_mac.sh` appends the interactive selections (see [Packages & Interactive Choices](../functional/features/package-management#what-is-installed)) to a temporary effective Brewfile; the tracked file is never modified.
+At run time `sync_mac.sh` appends the interactive selections (see [Packages & Interactive Choices](/ponos/functional/features/package-management#what-is-installed)) to a temporary effective Brewfile; the tracked file is never modified.
 
 ## Managed paths
 

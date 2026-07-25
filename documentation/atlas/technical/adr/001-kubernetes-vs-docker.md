@@ -9,7 +9,7 @@ Accepted
 Atlas could run its workloads on either:
 
 1. **Docker** — either plain `docker compose` files managed by a script, or Docker Swarm for clustering. The classic homelab stack.
-2. **Kubernetes**, in the form bundled with Talos Linux ([ADR 002](./002-talos-vs-k3s-debian)).
+2. **Kubernetes**, in the form bundled with Talos Linux ([ADR 002](/atlas/technical/adr/002-talos-vs-k3s-debian)).
 
 Both can host the services Atlas needs. The decision is about which orchestrator pays back its complexity in this specific homelab.
 
@@ -32,7 +32,7 @@ Use **Kubernetes** as the orchestrator.
 - **Significantly more moving parts.** etcd, kubelet, kube-apiserver, kube-controller-manager, kube-scheduler, kube-proxy, CNI, CSI. A Docker Compose stack has one moving part: `dockerd`.
 - **Higher baseline resource cost.** Even an idle single-node cluster eats ~1.5 GB of RAM before the first workload. Docker Compose's overhead is closer to nothing.
 - **YAML and Helm everywhere.** Even trivial deployments require several manifests. Docker Compose can express the same in 20 lines.
-- **The "etcd corruption on a single node" risk.** A single-node Kubernetes cluster has the same etcd as a 3-node cluster, but without the safety net of quorum. Backups must include etcd snapshots; recovery procedures matter ([ADR 007](./007-local-path-restic-storage)).
+- **The "etcd corruption on a single node" risk.** A single-node Kubernetes cluster has the same etcd as a 3-node cluster, but without the safety net of quorum. Backups must include etcd snapshots; recovery procedures matter ([ADR 007](/atlas/technical/adr/007-local-path-restic-storage)).
 
 ### Trade-off accepted
 

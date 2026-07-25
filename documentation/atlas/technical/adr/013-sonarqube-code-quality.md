@@ -27,7 +27,7 @@ Run **SonarQube Community Build** via the official SonarSource Helm chart, with 
 - **Historical trends and quality gates** in a real UI, not just CI log output.
 - **CloudNativePG is a clean, Kubernetes-native database story**: backups, failover primitives, and credential generation are the operator's job, and it is reusable by any future service that needs Postgres.
 - **`vm.max_map_count` is set at the node level via Talos** rather than a privileged init container, so the `sonarqube` namespace stays under the baseline Pod Security Standard.
-- **Native Prometheus metrics** (`/api/monitoring/metrics`) are scraped via the chart's PodMonitor and surfaced in Grafana ([ADR 011](./011-prometheus-loki-observability)).
+- **Native Prometheus metrics** (`/api/monitoring/metrics`) are scraped via the chart's PodMonitor and surfaced in Grafana ([ADR 011](/atlas/technical/adr/011-prometheus-loki-observability)).
 
 ### Negative
 

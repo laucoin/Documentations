@@ -118,8 +118,8 @@ onUnmounted(() => {
     <div v-if="open" class="mermaid-zoom-overlay" @click.self="close">
       <div class="mermaid-zoom-toolbar">
         <button type="button" title="Zoom out" @click="scale = Math.max(MIN_SCALE, scale / 1.15)">−</button>
-        <button type="button" title="Reset" @click="resetView">⤢</button>
         <button type="button" title="Zoom in" @click="scale = Math.min(MAX_SCALE, scale * 1.15)">+</button>
+        <button type="button" title="Reset" @click="resetView">↺</button>
         <button type="button" title="Close (Esc)" @click="close">✕</button>
       </div>
       <div

@@ -1,6 +1,6 @@
 # Workflows
 
-These are the end-to-end journeys Registry exists to support. Each is written from the actor's point of view, with the product doing the work behind the scenes. Where a step depends on a permission, the [Roles & Permissions](./roles-and-permissions) matrix governs it.
+These are the end-to-end journeys Registry exists to support. Each is written from the actor's point of view, with the product doing the work behind the scenes. Where a step depends on a permission, the [Roles & Permissions](/registry/functional/roles-and-permissions) matrix governs it.
 
 ## W1 — Signing in for the first time
 

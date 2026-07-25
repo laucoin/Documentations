@@ -11,7 +11,7 @@ Every public-facing Atlas hostname must serve a valid TLS certificate. Browsers 
 1. **cert-manager**, the de-facto standard Kubernetes ACME client, automating Let's Encrypt issuance and renewal.
 2. **Manual ACME with `certbot`** on the host, copying certificates into Secrets — incompatible with a Talos host that has no shell.
 3. **A paid wildcard certificate** purchased annually and rotated manually.
-4. **Caddy as ingress** — would bundle ACME into the ingress controller, but conflicts with the Traefik decision ([ADR 005](./005-traefik-ingress)).
+4. **Caddy as ingress** — would bundle ACME into the ingress controller, but conflicts with the Traefik decision ([ADR 005](/atlas/technical/adr/005-traefik-ingress)).
 
 Atlas already forwards ports 80 and 443 from the router to the node so its services are reachable from the internet. That same port-80 path is exactly what the HTTP-01 ACME challenge needs, so HTTP-01 works with no extra dependency. DNS-01 would instead require storing a registrar API token in the cluster and depending on registrar-specific TXT-record propagation — extra moving parts Atlas does not need as long as port 80 is reachable.
 

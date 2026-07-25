@@ -10,7 +10,7 @@
 
 ## 2. Access & Trust Boundary
 
-Runs entirely as the invoking macOS user. The only privilege escalation that can occur is a `sudo` prompt raised by **Homebrew** when a cask installs into `/Applications`. See [Actors & Trust Boundary](../roles-and-permissions).
+Runs entirely as the invoking macOS user. The only privilege escalation that can occur is a `sudo` prompt raised by **Homebrew** when a cask installs into `/Applications`. See [Actors & Trust Boundary](/ponos/functional/roles-and-permissions).
 
 ## 3. Orchestration sequence
 

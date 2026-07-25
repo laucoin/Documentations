@@ -1,6 +1,6 @@
 # Technical Documentation
 
-This section covers the engineering of Ponos: the single-script orchestrator, the symlink-based dotfiles model, the Python/Click CLI extensions, the Git template hooks, and the Architecture Decision Records that justify each choice. It assumes the [Functional Documentation](../functional/) — especially the [Actors & Trust Boundary](../functional/roles-and-permissions) baseline — is understood.
+This section covers the engineering of Ponos: the single-script orchestrator, the symlink-based dotfiles model, the Python/Click CLI extensions, the Git template hooks, and the Architecture Decision Records that justify each choice. It assumes the [Functional Documentation](/ponos/functional/) — especially the [Actors & Trust Boundary](/ponos/functional/roles-and-permissions) baseline — is understood.
 
 ## System at a glance
 
@@ -43,11 +43,11 @@ The orchestrator installs Homebrew and packages, symlinks the dotfiles, installs
 
 | Page | Purpose |
 | ---- | ------- |
-| [Getting Started](./getting-started) | Prerequisites and the exact procedure to run Ponos on a fresh Mac |
-| [Architecture](./architecture) | The orchestrator's structure, the idempotency and backup model, and how a run flows end to end |
-| [CLI Reference](./cli-reference) | Every alias, Click command, flag and Git alias, with defaults |
-| [Configuration](./configuration) | Environment variables, the persisted choices file, the Brewfile, and managed paths |
-| [ADR index](./adr/) | All Architecture Decision Records, in causal order |
+| [Getting Started](/ponos/technical/getting-started) | Prerequisites and the exact procedure to run Ponos on a fresh Mac |
+| [Architecture](/ponos/technical/architecture) | The orchestrator's structure, the idempotency and backup model, and how a run flows end to end |
+| [CLI Reference](/ponos/technical/cli-reference) | Every alias, Click command, flag and Git alias, with defaults |
+| [Configuration](/ponos/technical/configuration) | Environment variables, the persisted choices file, the Brewfile, and managed paths |
+| [ADR index](/ponos/technical/adr/) | All Architecture Decision Records, in causal order |
 
 ## Stack summary
 

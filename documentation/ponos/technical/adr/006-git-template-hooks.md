@@ -15,7 +15,7 @@ Ship the hooks in the Ponos repo under `dotfiles/git/git-templates/hooks/` and p
 - **`commit-msg`** — enforces Conventional-Commit keywords, prefixes `wip` messages with `[skip ci]`, and can synthesise a valid message from the branch name.
 - **`pre-push`** — prompts for confirmation on a protected branch (`main`/`master`/`develop`) or a detected force push, reading `~/.zsh_history` to spot the force flag.
 
-For repos that already existed before the template was set, [`rhooks`](../cli-reference#rhooks) copies the latest hooks into every `.git/hooks` under a directory tree on demand.
+For repos that already existed before the template was set, [`rhooks`](/ponos/technical/cli-reference#rhooks) copies the latest hooks into every `.git/hooks` under a directory tree on demand.
 
 ## Consequences
 

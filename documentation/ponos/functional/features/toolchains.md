@@ -9,7 +9,7 @@ Ponos installs three language toolchains through dedicated version managers so r
 
 ## 2. Access & Trust Boundary
 
-All runtimes install under `$HOME` (`~/.pyenv`, `~/.nvm`, `~/.sdkman`); no system-wide install and no elevation. The font is a Homebrew cask. See [Actors & Trust Boundary](../roles-and-permissions).
+All runtimes install under `$HOME` (`~/.pyenv`, `~/.nvm`, `~/.sdkman`); no system-wide install and no elevation. The font is a Homebrew cask. See [Actors & Trust Boundary](/ponos/functional/roles-and-permissions).
 
 ## 3. What is installed
 
@@ -26,7 +26,7 @@ All runtimes install under `$HOME` (`~/.pyenv`, `~/.nvm`, `~/.sdkman`); no syste
 - **Latest-stable Python.** The Python version is resolved dynamically at run time, not pinned, so a re-run can pick up a newer stable release.
 - **Pinned Java.** Java is pinned to a specific LTS build for reproducibility.
 - **Idempotent.** Already-installed runtimes and the already-installed font are detected and skipped.
-- **Dependency libraries.** The Python step installs `click` and `colorlog` because the [CLI extensions](./cli-extensions) and [Git template hooks](./git-governance) import them.
+- **Dependency libraries.** The Python step installs `click` and `colorlog` because the [CLI extensions](/ponos/functional/features/cli-extensions) and [Git template hooks](/ponos/functional/features/git-governance) import them.
 
 ## 5. Behavioural scenarios (BDD)
 

@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Atlas runs on a single node ([ADR 002](./002-talos-vs-k3s-debian)). Workloads need persistent storage (Harbor blobs, Postgres databases for Authentik / Infisical / Harbor, Grafana state, Prometheus and Loki TSDBs), and the operator needs the data to survive disk and host failures.
+Atlas runs on a single node ([ADR 002](/atlas/technical/adr/002-talos-vs-k3s-debian)). Workloads need persistent storage (Harbor blobs, Postgres databases for Authentik / Infisical / Harbor, Grafana state, Prometheus and Loki TSDBs), and the operator needs the data to survive disk and host failures.
 
 The options considered were:
 

@@ -17,7 +17,7 @@ Home Assistant is the obvious fit: it runs anywhere, keeps everything local, and
 
 ## Decision
 
-Run **Home Assistant** via the community `pajikos/home-assistant` Helm chart, exposed through Traefik with a cert-manager certificate, using **Home Assistant's own login** rather than Authentik SSO. Metrics are exported through HA's `prometheus` integration and scraped into Grafana ([ADR 011](./011-prometheus-loki-observability)).
+Run **Home Assistant** via the community `pajikos/home-assistant` Helm chart, exposed through Traefik with a cert-manager certificate, using **Home Assistant's own login** rather than Authentik SSO. Metrics are exported through HA's `prometheus` integration and scraped into Grafana ([ADR 011](/atlas/technical/adr/011-prometheus-loki-observability)).
 
 ## Consequences
 
@@ -30,7 +30,7 @@ Run **Home Assistant** via the community `pajikos/home-assistant` Helm chart, ex
 
 ### Negative
 
-- **Authentication is a one-off exception.** Home Assistant uses its own login because OIDC and forward-auth do not work for it — so it does not benefit from single sign-on ([ADR 008](./008-authentik-oidc)), and account management is HA-local.
+- **Authentication is a one-off exception.** Home Assistant uses its own login because OIDC and forward-auth do not work for it — so it does not benefit from single sign-on ([ADR 008](/atlas/technical/adr/008-authentik-oidc)), and account management is HA-local.
 - **Proxy awareness is required.** HA must `use_x_forwarded_for` and trust the in-cluster proxy CIDRs, or it rejects every request routed through Traefik.
 - **Metrics need a manual token.** `/api/prometheus` is guarded by a long-lived access token that can only be minted in the HA UI after first boot; until that Secret exists, the Grafana dashboard stays empty.
 - **Device discovery protocols (mDNS/Bluetooth/Zigbee) are constrained in Kubernetes.** Anything depending on host-network discovery or USB radios will need extra wiring (host networking, device passthrough) that a containerised HA does not get for free.

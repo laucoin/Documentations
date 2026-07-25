@@ -10,7 +10,7 @@ Registry is **protected / private**. Authentication is delegated to an external 
 
 - Every screen and every API call requires a signed-in user, **except** the handful of authentication endpoints themselves (obtaining a login/logout URL, exchanging an authorization code for tokens, and refreshing tokens). API documentation and health endpoints are public only when explicitly enabled for an environment.
 - A user's identity comes from the provider. On first sign-in, Registry **provisions the account automatically** with the default global role and links it to the provider identity.
-- A **blocked** account (globally disabled) is refused at sign-in, and an **anonymized** account can never sign in again (see [Users](./features/users)).
+- A **blocked** account (globally disabled) is refused at sign-in, and an **anonymized** account can never sign in again (see [Users](/registry/functional/features/users)).
 
 ## Two permission planes
 
@@ -21,7 +21,7 @@ Authorization is split into two planes that combine on every request.
 | **Global** | What may this user do across the whole platform, independent of any event? | Manage user accounts; create a project. |
 | **Project-scoped** | What may this user do *inside this specific event*? | Record a movement in project X; delete a group in project X. |
 
-A project-scoped permission is always bound to **one** project. Holding a permission in one event grants nothing in another — this is what makes Registry multi-tenant. Under the hood, a project permission is the pair *(project, permission)*; the [technical documentation](../technical/security) explains how that is enforced.
+A project-scoped permission is always bound to **one** project. Holding a permission in one event grants nothing in another — this is what makes Registry multi-tenant. Under the hood, a project permission is the pair *(project, permission)*; the [technical documentation](/registry/technical/security) explains how that is enforced.
 
 ## Global roles
 
@@ -106,4 +106,4 @@ So enabling alerts implies enabling communications and activities. The core — 
 
 ## Adding a new role (reciprocity rule)
 
-If a new role is ever introduced — on either plane — it must be defined against **every existing feature** before it ships. Concretely: add a column to the [global](#global-access-matrix) or [project](#project-access-matrix) matrix here, and add a row for the new role to the *Roles & Permissions* table on **each** page under [Features](./features/projects). A role with an undefined permission for any feature is not a valid role.
+If a new role is ever introduced — on either plane — it must be defined against **every existing feature** before it ships. Concretely: add a column to the [global](#global-access-matrix) or [project](#project-access-matrix) matrix here, and add a row for the new role to the *Roles & Permissions* table on **each** page under [Features](/registry/functional/features/projects). A role with an undefined permission for any feature is not a valid role.

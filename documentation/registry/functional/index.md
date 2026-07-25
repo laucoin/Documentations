@@ -1,6 +1,6 @@
 # Functional Documentation
 
-Registry is a web application for **managing the people present at an event**. An organizer creates an event, invites staff to help run it, registers the people who take part, optionally organizes them into groups, and then keeps a live record of who is physically on site and who has left. Everything here is described from a user's point of view — what the product does, who uses it, and the rules that govern each feature. The engineering behind it lives in the [Technical Documentation](../technical/).
+Registry is a web application for **managing the people present at an event**. An organizer creates an event, invites staff to help run it, registers the people who take part, optionally organizes them into groups, and then keeps a live record of who is physically on site and who has left. Everything here is described from a user's point of view — what the product does, who uses it, and the rules that govern each feature. The engineering behind it lives in the [Technical Documentation](/registry/technical/).
 
 ## What Registry is, in one paragraph
 
@@ -32,8 +32,8 @@ Registry replaces the paper attendance sheet ("who is here right now?") with a s
 
 | Page | Purpose |
 | ---- | ------- |
-| [Personas](./personas) | Who uses Registry and what each one needs from it |
-| [Roles & Permissions](./roles-and-permissions) | The security baseline: authentication, the two permission planes, roles, and the full access matrix |
-| [Domain Model](./domain-model) | The business vocabulary — every entity, its relationships, and the status values that drive presence |
-| [Workflows](./workflows) | End-to-end journeys, from signing in to recording a movement and handling an alert |
-| [Features](./features/projects) | One page per feature, each with its access matrix and BDD scenarios |
+| [Personas](/registry/functional/personas) | Who uses Registry and what each one needs from it |
+| [Roles & Permissions](/registry/functional/roles-and-permissions) | The security baseline: authentication, the two permission planes, roles, and the full access matrix |
+| [Domain Model](/registry/functional/domain-model) | The business vocabulary — every entity, its relationships, and the status values that drive presence |
+| [Workflows](/registry/functional/workflows) | End-to-end journeys, from signing in to recording a movement and handling an alert |
+| [Features](/registry/functional/features/projects) | One page per feature, each with its access matrix and BDD scenarios |

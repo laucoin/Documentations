@@ -8,12 +8,12 @@ Accepted
 
 ## Context
 
-[ADR 003](./003-opentofu-vs-terraform-vs-pulumi) chose OpenTofu for the IaC layer with an explicit intent: OpenTofu's footprint inside Atlas should be tiny — just enough to install Talos, the cluster baseline, and Argo CD, then let Argo CD take over. [ADR 004](./004-argocd-vs-flux) reinforced this: Argo CD's app-of-apps owns every workload; OpenTofu does not.
+[ADR 003](/atlas/technical/adr/003-opentofu-vs-terraform-vs-pulumi) chose OpenTofu for the IaC layer with an explicit intent: OpenTofu's footprint inside Atlas should be tiny — just enough to install Talos, the cluster baseline, and Argo CD, then let Argo CD take over. [ADR 004](/atlas/technical/adr/004-argocd-vs-flux) reinforced this: Argo CD's app-of-apps owns every workload; OpenTofu does not.
 
 When sequencing the actual installation, an unavoidable handshake step emerged between two of the platform's services:
 
-1. Authentik ([ADR 008](./008-authentik-oidc)) is the OIDC IdP for every other public service.
-2. Infisical ([ADR 009](./009-infisical-secrets)) is the secret store that ESO syncs into Kubernetes.
+1. Authentik ([ADR 008](/atlas/technical/adr/008-authentik-oidc)) is the OIDC IdP for every other public service.
+2. Infisical ([ADR 009](/atlas/technical/adr/009-infisical-secrets)) is the secret store that ESO syncs into Kubernetes.
 3. Every identity-aware service (Harbor, Grafana, Argo CD, plus the Traefik dashboard via Authentik's proxy/forward-auth provider) needs OIDC client config that is _defined in Authentik_ and _stored in Infisical_.
 4. This handshake must happen _after_ Authentik and Infisical are running, but _before_ the identity-aware workloads can authenticate.
 

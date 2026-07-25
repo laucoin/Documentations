@@ -37,7 +37,7 @@ Controllers are **contract-first**: REST semantics — paths, `@PreAuthorize`, O
 
 - **Boundaries are a build-time guarantee, not a convention.** A pull request that makes the REST layer reach into persistence, or puts a `@Service` in the wrong package, fails CI. The architecture cannot silently erode.
 - **The domain is testable in isolation.** Use-cases depend on port interfaces, so they can be unit-tested with in-memory fakes — no Spring context, no database.
-- **Framework churn is contained.** Swapping the web or persistence adapter (see [ADR 002](./002-reactive-webflux-r2dbc)) touches infrastructure, not the core.
+- **Framework churn is contained.** Swapping the web or persistence adapter (see [ADR 002](/registry/technical/adr/002-reactive-webflux-r2dbc)) touches infrastructure, not the core.
 - **Contract-first controllers separate the API surface from its implementation.** The interface is the single place where security and OpenAPI annotations live, which keeps the impl trivial and the generated docs honest.
 - **Naming conventions make the codebase navigable.** A `*Port` is always a boundary; a `*Service` is always a use-case. New contributors orient quickly.
 

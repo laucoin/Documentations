@@ -40,7 +40,7 @@ These are the journeys Atlas exists to support. Each one is described from the a
 
 ## W5 — I recover from a disk failure
 
-1. I provision a new SSD (or a new machine) and re-run the OpenTofu bootstrap procedure documented in [Technical → Architecture](../technical/architecture).
+1. I provision a new SSD (or a new machine) and re-run the OpenTofu bootstrap procedure documented in [Technical → Architecture](/atlas/technical/architecture).
 2. Argo CD reinstalls every workload from Git within minutes.
 3. I restore application data (Harbor blobs, Authentik database, Infisical database, Grafana dashboards, Prometheus history) from the latest Restic snapshot.
 4. The platform is back online at the same URLs with the same data, modulo whatever happened between the last snapshot and the failure.

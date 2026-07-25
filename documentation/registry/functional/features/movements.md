@@ -8,7 +8,7 @@
 
 ## 2. Roles & Permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](../roles-and-permissions) for the full model, and [Domain Model → Movement](../domain-model#movement-the-core-record) for the entity.
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Movement](/registry/functional/domain-model#movement-the-core-record) for the entity.
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
@@ -25,7 +25,7 @@ All rules below are **enforced by validators** at write time; a request that bre
 - **Reason / direction / type coherence** (`@MovementReason`):
   - A **guest** with **no reason** must be `OUT` (leaving).
   - A **registered** participant with **no reason and no activity** must be `IN` (returning).
-  - Otherwise, either an **activity** is present, or the chosen **reason's own direction and participant-type must match** the movement. The pairings are fixed: `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` are `OUT` for registered participants; `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT` are `IN` for guests. See [Domain Model → How reasons pair with direction and type](../domain-model#how-reasons-pair-with-direction-and-type).
+  - Otherwise, either an **activity** is present, or the chosen **reason's own direction and participant-type must match** the movement. The pairings are fixed: `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` are `OUT` for registered participants; `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT` are `IN` for guests. See [Domain Model → How reasons pair with direction and type](/registry/functional/domain-model#how-reasons-pair-with-direction-and-type).
 - **Guest movement content** (`@MovementGuestContent`). For a guest movement:
   - if direction is `IN`, a **non-empty list of new guests** (first name, last name, birthday) is provided and the existing-participant list is empty — guests are **created on arrival**;
   - if direction is `OUT`, it references **existing guest participants** and the new-guest list is empty.
@@ -173,16 +173,16 @@ Scenario: The live headcount reflects recorded movements
 
 ## 5. API surface
 
-REST endpoints backing this feature. All project-scoped endpoints live under `/api/v1/projects/{projectId}/...`. See [Technical → API Reference](../../technical/api-reference).
+REST endpoints backing this feature. All project-scoped endpoints live under `/api/v2/projects/{projectId}/...`. See [Technical → API Reference](/registry/technical/api-reference).
 
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
 | `GET` | `/movements` | List movements | `REGISTRY_PROJECT_MOVEMENT_R` |
 | `GET` | `/movements/contents` | List movement contents | `REGISTRY_PROJECT_MOVEMENT_R` |
 | `GET` | `/movements/{id}` | Read a single movement | `REGISTRY_PROJECT_MOVEMENT_R` |
-| `GET` | `/movements/search/reasons` | Search selectable reasons (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
-| `GET` | `/movements/search/participants-and-groups` | Search participants and groups to move (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
-| `GET` | `/movements/search/vehicles` | Search assignable vehicles (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
+| `GET` | `/movements/reasons?q=` | Search selectable reasons (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
+| `GET` | `/movements/eligible-participants-and-groups?q=` | Search participants and groups to move (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
+| `GET` | `/movements/eligible-vehicles?q=` | Search assignable vehicles (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
 | `GET` | `/movements/{id}/communications` | Read the movement's discussion thread | `COMMUNICATION` option + `REGISTRY_PROJECT_MOVEMENT_COMMUNICATION_R` |
 | `GET` | `/movements/participants/status` | Live headcount: present minors / majors, absent, guests on site | `REGISTRY_PROJECT_R` |
 | `GET` | `/movements/vehicles/status` | Live vehicle presence (present / absent) | `VEHICLE` option + `REGISTRY_PROJECT_R` |
@@ -190,6 +190,6 @@ REST endpoints backing this feature. All project-scoped endpoints live under `/a
 | `POST` | `/movements/guests` | Record a guest movement (creating guests on arrival) | `REGISTRY_PROJECT_MOVEMENT_C` |
 | `PATCH` | `/movements/{id}` | Correct a registered movement | `REGISTRY_PROJECT_MOVEMENT_U` |
 | `PATCH` | `/movements/guests/{id}` | Correct a guest movement | `REGISTRY_PROJECT_MOVEMENT_U` |
-| `PATCH` | `/movements/{id}/disable` | Soft-disable a movement | `REGISTRY_PROJECT_MOVEMENT_U` |
-| `PATCH` | `/movements/{id}/enable` | Re-enable a disabled movement | `REGISTRY_PROJECT_MOVEMENT_U` |
+| `POST` | `/movements/{id}/disable` | Soft-disable a movement | `REGISTRY_PROJECT_MOVEMENT_U` |
+| `POST` | `/movements/{id}/enable` | Re-enable a disabled movement | `REGISTRY_PROJECT_MOVEMENT_U` |
 | `DELETE` | `/movements/{id}` | Permanently delete a movement | `REGISTRY_PROJECT_MOVEMENT_D` |

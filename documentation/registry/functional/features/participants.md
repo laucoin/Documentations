@@ -8,7 +8,7 @@
 
 ## 2. Roles & Permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — plus *History* (view a participant's movement history). See [Roles & Permissions](../roles-and-permissions) and [Domain Model → Participant](../domain-model#participant).
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — plus *History* (view a participant's movement history). See [Roles & Permissions](/registry/functional/roles-and-permissions) and [Domain Model → Participant](/registry/functional/domain-model#participant).
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
@@ -21,7 +21,7 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — 
 - **`firstName` and `lastName`** identify the participant.
 - **`birthday` is required** and **cannot be in the future** (`@PastOrPresent`).
 - **Availability window.** `start` must be **before** `end` (`@StartBeforeEnd`).
-- **Type.** Each participant is `REGISTERED` or `GUEST`. A `REGISTERED` participant's normal state is *present* (they generate `OUT` movements when leaving); a `GUEST`'s normal state is *off-site* (they generate `IN` movements when arriving). See [Domain Model → Participant](../domain-model#participant).
+- **Type.** Each participant is `REGISTERED` or `GUEST`. A `REGISTERED` participant's normal state is *present* (they generate `OUT` movements when leaving); a `GUEST`'s normal state is *off-site* (they generate `IN` movements when arriving). See [Domain Model → Participant](/registry/functional/domain-model#participant).
 - **Optional user link.** A participant may or may not be linked to a real user account; **most are not**. Linking pre-fills the participant's name from the account and **locks** the name fields.
 - **Disabling is a soft, reversible action.** A disabled participant is hidden but can be re-enabled.
 - **Derived presence.** Presence status (`IN` / `OUT` / `UNAVAILABLE`) is computed from the participant's latest movement and their availability window — it is never set directly.
@@ -90,18 +90,18 @@ Scenario: Today's-birthdays panel lists participants born on this day
 
 ## 5. API surface
 
-Project-scoped endpoints live under `/api/v1/projects/{projectId}/participants/...`, secured by the holder's project-scoped permission. See [Technical → API Reference](../../technical/api-reference).
+Project-scoped endpoints live under `/api/v2/projects/{projectId}/participants/...`, secured by the holder's project-scoped permission. See [Technical → API Reference](/registry/technical/api-reference).
 
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
 | `GET` | `/participants` | List participants | scoped `REGISTRY_PROJECT_PARTICIPANT_R` |
-| `GET` | `/participants/birthday` | List participants whose birthday is today | scoped `REGISTRY_PROJECT_PARTICIPANT_R` |
+| `GET` | `/participants/birthdays` | List participants whose birthday is today | scoped `REGISTRY_PROJECT_PARTICIPANT_R` |
 | `GET` | `/participants/{id}` | Read a single participant | scoped `REGISTRY_PROJECT_PARTICIPANT_R` |
-| `GET` | `/participants/search/users` | Search users to link | scoped `REGISTRY_PROJECT_PARTICIPANT_METADATA_R` |
-| `GET` | `/participants/search/groups` | Search groups to join | scoped `REGISTRY_PROJECT_PARTICIPANT_METADATA_R` |
+| `GET` | `/participants/linkable-users?q=` | Search users to link | scoped `REGISTRY_PROJECT_PARTICIPANT_METADATA_R` |
+| `GET` | `/participants/linkable-groups?q=` | Search groups to join | scoped `REGISTRY_PROJECT_PARTICIPANT_METADATA_R` |
 | `GET` | `/participants/{id}/movements` | Read a participant's movement history | scoped `REGISTRY_PROJECT_PARTICIPANT_HISTORY_R` |
 | `POST` | `/participants` | Register a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_C` |
 | `PATCH` | `/participants/{id}` | Update a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_U` |
-| `PATCH` | `/participants/{id}/disable` | Soft-disable a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_U` |
-| `PATCH` | `/participants/{id}/enable` | Re-enable a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_U` |
+| `POST` | `/participants/{id}/disable` | Soft-disable a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_U` |
+| `POST` | `/participants/{id}/enable` | Re-enable a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_U` |
 | `DELETE` | `/participants/{id}` | Delete a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_D` |

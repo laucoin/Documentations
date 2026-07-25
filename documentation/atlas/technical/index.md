@@ -6,10 +6,10 @@ This section covers the engineering of Atlas: the high-level architecture, the b
 
 | Page                                   | Purpose                                                                                                      |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [Getting Started](./getting-started)   | Full guided installation procedure, including the in-cluster identity/secret handshake                       |
-| [Architecture](./architecture)         | Topology, component map, summary of the bootstrap chain                                                      |
-| [Bootstrap Orchestration](./bootstrap) | The five-layer model that resolves the chicken-and-egg dependencies between Argo CD, Authentik and Infisical |
-| [ADR index](./adr/)                    | All Architecture Decision Records, in causal order                                                           |
+| [Getting Started](/atlas/technical/getting-started)   | Full guided installation procedure, including the in-cluster identity/secret handshake                       |
+| [Architecture](/atlas/technical/architecture)         | Topology, component map, summary of the bootstrap chain                                                      |
+| [Bootstrap Orchestration](/atlas/technical/bootstrap) | The five-layer model that resolves the chicken-and-egg dependencies between Argo CD, Authentik and Infisical |
+| [ADR index](/atlas/technical/adr/)                    | All Architecture Decision Records, in causal order                                                           |
 
 ## Stack summary
 

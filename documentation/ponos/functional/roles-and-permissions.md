@@ -61,4 +61,4 @@ Ponos avoids storing secrets of its own:
 
 ## Adding a new actor (reciprocity rule)
 
-Because there is no permission matrix, introducing a genuinely new actor (for example, a locked-down "restricted" mode) would mean revisiting **this boundary** — which domains it may touch, which network hosts it may reach, and how it handles secrets — and stating those limits on every affected [feature page](./features/bootstrap) before it ships.
+Because there is no permission matrix, introducing a genuinely new actor (for example, a locked-down "restricted" mode) would mean revisiting **this boundary** — which domains it may touch, which network hosts it may reach, and how it handles secrets — and stating those limits on every affected [feature page](/ponos/functional/features/bootstrap) before it ships.

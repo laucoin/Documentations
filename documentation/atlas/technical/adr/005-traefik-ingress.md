@@ -26,9 +26,9 @@ Use **Traefik** as the ingress controller, with its CRDs (`IngressRoute`, `Middl
 - **`IngressRoute` CRD is more expressive than stock `Ingress`** for forward-auth, header rewriting, and middleware chains. Configuration of "this hostname goes through Authentik forward-auth, then to this service" is a few-line CRD; on Nginx it would be controller-specific annotations.
 - **Built-in forward-auth middleware** integrates cleanly with Authentik to gate the Traefik dashboard, Argo CD UI, and any future internal tool that does not speak OIDC natively.
 - **First-class Helm chart** with sane defaults for a single-node cluster.
-- **Built-in dashboard** showing live routes, services, middlewares, and TLS status — useful for the operator persona ([Functional → Services](../../functional/services#traefik-dashboard--ingress-overview)).
+- **Built-in dashboard** showing live routes, services, middlewares, and TLS status — useful for the operator persona ([Functional → Services](/atlas/functional/services#traefik-dashboard--ingress-overview)).
 - **Native Kubernetes Service Type=LoadBalancer behaviour on bare metal** when combined with a small `LoadBalancer` implementation, or via `hostNetwork` for a single-node setup.
-- **Cert-manager integration is trivial**: the `IngressRoute` references a `Secret` issued by cert-manager ([ADR 006](./006-cert-manager-tls)).
+- **Cert-manager integration is trivial**: the `IngressRoute` references a `Secret` issued by cert-manager ([ADR 006](/atlas/technical/adr/006-cert-manager-tls)).
 
 ### Negative
 

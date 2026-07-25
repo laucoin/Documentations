@@ -1,6 +1,6 @@
 # Personas
 
-Registry serves two very different kinds of people: the small number who **administer the platform and run events**, and the much larger number who are merely **the subjects of the record** — the participants and guests being counted. Only the first group signs in. This page describes the human roles; the exact permissions attached to each are in [Roles & Permissions](./roles-and-permissions).
+Registry serves two very different kinds of people: the small number who **administer the platform and run events**, and the much larger number who are merely **the subjects of the record** — the participants and guests being counted. Only the first group signs in. This page describes the human roles; the exact permissions attached to each are in [Roles & Permissions](/registry/functional/roles-and-permissions).
 
 ## Platform Administrator
 

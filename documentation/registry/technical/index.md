@@ -1,6 +1,6 @@
 # Technical Documentation
 
-This section covers the engineering of Registry: the two-service architecture, the reactive backend, the Angular frontend, the data model and API contracts, the security model, and the Architecture Decision Records that justify each choice. It assumes the [Functional Documentation](../functional/) — especially the [Roles & Permissions](../functional/roles-and-permissions) baseline — is understood.
+This section covers the engineering of Registry: the two-service architecture, the reactive backend, the Angular frontend, the data model and API contracts, the security model, and the Architecture Decision Records that justify each choice. It assumes the [Functional Documentation](/registry/functional/) — especially the [Roles & Permissions](/registry/functional/roles-and-permissions) baseline — is understood.
 
 ## System at a glance
 
@@ -19,7 +19,7 @@ flowchart LR
     DB[("PostgreSQL")]
 
     Browser --> SPA
-    SPA -- "REST /api/v1 (Bearer JWT)" --> API
+    SPA -- "REST /api/v2 (Bearer JWT)" --> API
     Browser -. "login redirect" .-> IdP
     SPA -- "code / refresh exchange" --> API
     API -- "validate JWT (JWKS) · code/refresh grants" --> IdP
@@ -32,12 +32,12 @@ The browser loads the SPA from nginx, which calls the backend over REST with a b
 
 | Page | Purpose |
 | ---- | ------- |
-| [Getting Started](./getting-started) | Run the whole stack locally: prerequisites, dependencies, and configuration |
-| [Architecture](./architecture) | The hexagonal backend, the Angular frontend, and how a request flows end to end |
-| [Security](./security) | Authentication flow, JWT-to-user mapping, and how the project-scoped RBAC is enforced |
-| [Data Model](./data-model) | The PostgreSQL schema, entity relationships, auditing, and trigram search |
-| [API Reference](./api-reference) | Every REST endpoint, grouped by domain, with its required permission |
-| [ADR index](./adr/) | All Architecture Decision Records, in causal order |
+| [Getting Started](/registry/technical/getting-started) | Run the whole stack locally: prerequisites, dependencies, and configuration |
+| [Architecture](/registry/technical/architecture) | The hexagonal backend, the Angular frontend, and how a request flows end to end |
+| [Security](/registry/technical/security) | Authentication flow, JWT-to-user mapping, and how the project-scoped RBAC is enforced |
+| [Data Model](/registry/technical/data-model) | The PostgreSQL schema, entity relationships, auditing, and trigram search |
+| [API Reference](/registry/technical/api-reference) | Every REST endpoint, grouped by domain, with its required permission |
+| [ADR index](/registry/technical/adr/) | All Architecture Decision Records, in causal order |
 
 ## Stack summary
 

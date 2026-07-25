@@ -21,7 +21,7 @@ Build the backend on a **fully non-blocking reactive stack**:
 
 One deliberate exception: **Flyway runs its migrations over a JDBC connection on boot**, because R2DBC does not manage schema. The application therefore opens **two connections to the same database** — the R2DBC pool for runtime traffic, and a JDBC connection used once at startup for Flyway.
 
-This choice is enabled by the port/adapter boundaries in [ADR 001](./001-hexagonal-architecture): reactive types are an infrastructure concern that the domain sees through its ports.
+This choice is enabled by the port/adapter boundaries in [ADR 001](/registry/technical/adr/001-hexagonal-architecture): reactive types are an infrastructure concern that the domain sees through its ports.
 
 ## Consequences
 

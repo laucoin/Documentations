@@ -47,6 +47,20 @@ This file documents conventions for AI agents (Claude Code, Copilot, etc.) worki
 
 ---
 
+## Links & Cross-References
+
+All in-repo links between documentation pages **must be root-absolute** — resolved from the VitePress source root (`documentation/`, the configured `srcDir`), not relative to the current file. This keeps links intact when a page is moved or a folder is restructured; relative `./` / `../` links break the moment a file changes depth.
+
+Rules:
+
+- **Always start with `/`.** A page at `documentation/registry/technical/architecture.md` is linked as `/registry/technical/architecture` — never `./architecture` or `../technical/architecture`.
+- **Omit the `.md` extension.** VitePress serves extensionless clean URLs (`/registry/technical/adr/017-api-v2-conventions`).
+- **End directory/index pages with a trailing slash.** A folder's `index.md` is linked with a trailing `/` (`/registry/technical/adr/`, `/registry/technical/migration-plan/2026-07-25-plan`) — VitePress's canonical path for an index page carries the slash, and omitting it fails the dead-link check.
+- **Keep anchors as-is.** Append `#section` to the root-absolute path (`/registry/functional/roles-and-permissions#project-options-gating`). Same-page anchors stay bare (`#section`).
+- **`pnpm build` is the check.** The build fails on dead links; run it after touching links or moving pages. `.vitepress/config.mts` sidebar links already follow this convention.
+
+---
+
 ## CSS Conventions — OOCSS
 
 All inline `<style scoped>` blocks follow **OOCSS** (Object-Oriented CSS). Split every style block into two clearly labelled sections:
@@ -183,6 +197,7 @@ Add a sidebar entry under `themeConfig.sidebar`:
 ## What NOT to do
 
 - Do not write documentation in any language other than English (e.g., French).
+- Do not use relative (`./` / `../`) links between doc pages — always link root-absolute from `documentation/` (see [Links & Cross-References](#links--cross-references)).
 - Do not populate `technical/` before `functional/` and `roles-and-permissions.md` are completed.
 - Do not bypass interactive choices (always provide options + "Other").
 - Do not create features without explicitly defining permissions for every role.

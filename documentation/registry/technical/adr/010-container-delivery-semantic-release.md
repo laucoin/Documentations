@@ -32,7 +32,7 @@ Automate versioning with **semantic-release** and publish **hardened container i
 - **Minimal attack surface and image size.** A distroless runtime has no shell and no package manager, so a compromised process has far less to work with, and the image is smaller to store and pull.
 - **Non-root by default, everywhere.** Both images run unprivileged — the backend on distroless, the frontend on an unprivileged nginx — which is the right default for a service that faces the network.
 - **Registry portability.** Because the publish action is registry-agnostic, moving off GHCR is a configuration change in one shared action, not a rewrite of each repo's pipeline.
-- **Immutable, promotable artifacts.** The images carry no environment specifics — the frontend takes its config at runtime ([ADR 008](./008-frontend-runtime-config)) — so the exact image that was tested is the one promoted across environments.
+- **Immutable, promotable artifacts.** The images carry no environment specifics — the frontend takes its config at runtime ([ADR 008](/registry/technical/adr/008-frontend-runtime-config)) — so the exact image that was tested is the one promoted across environments.
 
 ### Negative
 

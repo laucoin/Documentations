@@ -8,7 +8,7 @@
 
 ## 2. Roles & Permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](../roles-and-permissions) and [Domain Model → Group](../domain-model#group).
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) and [Domain Model → Group](/registry/functional/domain-model#group).
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
@@ -21,7 +21,7 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 - **Name** identifies the group.
 - **Members.** A group holds **at least one** member; members are chosen from the project's participants via multi-select.
 - **Availability window.** `start` must be **before** `end` (`@StartBeforeEnd`).
-- **Expansion in movements.** Selecting a group in a movement expands to its **current** members at that moment — later membership changes do not rewrite past movements. See [Domain Model → Movement](../domain-model#movement-the-core-record).
+- **Expansion in movements.** Selecting a group in a movement expands to its **current** members at that moment — later membership changes do not rewrite past movements. See [Domain Model → Movement](/registry/functional/domain-model#movement-the-core-record).
 - **Inside/outside counts.** Registry tracks how many members are currently inside versus outside, derived from their movements.
 - **Disabling is a soft, reversible action.** A disabled group is hidden but can be re-enabled.
 
@@ -81,18 +81,18 @@ Scenario: Registry reports a group's inside/outside split
 
 ## 5. API surface
 
-Project-scoped endpoints live under `/api/v1/projects/{projectId}/groups/...`, secured by the holder's project-scoped permission. See [Technical → API Reference](../../technical/api-reference).
+Project-scoped endpoints live under `/api/v2/projects/{projectId}/groups/...`, secured by the holder's project-scoped permission. See [Technical → API Reference](/registry/technical/api-reference).
 
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
 | `GET` | `/groups` | List groups | scoped `REGISTRY_PROJECT_GROUP_R` |
 | `GET` | `/groups/{id}` | Read a single group | scoped `REGISTRY_PROJECT_GROUP_R` |
 | `GET` | `/groups/{id}/members` | List a group's members | scoped `REGISTRY_PROJECT_GROUP_R` |
-| `GET` | `/groups/search/participants` | Search participants to add | scoped `REGISTRY_PROJECT_GROUP_METADATA_R` |
+| `GET` | `/groups/assignable-participants?q=` | Search participants to add | scoped `REGISTRY_PROJECT_GROUP_METADATA_R` |
 | `POST` | `/groups` | Create a group | scoped `REGISTRY_PROJECT_GROUP_C` |
 | `PATCH` | `/groups/{id}` | Update a group | scoped `REGISTRY_PROJECT_GROUP_U` |
-| `PATCH` | `/groups/{id}/members` | Add members to a group | scoped `REGISTRY_PROJECT_GROUP_U` |
+| `POST` | `/groups/{id}/members` | Add members to a group | scoped `REGISTRY_PROJECT_GROUP_U` |
 | `DELETE` | `/groups/{id}/members/{memberId}` | Remove a member from a group | scoped `REGISTRY_PROJECT_GROUP_U` |
-| `PATCH` | `/groups/{id}/disable` | Soft-disable a group | scoped `REGISTRY_PROJECT_GROUP_U` |
-| `PATCH` | `/groups/{id}/enable` | Re-enable a group | scoped `REGISTRY_PROJECT_GROUP_U` |
+| `POST` | `/groups/{id}/disable` | Soft-disable a group | scoped `REGISTRY_PROJECT_GROUP_U` |
+| `POST` | `/groups/{id}/enable` | Re-enable a group | scoped `REGISTRY_PROJECT_GROUP_U` |
 | `DELETE` | `/groups/{id}` | Delete a group | scoped `REGISTRY_PROJECT_GROUP_D` |
