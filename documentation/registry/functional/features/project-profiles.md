@@ -8,7 +8,7 @@
 
 ## 2. Roles & Permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](../roles-and-permissions) and [Domain Model → Profile](../domain-model#profile).
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) and [Domain Model → Profile](/registry/functional/domain-model#profile).
 
 ### Admin side — managing a project's members (`/projects/{projectId}/profiles`)
 
@@ -100,7 +100,7 @@ Scenario: Platform staff mints temporary support access
 
 ## 5. API surface
 
-Project-scoped endpoints live under `/api/v1/projects/{projectId}/...`; self-service endpoints under `/api/v1/users/profiles/...`. See [Technical → API Reference](../../technical/api-reference).
+Project-scoped endpoints live under `/api/v2/projects/{projectId}/...`; self-service endpoints under `/api/v2/users/profiles/...`. See [Technical → API Reference](/registry/technical/api-reference).
 
 ### Admin side
 
@@ -108,12 +108,12 @@ Project-scoped endpoints live under `/api/v1/projects/{projectId}/...`; self-ser
 | ------ | ---- | ------- | ---------- |
 | `GET` | `/projects/{projectId}/profiles` | List the project's members | scoped `REGISTRY_PROJECT_PROFILE_R` |
 | `GET` | `/projects/{projectId}/profiles/{id}` | Read one member's profile | scoped `REGISTRY_PROJECT_PROFILE_R` |
-| `GET` | `/projects/{projectId}/profiles/search/users` | Search users to invite | scoped `REGISTRY_PROJECT_PROFILE_METADATA_R` |
+| `GET` | `/projects/{projectId}/profiles/assignable-users?q=` | Search users to invite | scoped `REGISTRY_PROJECT_PROFILE_METADATA_R` |
 | `GET` | `/projects/{projectId}/profiles/roles` | List assignable roles | scoped `REGISTRY_PROJECT_PROFILE_METADATA_R` |
 | `POST` | `/projects/{projectId}/profiles/invite` | Batch-invite users to the project | scoped `REGISTRY_PROJECT_PROFILE_C` |
 | `PATCH` | `/projects/{projectId}/profiles/{id}` | Change a member's role / access window | scoped `REGISTRY_PROJECT_PROFILE_U` |
-| `PATCH` | `/projects/{projectId}/profiles/{id}/block` | Block a member | scoped `REGISTRY_PROJECT_PROFILE_U` |
-| `PATCH` | `/projects/{projectId}/profiles/{id}/unblock` | Unblock a member | scoped `REGISTRY_PROJECT_PROFILE_U` |
+| `POST` | `/projects/{projectId}/profiles/{id}/block` | Block a member | scoped `REGISTRY_PROJECT_PROFILE_U` |
+| `POST` | `/projects/{projectId}/profiles/{id}/unblock` | Unblock a member | scoped `REGISTRY_PROJECT_PROFILE_U` |
 | `DELETE` | `/projects/{projectId}/profiles/{id}` | Remove a member | scoped `REGISTRY_PROJECT_PROFILE_D` |
 
 ### Self side
@@ -121,6 +121,7 @@ Project-scoped endpoints live under `/api/v1/projects/{projectId}/...`; self-ser
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
 | `GET` | `/users/profiles` | List my own profiles | Authenticated |
-| `POST` | `/users/profiles/{id}/accept/{accepted}` | Accept or reject an invitation | Authenticated (own `INVITED` profile) |
+| `POST` | `/users/profiles/{id}/accept` | Accept an invitation | Authenticated (own `INVITED` profile) |
+| `POST` | `/users/profiles/{id}/reject` | Reject an invitation | Authenticated (own `INVITED` profile) |
 | `POST` | `/users/profiles/{projectId}/support` | Mint a 1-hour support administrator profile | `REGISTRY_PROFILE_C` (global) |
 | `DELETE` | `/users/profiles/{id}` | Leave a project (delete my profile) | Authenticated (own profile) |

@@ -8,7 +8,7 @@
 
 ## 2. Roles & Permissions
 
-This is a **global**, per-user feature: it uses the platform-wide roles `USER_ADMINISTRATOR` and `USER`. Both have **identical** rights here — each acting only on their own preferences. See [Roles & Permissions](../roles-and-permissions) for the full model, and [Domain Model → User](../domain-model#user) for where preferences live.
+This is a **global**, per-user feature: it uses the platform-wide roles `USER_ADMINISTRATOR` and `USER`. Both have **identical** rights here — each acting only on their own preferences. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → User](/registry/functional/domain-model#user) for where preferences live.
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
@@ -18,7 +18,7 @@ This is a **global**, per-user feature: it uses the platform-wide roles `USER_AD
 ## 3. Business rules
 
 - **Per-user and server-side.** Preferences belong to one user and are stored on the server, so they **follow the user to any device** rather than living in a single browser.
-- **Theme.** One of `SYSTEM`, `LIGHT` or `DARK` (see [Domain Model → Theme](../domain-model#status-vocabulary)). `SYSTEM` follows the device's own light/dark setting.
+- **Theme.** One of `SYSTEM`, `LIGHT` or `DARK` (see [Domain Model → Theme](/registry/functional/domain-model#status-vocabulary)). `SYSTEM` follows the device's own light/dark setting.
 - **Language.** English (`en`) or French (`fr`). Switching language **re-localizes** the interface labels immediately.
 - **Active project profile.** Selecting an active profile switches **which event the user is "inside"** and **resets the in-app project context** to that event. The profile can be chosen directly by its id, or by naming a project (the user's profile on that project is selected).
 - **Own scope only.** Every operation acts on the caller's own preferences; there is no endpoint to read or change someone else's.
@@ -80,11 +80,10 @@ Scenario: An administrator cannot change another user's preferences
 
 ## 5. API surface
 
-REST endpoints backing this feature, under `/api/v1/users/preferences`. Every call is **authenticated** and acts on the **caller's own** preferences; there are no permissions beyond being signed in. See [Technical → API Reference](../../technical/api-reference).
+REST endpoints backing this feature, under `/api/v2/users/preferences`. Every call is **authenticated** and acts on the **caller's own** preferences; there are no permissions beyond being signed in. See [Technical → API Reference](/registry/technical/api-reference).
 
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
 | `POST` | `/users/preferences/theme` | Set the theme (`SYSTEM` / `LIGHT` / `DARK`) | Authenticated (self) |
 | `POST` | `/users/preferences/language` | Set the interface language (`en` / `fr`) | Authenticated (self) |
-| `POST` | `/users/preferences/profile/select` | Select the active profile by its id | Authenticated (self) |
-| `POST` | `/users/preferences/projects/{projectId}/profile/select` | Select the active profile by project | Authenticated (self) |
+| `POST` | `/users/preferences/select-profile` | Select the active profile (body: profileId or projectId) | Authenticated (self) |

@@ -1,6 +1,6 @@
 # Data Model
 
-Registry stores everything in a single PostgreSQL database. The schema is owned by **Flyway migrations** (`V1_0_0` through `V1_11_0`), applied on boot; runtime access is reactive **R2DBC**. This page is the physical-schema companion to the business-facing [Domain Model](../functional/domain-model).
+Registry stores everything in a single PostgreSQL database. The schema is owned by **Flyway migrations** (`V1_0_0` through `V1_11_0`), applied on boot; runtime access is reactive **R2DBC**. This page is the physical-schema companion to the business-facing [Domain Model](/registry/functional/domain-model).
 
 ## Entity-relationship overview
 
@@ -34,7 +34,7 @@ Every table except `tb_user`, `tb_preferences` and the RBAC tables carries a `pr
 
 - **Primary keys** are UUIDs.
 - **Auditing.** Every domain table has `created_date`, `created_by`, `last_modified_date`, `last_modified_by` (the `*_by` columns reference `tb_user`), populated by R2DBC auditing.
-- **Soft delete / disable.** A `visible BOOLEAN` column implements the reversible "disable/enable" seen across the product. Disabling never deletes a row; it flips `visible`, which the authority model reads for [visibility gating](./security#visibility-gating).
+- **Soft delete / disable.** A `visible BOOLEAN` column implements the reversible "disable/enable" seen across the product. Disabling never deletes a row; it flips `visible`, which the authority model reads for [visibility gating](/registry/technical/security#visibility-gating).
 - **Split date/time.** Windows and event times are stored as separate `_date DATE` and `_time TIME WITH TIME ZONE` columns (the domain models them as `CustomDateTime`), so a value can be date-only.
 - **Trigram search.** Searchable tables carry a `STORED GENERATED search_text` column with a GIN `gin_trgm_ops` index — see [below](#search).
 
@@ -80,7 +80,7 @@ Every table except `tb_user`, `tb_preferences` and the RBAC tables carries a `pr
 
 ### RBAC (roles & permissions as data)
 
-Two parallel sets of three tables encode the [two permission planes](../functional/roles-and-permissions#two-permission-planes):
+Two parallel sets of three tables encode the [two permission planes](/registry/functional/roles-and-permissions#two-permission-planes):
 
 | Global plane | Project plane | Purpose |
 | ------------ | ------------- | ------- |
@@ -88,11 +88,11 @@ Two parallel sets of three tables encode the [two permission planes](../function
 | `tb_user_role (name, level)` | `tb_project_role (name, level)` | Roles, with a numeric `level` (lower = more powerful). A partial unique index forces exactly one level-0 role. |
 | `tb_user_role_permission (role, permission)` | `tb_project_role_permission (role, permission)` | The role → permission mapping. |
 
-These rows are seeded by the `_roles` migrations and loaded into memory at startup; changing them is a data operation (and a restart) rather than a code change ([ADR 005](./adr/005-db-driven-project-rbac)).
+These rows are seeded by the `_roles` migrations and loaded into memory at startup; changing them is a data operation (and a restart) rather than a code change ([ADR 005](/registry/technical/adr/005-db-driven-project-rbac)).
 
 ## Search
 
-`V1_4_0` adds fuzzy search without a separate search engine ([ADR 006](./adr/006-flyway-trigram-search)):
+`V1_4_0` adds fuzzy search without a separate search engine ([ADR 006](/registry/technical/adr/006-flyway-trigram-search)):
 
 - the `pg_trgm` extension is enabled;
 - `tb_user`, `tb_participant`, `tb_vehicle` and `tb_activity` each gain a `STORED GENERATED` `search_text` column concatenating their human-identifying fields;

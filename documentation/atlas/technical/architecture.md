@@ -53,11 +53,11 @@ Public traffic reaches Atlas through ports 80 and 443 forwarded from the home ro
 
 Two further public services — **SonarQube** (code quality, with a PostgreSQL database managed by the CloudNativePG operator) and **Home Assistant** (home automation) — are routed by Traefik and TLS-protected the same way, but sit **outside** the Authentik box: both keep their own native login (Home Assistant has no usable OIDC and breaks under forward-auth; SonarQube Community Build's SSO is not wired). They are otherwise standard GitOps workloads under `apps/`.
 
-cert-manager runs in the background and provisions TLS certificates for every public host via the HTTP-01 ACME challenge (Let's Encrypt), validated over the port-80 forward through Traefik. DNS-01 against the registrar's API is available as an opt-out (see [ADR 006](./adr/006-cert-manager-tls)) but is not the shipped default.
+cert-manager runs in the background and provisions TLS certificates for every public host via the HTTP-01 ACME challenge (Let's Encrypt), validated over the port-80 forward through Traefik. DNS-01 against the registrar's API is available as an opt-out (see [ADR 006](/atlas/technical/adr/006-cert-manager-tls)) but is not the shipped default.
 
 ## Bootstrap chain
 
-Atlas is built layer-by-layer so the circular dependencies between Argo CD, Authentik and Infisical can be resolved. The five layers — from `talosctl` on a bare disk to a fully-protected SSO platform — are documented in [Bootstrap Orchestration](./bootstrap). The step-by-step procedure to actually run a bootstrap is in [Getting Started](./getting-started).
+Atlas is built layer-by-layer so the circular dependencies between Argo CD, Authentik and Infisical can be resolved. The five layers — from `talosctl` on a bare disk to a fully-protected SSO platform — are documented in [Bootstrap Orchestration](/atlas/technical/bootstrap). The step-by-step procedure to actually run a bootstrap is in [Getting Started](/atlas/technical/getting-started).
 
 At a glance:
 
@@ -66,7 +66,7 @@ At a glance:
 | L0    | Operator (once)      | OpenTofu (`bootstrap/talos`) installs Talos and brings the node up; Talos secrets and OpenTofu state land in the password manager.                                                                                                                                   |
 | L1    | OpenTofu             | `bootstrap/baseline` (local-path, MetalLB, cert-manager) then `bootstrap/argo` (Argo CD + root ApplicationSet). The operator also hand-creates the out-of-band bootstrap & machine-identity Secrets.                                                                 |
 | L2    | Argo CD              | Platform foundations come up: ESO, Traefik, Infisical, Authentik (cert-manager already installed at L1).                                                                                                                                                             |
-| L3    | In-cluster (Argo CD) | Identity/secret handshake: the `infisical-seeder` Job generates secrets, Authentik blueprints create the OIDC/proxy clients, the `harbor-oidc-config` Job wires Harbor. See [ADR 012](./adr/012-opentofu-owns-identity-secret-bootstrap).                            |
+| L3    | In-cluster (Argo CD) | Identity/secret handshake: the `infisical-seeder` Job generates secrets, Authentik blueprints create the OIDC/proxy clients, the `harbor-oidc-config` Job wires Harbor. See [ADR 012](/atlas/technical/adr/012-opentofu-owns-identity-secret-bootstrap).                            |
 | L4    | Argo CD              | Identity-aware workloads come up consuming the seeded secrets via ESO: Harbor, Grafana, Prometheus, Loki, Alertmanager, Velero. The standalone apps SonarQube (database via the CloudNativePG operator) and Home Assistant land here too, on their own native login. |
 | L5    | Argo CD              | Bootstrap UIs (Argo CD via OIDC, Traefik dashboard via forward-auth) are protected — the platform is now closed.                                                                                                                                                     |
 

@@ -10,7 +10,7 @@ The registry needs a relational store with a schema that evolves safely across m
 
 Two problems sit underneath that sentence.
 
-The first is **schema ownership**. The runtime data access is reactive R2DBC ([ADR 002](./002-reactive-webflux-r2dbc)), which deliberately has no schema-management story — R2DBC reads and writes rows, it does not create tables. Something else has to own the DDL, and it has to be reproducible: the same migrations must produce the same schema on a developer laptop, in CI, and in production, with no manual "run this SQL by hand" steps.
+The first is **schema ownership**. The runtime data access is reactive R2DBC ([ADR 002](/registry/technical/adr/002-reactive-webflux-r2dbc)), which deliberately has no schema-management story — R2DBC reads and writes rows, it does not create tables. Something else has to own the DDL, and it has to be reproducible: the same migrations must produce the same schema on a developer laptop, in CI, and in production, with no manual "run this SQL by hand" steps.
 
 The second is **search**. A registry of participants and their vehicles and activities is exactly the dataset people want to search loosely — "find everyone whose name looks like *Dupon*", "the blue Renault", "that activity about kayaking". Exact-match `WHERE name = ?` is useless for this; naive `LIKE '%term%'` is both slow and still exact about characters. The heavyweight answer is a dedicated search engine (Elasticsearch / OpenSearch), but that is another stateful system to run, back up, and keep in sync for a dataset that is, realistically, modest.
 

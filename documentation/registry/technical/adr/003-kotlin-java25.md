@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The backend needs a JVM language — the ecosystem (Spring Boot, Reactor, R2DBC from [ADR 002](./002-reactive-webflux-r2dbc)) is JVM-based and non-negotiable for this project. The remaining choice is which language to write against it.
+The backend needs a JVM language — the ecosystem (Spring Boot, Reactor, R2DBC from [ADR 002](/registry/technical/adr/002-reactive-webflux-r2dbc)) is JVM-based and non-negotiable for this project. The remaining choice is which language to write against it.
 
 Two properties matter most here. First, **null-safety**: a registry manipulates a lot of optional data (unfilled participant fields, absent options), and NullPointerExceptions are the classic runtime failure of plain-Java Spring code. Second, **clean interop with the reactive model**: the code composes Reactor types constantly and, where useful, bridges to coroutines, so the language should make that ergonomic rather than fight it.
 
@@ -22,8 +22,8 @@ Write the backend in **Kotlin** on the JVM:
 ### Positive
 
 - **Compile-time null-safety.** Nullability is in the type system, so the whole class of NullPointerException bugs common to Java Spring code is caught at compile time — directly valuable for a data-heavy registry full of optional fields.
-- **Concise domain models.** `data class`es give value semantics, `copy`, and destructuring for free, which keeps the domain models and DTOs of [ADR 001](./001-hexagonal-architecture) small and readable.
-- **First-class reactive/coroutine interop.** Kotlin bridges cleanly to Reactor and offers coroutines where they read better, matching the reactive stack of [ADR 002](./002-reactive-webflux-r2dbc).
+- **Concise domain models.** `data class`es give value semantics, `copy`, and destructuring for free, which keeps the domain models and DTOs of [ADR 001](/registry/technical/adr/001-hexagonal-architecture) small and readable.
+- **First-class reactive/coroutine interop.** Kotlin bridges cleanly to Reactor and offers coroutines where they read better, matching the reactive stack of [ADR 002](/registry/technical/adr/002-reactive-webflux-r2dbc).
 - **Strong Spring support.** Spring Boot ships first-class Kotlin support (the Kotlin DSLs, `kotlin-spring` compiler plugin, dedicated documentation), so the framework is not fighting the language.
 - **Expressive DSLs.** The language is well-suited to the small internal DSLs used for configuration and test setup.
 

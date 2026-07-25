@@ -10,7 +10,7 @@ The workstation needs a sizeable, evolving set of CLI tools, casks and fonts. In
 
 ## Decision
 
-Declare the base package set in a **`Brewfile`** and install it with **`brew bundle`**. At run time, `build_effective_brewfile` copies the tracked Brewfile to a temp file and **appends the interactive selections** (container runtime, browser), so the base file stays generic while per-machine choices are layered on and then discarded. `brew bundle` failures are tolerated (see [ADR 001](./001-idempotent-bash-orchestrator)).
+Declare the base package set in a **`Brewfile`** and install it with **`brew bundle`**. At run time, `build_effective_brewfile` copies the tracked Brewfile to a temp file and **appends the interactive selections** (container runtime, browser), so the base file stays generic while per-machine choices are layered on and then discarded. `brew bundle` failures are tolerated (see [ADR 001](/ponos/technical/adr/001-idempotent-bash-orchestrator)).
 
 ## Consequences
 

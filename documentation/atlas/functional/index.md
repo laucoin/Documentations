@@ -1,6 +1,6 @@
 # Functional Documentation
 
-Atlas is a self-hosted platform that runs at home and provides a small handful of services to me, my family and a few friends. Everything is described here from a user's point of view — what the platform does, who interacts with it, and what value each service delivers. The engineering choices behind it live in the [Technical Documentation](../technical/).
+Atlas is a self-hosted platform that runs at home and provides a small handful of services to me, my family and a few friends. Everything is described here from a user's point of view — what the platform does, who interacts with it, and what value each service delivers. The engineering choices behind it live in the [Technical Documentation](/atlas/technical/).
 
 ## What Atlas is, in one paragraph
 
@@ -20,6 +20,6 @@ Atlas turns a single machine sitting in my home into a small, opinionated cloud.
 
 | Page                     | Purpose                                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------------------------ |
-| [Personas](./personas)   | Who interacts with Atlas and what they need from it                                              |
-| [Services](./services)   | The catalog of user-facing services and what each one is for                                     |
-| [Workflows](./workflows) | End-to-end journeys: signing in, pushing an image, viewing a dashboard, recovering from a backup |
+| [Personas](/atlas/functional/personas)   | Who interacts with Atlas and what they need from it                                              |
+| [Services](/atlas/functional/services)   | The catalog of user-facing services and what each one is for                                     |
+| [Workflows](/atlas/functional/workflows) | End-to-end journeys: signing in, pushing an image, viewing a dashboard, recovering from a backup |

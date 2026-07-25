@@ -1,6 +1,6 @@
 # Bootstrap Orchestration
 
-Atlas uses some of its own services to manage itself: Infisical stores the secrets, Authentik gates the logins, Argo CD reconciles every workload. That is circular by construction — Infisical cannot store its own database password, Authentik cannot be the IdP for its own login screen, Argo CD cannot deploy itself from nothing. This page is the model that resolves the circularity. The actual step-by-step procedure to install Atlas is in [Getting Started](./getting-started).
+Atlas uses some of its own services to manage itself: Infisical stores the secrets, Authentik gates the logins, Argo CD reconciles every workload. That is circular by construction — Infisical cannot store its own database password, Authentik cannot be the IdP for its own login screen, Argo CD cannot deploy itself from nothing. This page is the model that resolves the circularity. The actual step-by-step procedure to install Atlas is in [Getting Started](/atlas/technical/getting-started).
 
 ## The layered model
 
@@ -59,7 +59,7 @@ After L2: ESO, Traefik, Infisical and Authentik are healthy and reachable at the
 
 ## L3 — Identity/secret handshake (in-cluster)
 
-This is the only "stateful coupling" step in the whole bootstrap. Unlike earlier designs, it is **not** a second OpenTofu apply — it is performed entirely in-cluster, reconciled by Argo CD. See [ADR 012](./adr/012-opentofu-owns-identity-secret-bootstrap) for why the in-cluster path was chosen over an external `tofu apply`.
+This is the only "stateful coupling" step in the whole bootstrap. Unlike earlier designs, it is **not** a second OpenTofu apply — it is performed entirely in-cluster, reconciled by Argo CD. See [ADR 012](/atlas/technical/adr/012-opentofu-owns-identity-secret-bootstrap) for why the in-cluster path was chosen over an external `tofu apply`.
 
 Three pieces cooperate:
 
@@ -79,7 +79,7 @@ After L3: Authentik knows about every downstream service; Infisical holds every 
 2. Grafana (same).
 3. Prometheus, Alertmanager, Loki, Promtail.
 4. Velero (once its S3 credentials are entered in Infisical).
-5. SonarQube (PostgreSQL via the CloudNativePG operator; monitoring passcode from Infisical) and Home Assistant — both **not** identity-aware: they keep their own native login rather than going through Authentik (see [Services](../functional/services#sonarqube--code-quality)).
+5. SonarQube (PostgreSQL via the CloudNativePG operator; monitoring passcode from Infisical) and Home Assistant — both **not** identity-aware: they keep their own native login rather than going through Authentik (see [Services](/atlas/functional/services#sonarqube--code-quality)).
 
 Each workload starts, its `ExternalSecret` resolves its secret from Infisical, the pod consumes it, and the service comes up SSO-ready.
 
@@ -114,7 +114,7 @@ Break-glass passwords are stored in the password manager _and_ mirrored into Inf
 
 ## Mapping back to the simplified 3-stage view
 
-The simplified summary on the [Architecture](./architecture#bootstrap-chain) page collapses some layers for readability. The mapping is:
+The simplified summary on the [Architecture](/atlas/technical/architecture#bootstrap-chain) page collapses some layers for readability. The mapping is:
 
 | Simplified                              | Full              |
 | --------------------------------------- | ----------------- |
@@ -124,10 +124,10 @@ The simplified summary on the [Architecture](./architecture#bootstrap-chain) pag
 
 ## See also
 
-- [Getting Started](./getting-started) — the step-by-step procedure
-- [Architecture](./architecture) — the system overview
-- [ADR 003 — OpenTofu](./adr/003-opentofu-vs-terraform-vs-pulumi)
-- [ADR 004 — Argo CD](./adr/004-argocd-vs-flux)
-- [ADR 008 — Authentik](./adr/008-authentik-oidc)
-- [ADR 009 — Infisical](./adr/009-infisical-secrets)
-- [ADR 012 — In-cluster identity/secret bootstrapping](./adr/012-opentofu-owns-identity-secret-bootstrap)
+- [Getting Started](/atlas/technical/getting-started) — the step-by-step procedure
+- [Architecture](/atlas/technical/architecture) — the system overview
+- [ADR 003 — OpenTofu](/atlas/technical/adr/003-opentofu-vs-terraform-vs-pulumi)
+- [ADR 004 — Argo CD](/atlas/technical/adr/004-argocd-vs-flux)
+- [ADR 008 — Authentik](/atlas/technical/adr/008-authentik-oidc)
+- [ADR 009 — Infisical](/atlas/technical/adr/009-infisical-secrets)
+- [ADR 012 — In-cluster identity/secret bootstrapping](/atlas/technical/adr/012-opentofu-owns-identity-secret-bootstrap)

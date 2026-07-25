@@ -9,11 +9,11 @@ Ponos owns the global Git configuration and installs two template hooks — `com
 
 ## 2. Access & Trust Boundary
 
-Configures the user's global Git (`~/.gitconfig`) and points Git at the repository's template hooks. Git identity is read from the environment, never stored in the repo. See [Actors & Trust Boundary](../roles-and-permissions).
+Configures the user's global Git (`~/.gitconfig`) and points Git at the repository's template hooks. Git identity is read from the environment, never stored in the repo. See [Actors & Trust Boundary](/ponos/functional/roles-and-permissions).
 
 ## 3. What is configured
 
-**Global config** — identity (`user.name`, `user.email`) from environment variables, `core.editor`, a global `core.excludesFile` pointing at `dotfiles/git/ignore`, `push.default = current`, `init.defaultBranch`, and `init.templateDir` pointing at the repository's `git-templates`. A set of aliases (`st`, `cb`, `cm`, `cmb`, `tree`, …) is also installed; see [Technical → CLI Reference](../../technical/cli-reference#git-aliases).
+**Global config** — identity (`user.name`, `user.email`) from environment variables, `core.editor`, a global `core.excludesFile` pointing at `dotfiles/git/ignore`, `push.default = current`, `init.defaultBranch`, and `init.templateDir` pointing at the repository's `git-templates`. A set of aliases (`st`, `cb`, `cm`, `cmb`, `tree`, …) is also installed; see [Technical → CLI Reference](/ponos/technical/cli-reference#git-aliases).
 
 **Template hooks** — because `init.templateDir` is set, every `git init` / `git clone` gets these hooks:
 
@@ -28,7 +28,7 @@ Configures the user's global Git (`~/.gitconfig`) and points Git at the reposito
 - **Branch-derived commits.** For a branch like `feat/login`, an off-convention message can be rewritten to a conforming `feat: …` message; the optional scope is taken from the trailing path segment.
 - **CI-saving WIP.** Messages starting with `wip` are prefixed with `[skip ci]` to avoid burning CI minutes on work-in-progress commits.
 - **Protected-branch and force-push guards.** `pre-push` blocks until the user confirms `y`/`yes` for a protected branch or a force push.
-- **Template propagation.** New repositories receive the hooks automatically; existing repositories are updated on demand with [`rhooks`](./cli-extensions).
+- **Template propagation.** New repositories receive the hooks automatically; existing repositories are updated on demand with [`rhooks`](/ponos/functional/features/cli-extensions).
 
 ## 5. Behavioural scenarios (BDD)
 

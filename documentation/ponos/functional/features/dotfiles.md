@@ -9,7 +9,7 @@ Ponos manages dotfiles by **symlinking** tracked files from the repository into 
 
 ## 2. Access & Trust Boundary
 
-All symlinks are created within the user's `$HOME` and its config subdirectories. No elevation is required. See [Actors & Trust Boundary](../roles-and-permissions).
+All symlinks are created within the user's `$HOME` and its config subdirectories. No elevation is required. See [Actors & Trust Boundary](/ponos/functional/roles-and-permissions).
 
 ## 3. What is managed
 
@@ -18,10 +18,10 @@ All symlinks are created within the user's `$HOME` and its config subdirectories
 | **Zsh** | `dotfiles/zsh/.zshrc` → `~/.zshrc` |
 | **Starship prompt** | `dotfiles/starship/config.toml` → `~/.config/starship.toml` |
 | **SSH** | `dotfiles/ssh/config` → `~/.ssh/config` |
-| **Vim** | `dotfiles/vim/vimrc` → `~/.vim/vimrc` (+ Dracula theme, see [Toolchains](./toolchains)) |
+| **Vim** | `dotfiles/vim/vimrc` → `~/.vim/vimrc` (+ Dracula theme, see [Toolchains](/ponos/functional/features/toolchains)) |
 | **VS Code** | `settings.json`, `keybindings.json` → the VS Code user directory |
 | **Opencode** | `config.json` → `~/.config/opencode/opencode.json`; `tui.json` → `~/.config/opencode/tui.json` |
-| **Git ignore** | `dotfiles/git/ignore` referenced as the global excludes file (see [Git Governance](./git-governance)) |
+| **Git ignore** | `dotfiles/git/ignore` referenced as the global excludes file (see [Git Governance](/ponos/functional/features/git-governance)) |
 
 The shell setup also installs two zsh plugins — **zsh-autosuggestions** and **zsh-syntax-highlighting** — by cloning them into `~/.zsh/` when absent.
 

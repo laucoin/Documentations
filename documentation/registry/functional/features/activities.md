@@ -2,13 +2,13 @@
 
 ## 1. Overview
 
-- **Goal:** An activity is a planned outing or event within the event — a hike, a workshop, a visit. It has a **name**, a **description**, a **duration** and an **allowed-participants range** (minimum / maximum). Beyond planning, an activity can be used as the **justification of a [movement](./movements)**: selecting it as the movement's "reason" ties an outing to exactly the people who went on it, so the record shows not just that participants left, but *what they left for*.
+- **Goal:** An activity is a planned outing or event within the event — a hike, a workshop, a visit. It has a **name**, a **description**, a **duration** and an **allowed-participants range** (minimum / maximum). Beyond planning, an activity can be used as the **justification of a [movement](/registry/functional/features/movements)**: selecting it as the movement's "reason" ties an outing to exactly the people who went on it, so the record shows not just that participants left, but *what they left for*.
 - **Who uses it:** `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` plan activities and review each activity's movement history. `PROJECT_PARTICIPANT` has **no access** to activity management (though they may select an existing activity while recording a movement).
 - **Option required:** **`ACTIVITY`.** Every activity endpoint is gated by this option — if it is off, the whole feature is closed regardless of role.
 
 ## 2. Roles & Permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — plus *History* (an activity's movement history). See [Roles & Permissions](../roles-and-permissions) for the full model, and [Domain Model → Activity](../domain-model#activity-option) for the entity.
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — plus *History* (an activity's movement history). See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Activity](/registry/functional/domain-model#activity-option) for the entity.
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
@@ -16,14 +16,14 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — 
 | `PROJECT_COORDINATOR` | **C R U D** + History | Same rights as the administrator (`REGISTRY_PROJECT_ACTIVITY_C/R/U/D`, `REGISTRY_PROJECT_ACTIVITY_HISTORY_R`). Requires the `ACTIVITY` option. |
 | `PROJECT_PARTICIPANT` | — | No access to activity management. May still select an existing activity as a movement's justification. |
 
-> **Option gating first.** All rows above assume the project has the `ACTIVITY` option enabled. With the option off, the API is closed for every role — see [Roles & Permissions → Project options](../roles-and-permissions#project-options-gating).
+> **Option gating first.** All rows above assume the project has the `ACTIVITY` option enabled. With the option off, the API is closed for every role — see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating).
 
 ## 3. Business rules
 
 - **Name and description.** An activity has a required **name** and a **description** of at most **2000 characters**.
 - **Duration and availability.** It carries a **duration** and an availability window whose **start must be before the end** (`@StartBeforeEnd`).
 - **Allowed-participants range** (`@MinUpperMax`). The **minimum must be less than or equal to the maximum**, and the **minimum must be at least 1**.
-- **Used as a movement justification.** Selecting an activity in a movement is **mutually exclusive with a free reason** (`@BothCannotBeDefined`) — a movement is justified by an activity *or* a reason, never both. See [Movements → Business rules](./movements#3-business-rules).
+- **Used as a movement justification.** Selecting an activity in a movement is **mutually exclusive with a free reason** (`@BothCannotBeDefined`) — a movement is justified by an activity *or* a reason, never both. See [Movements → Business rules](/registry/functional/features/movements#3-business-rules).
 - **Disabling is soft and reversible.** An activity can be disabled (hidden from selection) and later re-enabled without losing its history.
 
 ## 4. Behavioral scenarios (BDD)
@@ -106,7 +106,7 @@ Scenario: Disabling an activity hides it without losing history
 
 ## 5. API surface
 
-REST endpoints backing this feature. All project-scoped endpoints live under `/api/v1/projects/{projectId}/...` and **require the `ACTIVITY` option**. See [Technical → API Reference](../../technical/api-reference).
+REST endpoints backing this feature. All project-scoped endpoints live under `/api/v2/projects/{projectId}/...` and **require the `ACTIVITY` option**. See [Technical → API Reference](/registry/technical/api-reference).
 
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
@@ -115,6 +115,6 @@ REST endpoints backing this feature. All project-scoped endpoints live under `/a
 | `GET` | `/activities/{id}/movements` | Read the activity's movement history | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_HISTORY_R` |
 | `POST` | `/activities` | Plan an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_C` |
 | `PATCH` | `/activities/{id}` | Update an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
-| `PATCH` | `/activities/{id}/disable` | Soft-disable an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
-| `PATCH` | `/activities/{id}/enable` | Re-enable a disabled activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
+| `POST` | `/activities/{id}/disable` | Soft-disable an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
+| `POST` | `/activities/{id}/enable` | Re-enable a disabled activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
 | `DELETE` | `/activities/{id}` | Permanently delete an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_D` |

@@ -26,7 +26,7 @@ Use **Authentik** as the central OIDC identity provider for every public Atlas s
 ### Positive
 
 - **One login screen for the platform.** Users see "Sign in to Atlas" once, then reach Grafana, Harbor, Infisical, Argo CD without re-entering credentials.
-- **Broad protocol support.** OIDC for modern apps; forward-auth (Authentik's `auth_request`-style endpoint) for things that lack OIDC, like the Traefik dashboard ([ADR 005](./005-traefik-ingress)).
+- **Broad protocol support.** OIDC for modern apps; forward-auth (Authentik's `auth_request`-style endpoint) for things that lack OIDC, like the Traefik dashboard ([ADR 005](/atlas/technical/adr/005-traefik-ingress)).
 - **Polished end-user UX.** The login flow, MFA enrolment, and account settings UI are presentable to non-technical guests.
 - **Group-based authorization** mapped into each downstream service. A user in the `grafana-viewers` group automatically gets the right Grafana role on first login.
 - **Active open-source project** with frequent releases and good documentation.
@@ -35,8 +35,8 @@ Use **Authentik** as the central OIDC identity provider for every public Atlas s
 ### Negative
 
 - **Single point of failure for the platform's UX.** If Authentik is down, every other public service is effectively down. Mitigated by Authentik's stability and by the fact that a hard outage on a homelab is acceptable.
-- **One more Postgres to back up.** Authentik's state lives in Postgres; restoring it from Restic is a documented step in the [recovery workflow](../../functional/workflows#w5-i-recover-from-a-disk-failure).
-- **OIDC client secrets to manage.** Each downstream service needs a client ID/secret pair. These live in Infisical ([ADR 009](./009-infisical-secrets)) and are referenced via External Secrets.
+- **One more Postgres to back up.** Authentik's state lives in Postgres; restoring it from Restic is a documented step in the [recovery workflow](/atlas/functional/workflows#w5-i-recover-from-a-disk-failure).
+- **OIDC client secrets to manage.** Each downstream service needs a client ID/secret pair. These live in Infisical ([ADR 009](/atlas/technical/adr/009-infisical-secrets)) and are referenced via External Secrets.
 - **Group → role mappings live in two places.** Authentik (the source of truth) and each app's config (the consumer). Drift between them is possible.
 
 ### Why not Keycloak

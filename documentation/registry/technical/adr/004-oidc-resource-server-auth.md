@@ -2,13 +2,13 @@
 
 ## Status
 
-Accepted
+Accepted — **amended by [ADR 022](/registry/technical/adr/022-ssr-auth-bff)** for SSR: the **confidential-client / token-brokering role moves to the Nuxt BFF** (which becomes the OIDC client). The **resource-server** role, JWT→user converter, JIT provisioning, and project-scoped RBAC described here are **unchanged**, and Spring moves to a private network.
 
 ## Context
 
 The registry is multi-tenant and needs authentication that is secure by default: credential storage, password hashing, MFA, session security, and single sign-on across the platform. Building and maintaining a local authentication system — a password store, reset flows, MFA enrolment, brute-force protection — is a large, security-sensitive surface that is easy to get subtly wrong and offers no differentiation for this product.
 
-We wanted to offload identity to a dedicated provider while keeping the backend in control of authorization ([ADR 005](./005-db-driven-project-rbac)) and never exposing client secrets to the browser.
+We wanted to offload identity to a dedicated provider while keeping the backend in control of authorization ([ADR 005](/registry/technical/adr/005-db-driven-project-rbac)) and never exposing client secrets to the browser.
 
 ## Decision
 
@@ -35,7 +35,7 @@ The provider is configured **generically**. The code names the provider bean "ke
 - **The client secret never touches the browser.** Because the backend is a confidential client that brokers the code/refresh exchange server-side, the secret stays server-side — a materially better posture than a public SPA client.
 - **Zero-touch onboarding.** JIT auto-provisioning creates the local user on first login, so there is no manual account-creation step.
 - **Provider-agnostic configuration.** The OIDC config is generic, so the same code runs against Authentik in dev and any compliant provider elsewhere.
-- **Authorization stays local.** The provider proves *who* you are; the backend still decides *what* you may do (see [ADR 005](./005-db-driven-project-rbac)), keeping tenant permissions under application control.
+- **Authorization stays local.** The provider proves *who* you are; the backend still decides *what* you may do (see [ADR 005](/registry/technical/adr/005-db-driven-project-rbac)), keeping tenant permissions under application control.
 
 ### Negative
 

@@ -8,14 +8,14 @@
 
 ## 2. Roles & Permissions
 
-This is a **global** feature: it uses the platform-wide roles `USER_ADMINISTRATOR` and `USER`, not project roles. Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](../roles-and-permissions) for the full model, and [Domain Model → User](../domain-model#user) for the entity.
+This is a **global** feature: it uses the platform-wide roles `USER_ADMINISTRATOR` and `USER`, not project roles. Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → User](/registry/functional/domain-model#user) for the entity.
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
 | `USER_ADMINISTRATOR` (global) | **R U D** | View the directory and user metadata/roles (`REGISTRY_USER_R`, `REGISTRY_USER_METADATA_R`); change a user's global role (`REGISTRY_USER_U`); block/unblock an account (`REGISTRY_USER_U`); anonymize or delete another user (`REGISTRY_USER_D`). Subject to the role-level and last-administrator safeguards below. |
 | `USER` (global, default) | **self-service only** | No access to the directory. May, however, anonymize **their own** account (authenticated; no special permission). |
 
-> Accounts are not created through this feature: they are **auto-provisioned on first OIDC sign-in** with the default `USER` role. See [Roles & Permissions → Authentication model](../roles-and-permissions#authentication-model).
+> Accounts are not created through this feature: they are **auto-provisioned on first OIDC sign-in** with the default `USER` role. See [Roles & Permissions → Authentication model](/registry/functional/roles-and-permissions#authentication-model).
 
 ## 3. Business rules
 
@@ -99,7 +99,7 @@ Scenario: Accounts are auto-provisioned on first sign-in
 
 ## 5. API surface
 
-REST endpoints backing this feature, under `/api/v1/users`. This is a global feature — permissions are global, not project-scoped. See [Technical → API Reference](../../technical/api-reference).
+REST endpoints backing this feature, under `/api/v2/users`. This is a global feature — permissions are global, not project-scoped. See [Technical → API Reference](/registry/technical/api-reference).
 
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
@@ -107,8 +107,8 @@ REST endpoints backing this feature, under `/api/v1/users`. This is a global fea
 | `GET` | `/users/{id}` | Read a single user | `REGISTRY_USER_R` |
 | `GET` | `/users/roles` | Read assignable global roles (metadata) | `REGISTRY_USER_METADATA_R` |
 | `PATCH` | `/users/{id}/role` | Change a user's global role | `REGISTRY_USER_U` |
-| `PATCH` | `/users/{id}/block` | Block an account from signing in | `REGISTRY_USER_U` |
-| `PATCH` | `/users/{id}/unblock` | Restore an account's ability to sign in | `REGISTRY_USER_U` |
-| `PATCH` | `/users/{id}/impersonate` | Anonymize (GDPR-scrub) another user | `REGISTRY_USER_D` |
-| `PATCH` | `/users/impersonate` | Anonymize (GDPR-scrub) **own** account | Authenticated (self) |
+| `POST` | `/users/{id}/block` | Block an account from signing in | `REGISTRY_USER_U` |
+| `POST` | `/users/{id}/unblock` | Restore an account's ability to sign in | `REGISTRY_USER_U` |
+| `POST` | `/users/{id}/anonymize` | Anonymize (GDPR purge) another user | `REGISTRY_USER_D` |
+| `POST` | `/users/anonymize` | Anonymize (GDPR purge) **own** account | Authenticated (self) |
 | `DELETE` | `/users/{id}` | Delete a user | `REGISTRY_USER_D` |

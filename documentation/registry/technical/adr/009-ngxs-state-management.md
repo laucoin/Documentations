@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted — **to be superseded by [ADR 014](/registry/technical/adr/014-pinia-state-management)** (Pinia) when the Vue/Nuxt rewrite lands (pending the Phase-0 spike). Records the Angular-era state choice.
 
 ## Context
 

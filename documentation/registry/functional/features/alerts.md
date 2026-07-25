@@ -2,13 +2,13 @@
 
 ## 1. Overview
 
-- **Goal:** An alert is an **incident** the team needs to act on — a title, a timestamp, and a status. Alerts are typically **raised from a movement's discussion thread**: a note about a problem is escalated into a tracked item, then followed to resolution. Each alert carries its own [communication](./communications) thread and a live *"in progress since"* timer, so anyone can see what is open, for how long, and what has been said about it. The status lifecycle records whether the incident is being handled, has been dealt with, or was called off.
+- **Goal:** An alert is an **incident** the team needs to act on — a title, a timestamp, and a status. Alerts are typically **raised from a movement's discussion thread**: a note about a problem is escalated into a tracked item, then followed to resolution. Each alert carries its own [communication](/registry/functional/features/communications) thread and a live *"in progress since"* timer, so anyone can see what is open, for how long, and what has been said about it. The status lifecycle records whether the incident is being handled, has been dealt with, or was called off.
 - **Who uses it:** Everyone on the project. `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` raise, edit, change the status of, and remove alerts; `PROJECT_PARTICIPANT` — the ground staff — raise and read them.
-- **Option required:** `ALERT`. The module is enabled per project and requires both `ACTIVITY` and `COMMUNICATION` (see [Roles & Permissions → Project options](../roles-and-permissions#project-options-gating)). While the option is off, every endpoint below is closed regardless of role.
+- **Option required:** `ALERT`. The module is enabled per project and requires both `ACTIVITY` and `COMMUNICATION` (see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating)). While the option is off, every endpoint below is closed regardless of role.
 
 ## 2. Roles & Permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. Status changes are an **U**pdate. See [Roles & Permissions](../roles-and-permissions) for the full model, and [Domain Model → Alert](../domain-model#alert-option) for the entity.
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. Status changes are an **U**pdate. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Alert](/registry/functional/domain-model#alert-option) for the entity.
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
@@ -20,8 +20,8 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. Sta
 
 - **Title ≤ 50 characters.** A longer title is rejected.
 - **Timestamped.** Each alert carries a creation timestamp; the dashboard derives a live *"in progress since"* duration from it while the status is `IN_PROGRESS`.
-- **Status lifecycle.** An alert is `IN_PROGRESS`, `RESOLVED` or `CANCELED`. From `IN_PROGRESS` it can be **resolved** (→ `RESOLVED`) or **canceled** (→ `CANCELED`); a closed alert can be **reopened** (→ `IN_PROGRESS`). See [Domain Model → Alert status](../domain-model#status-vocabulary).
-- **Own discussion thread.** Every alert has an attached [communication](./communications) thread; alerts are commonly escalated from a movement's thread.
+- **Status lifecycle.** An alert is `IN_PROGRESS`, `RESOLVED` or `CANCELED`. From `IN_PROGRESS` it can be **resolved** (→ `RESOLVED`) or **canceled** (→ `CANCELED`); a closed alert can be **reopened** (→ `IN_PROGRESS`). See [Domain Model → Alert status](/registry/functional/domain-model#status-vocabulary).
+- **Own discussion thread.** Every alert has an attached [communication](/registry/functional/features/communications) thread; alerts are commonly escalated from a movement's thread.
 - **Disabling is a soft, reversible action.** Disabling hides an alert without deleting it; it can be re-enabled. Deletion is permanent and administrator/coordinator only.
 - **Gated by the option.** If the `ALERT` option is disabled on the project, the whole feature is invisible and its API is closed.
 
@@ -79,7 +79,7 @@ Scenario: The feature is closed when the option is disabled
 
 ## 5. API surface
 
-REST endpoints backing this feature, all under `/api/v1/projects/{projectId}/alerts` and **gated by the `ALERT` option**. See [Technical → API Reference](../../technical/api-reference).
+REST endpoints backing this feature, all under `/api/v2/projects/{projectId}/alerts` and **gated by the `ALERT` option**. See [Technical → API Reference](/registry/technical/api-reference).
 
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
@@ -88,7 +88,9 @@ REST endpoints backing this feature, all under `/api/v1/projects/{projectId}/ale
 | `GET` | `/alerts/{id}/communications` | Read an alert's discussion thread | `REGISTRY_PROJECT_ALERT_COMMUNICATION_R` |
 | `POST` | `/alerts` | Raise a new alert | `REGISTRY_PROJECT_ALERT_C` |
 | `PATCH` | `/alerts/{id}` | Edit an alert (e.g. its title) | `REGISTRY_PROJECT_ALERT_U` |
-| `PATCH` | `/alerts/{id}/status/{status}` | Change status (resolve / cancel / reopen) | `REGISTRY_PROJECT_ALERT_U` |
-| `PATCH` | `/alerts/{id}/disable` | Soft-disable (hide) an alert | `REGISTRY_PROJECT_ALERT_U` |
-| `PATCH` | `/alerts/{id}/enable` | Re-enable a hidden alert | `REGISTRY_PROJECT_ALERT_U` |
+| `POST` | `/alerts/{id}/resolve` | Resolve an alert (`IN_PROGRESS` → `RESOLVED`) | `REGISTRY_PROJECT_ALERT_U` |
+| `POST` | `/alerts/{id}/cancel` | Cancel an alert (`IN_PROGRESS` → `CANCELED`) | `REGISTRY_PROJECT_ALERT_U` |
+| `POST` | `/alerts/{id}/reopen` | Reopen a closed alert (→ `IN_PROGRESS`) | `REGISTRY_PROJECT_ALERT_U` |
+| `POST` | `/alerts/{id}/disable` | Soft-disable (hide) an alert | `REGISTRY_PROJECT_ALERT_U` |
+| `POST` | `/alerts/{id}/enable` | Re-enable a hidden alert | `REGISTRY_PROJECT_ALERT_U` |
 | `DELETE` | `/alerts/{id}` | Permanently delete an alert | `REGISTRY_PROJECT_ALERT_D` |

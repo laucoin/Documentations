@@ -23,7 +23,7 @@ Use **Argo CD** with the "app-of-apps" pattern.
 
 - **The UI is a first-class artifact.** Drift, sync status, manifest diffs, last-sync errors are all visible in one place. For a one-person operator, "I open Argo CD and immediately see what's wrong" is enormous. Flux's equivalent (`flux get …` on the CLI) is functional but less inviting.
 - **App-of-apps fits the bootstrap chain.** OpenTofu creates a single root `Application` resource; Argo CD reads it and creates every child Application from Git. This collapses the bootstrap to one HCL resource and zero Argo CD configuration in Tofu.
-- **First-class OIDC integration with Authentik** ([ADR 008](./008-authentik-oidc)). Login flows and group-based RBAC are documented and supported by the Argo CD upstream.
+- **First-class OIDC integration with Authentik** ([ADR 008](/atlas/technical/adr/008-authentik-oidc)). Login flows and group-based RBAC are documented and supported by the Argo CD upstream.
 - **Larger user base.** More tutorials, more Stack Overflow answers, more public Argo CD ApplicationSet examples to crib from.
 - **Built-in support for Helm, Kustomize, and plain manifests in the same Application.** No need to choose a templating engine up-front.
 

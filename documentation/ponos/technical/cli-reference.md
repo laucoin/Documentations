@@ -10,7 +10,7 @@ Every command Ponos exposes, its flags, defaults and behaviour. The developer he
 ./sync_mac.sh
 ```
 
-Runs the full bootstrap sequence (see [Architecture](./architecture#end-to-end-run-flow)). No positional arguments. Behaviour is tuned by environment variables:
+Runs the full bootstrap sequence (see [Architecture](/ponos/technical/architecture#end-to-end-run-flow)). No positional arguments. Behaviour is tuned by environment variables:
 
 | Variable | Effect |
 | -------- | ------ |

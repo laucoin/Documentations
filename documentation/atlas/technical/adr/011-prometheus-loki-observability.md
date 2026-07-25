@@ -27,7 +27,7 @@ Use **Prometheus** for metrics, **Loki** for logs, **Alertmanager** for alert ro
 - **Prometheus + Loki share the same query mental model.** PromQL for metrics, LogQL for logs; LogQL is "PromQL-shaped" enough that switching contexts is cheap.
 - **Alertmanager is mature.** Routing, inhibition, silencing, deduplication all work as advertised.
 - **Grafana is the lingua franca of OSS dashboards.** Community dashboards for every component Atlas runs already exist.
-- **OIDC SSO with Authentik** ([ADR 008](./008-authentik-oidc)) — guests reach dashboards I share with them without separate Grafana accounts.
+- **OIDC SSO with Authentik** ([ADR 008](/atlas/technical/adr/008-authentik-oidc)) — guests reach dashboards I share with them without separate Grafana accounts.
 - **Loki is operationally lighter than ELK** for the log volumes a homelab produces.
 
 ### Per-service dashboards

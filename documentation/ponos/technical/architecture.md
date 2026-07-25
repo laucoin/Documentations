@@ -122,7 +122,7 @@ Because `setup_git` sets `init.templateDir` to `dotfiles/git/git-templates`, eve
 - **`commit-msg`** parses the message, matches it against the Conventional-Commit keyword set, prefixes `wip` messages with `[skip ci]`, or synthesises a conforming message from the branch name (keyword + trailing path segment as scope). It rewrites the commit-message file in place or exits non-zero to reject the commit.
 - **`pre-push`** reads the last command from `~/.zsh_history` to detect a force push, checks the current branch against the protected set, and prompts on `/dev/tty` for confirmation before allowing the push.
 
-Existing repositories don't get template changes retroactively — [`rhooks`](./cli-reference#rhooks) copies the latest hooks into every `.git/hooks` under a directory tree on demand.
+Existing repositories don't get template changes retroactively — [`rhooks`](/ponos/technical/cli-reference#rhooks) copies the latest hooks into every `.git/hooks` under a directory tree on demand.
 
 ## Design properties
 

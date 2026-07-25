@@ -15,11 +15,11 @@ Ponos ships five shell aliases backed by two Python/Click command groups. They a
 | `uport` | `sys_ext.py uport` | Show which process is listening on a TCP port. |
 | `kport` | `sys_ext.py kport` | Terminate the process listening on a TCP port. |
 
-The precise flags and defaults are documented in [Technical → CLI Reference](../../technical/cli-reference).
+The precise flags and defaults are documented in [Technical → CLI Reference](/ponos/technical/cli-reference).
 
 ## 2. Access & Trust Boundary
 
-These commands act on the current user's repositories and processes. `kport` sends `SIGTERM` to processes the user owns. See [Actors & Trust Boundary](../roles-and-permissions).
+These commands act on the current user's repositories and processes. `kport` sends `SIGTERM` to processes the user owns. See [Actors & Trust Boundary](/ponos/functional/roles-and-permissions).
 
 ## 3. Behaviour
 

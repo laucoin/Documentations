@@ -12,7 +12,7 @@ The Atlas bootstrap (cluster creation, Argo CD install, initial secret seeding) 
 2. **OpenTofu** — the Linux Foundation fork of Terraform created in response to the BSL relicensing, MPL-2.0 licensed, drop-in compatible with Terraform's HCL.
 3. **Pulumi** — IaC expressed in general-purpose languages (TypeScript, Python, Go). Different model, smaller provider ecosystem, more expressive code.
 
-The bootstrap is intentionally small (just enough OpenTofu to install Argo CD and let it take over — see [ADR 004](./004-argocd-vs-flux)). The tool's footprint inside Atlas is tiny; the choice is mostly about licensing, longevity, and provider availability.
+The bootstrap is intentionally small (just enough OpenTofu to install Argo CD and let it take over — see [ADR 004](/atlas/technical/adr/004-argocd-vs-flux)). The tool's footprint inside Atlas is tiny; the choice is mostly about licensing, longevity, and provider availability.
 
 ## Decision
 

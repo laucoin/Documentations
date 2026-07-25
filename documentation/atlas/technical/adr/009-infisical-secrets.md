@@ -25,7 +25,7 @@ Use **Infisical** as the central secret store, with **External Secrets Operator 
 
 - **Clean web UI.** Browsing, adding, and rotating secrets is genuinely pleasant. For a homelab where the operator is also the only auditor, the UI doing the right thing matters more than a CLI-only flow.
 - **CLI client for local use.** `infisical run -- ./my-script.sh` injects secrets into scripts on my laptop, removing `.env` files from disk.
-- **OIDC SSO via Authentik** ([ADR 008](./008-authentik-oidc)) — no separate Infisical password.
+- **OIDC SSO via Authentik** ([ADR 008](/atlas/technical/adr/008-authentik-oidc)) — no separate Infisical password.
 - **Project and environment scoping.** Secrets are organized into projects and environments (`dev`/`prod`) with their own access tokens.
 - **ESO integration is first-class.** An `InfisicalSecret` (or generic `ExternalSecret` with the Infisical provider) is a few lines of YAML.
 - **Much lighter than Vault.** Postgres + Redis + a Node.js process. No unsealing rituals, no Raft quorum.
@@ -34,7 +34,7 @@ Use **Infisical** as the central secret store, with **External Secrets Operator 
 
 - **Less battle-tested than Vault.** Infisical is younger; the long-term governance is a self-funded company. Mitigated by the fact that the data model is simple and migrating off is straightforward.
 - **No dynamic secrets, no PKI engine, no transit encryption engine.** Vault's killer features for enterprise. Atlas does not need them.
-- **The Infisical access token used by ESO is itself a bootstrap secret.** It must be created during the OpenTofu stage and stored as a Kubernetes Secret outside of GitOps' reach, otherwise the chicken-and-egg problem is unsolvable. Documented in [Bootstrap → L1](../bootstrap#l1-opentofu-seeds-plain-kubernetes-secrets).
+- **The Infisical access token used by ESO is itself a bootstrap secret.** It must be created during the OpenTofu stage and stored as a Kubernetes Secret outside of GitOps' reach, otherwise the chicken-and-egg problem is unsolvable. Documented in [Bootstrap → L1](/atlas/technical/bootstrap#l1-opentofu-seeds-plain-kubernetes-secrets).
 - **One more Postgres to back up.** Restic snapshots include the Infisical DB dump.
 
 ### Why not SOPS + age

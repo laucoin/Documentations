@@ -8,7 +8,7 @@
 
 ## 2. Roles & Permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](../roles-and-permissions) for the full model, and [Domain Model → Project](../domain-model#project) for the entity.
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Project](/registry/functional/domain-model#project) for the entity.
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
@@ -24,7 +24,7 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 - **`begin`** and **`end`** are each a date with an optional time; `begin` must be **strictly before** `end` (`@StartBeforeEnd`).
 - **Enabled options** are a subset of `VEHICLE`, `ACTIVITY`, `COMMUNICATION`, `ALERT`, subject to dependencies (`@ProjectOptionDependencies`): `COMMUNICATION` requires `ACTIVITY`; `ALERT` requires `ACTIVITY` **and** `COMMUNICATION`. A request that breaks a dependency is rejected with error `PROJECT_OPTIONS_MISSING`, listing the missing options.
 - **Availability is derived, not stored.** A project is `AVAILABLE` when the current moment is within the `begin`–`end` window, otherwise `UNAVAILABLE`.
-- **Disabling is a soft, reversible action** (`visibility = false`). While a project is disabled, non-administrators lose **all** authority on it; the administrator keeps only read, re-enable and delete. See [Roles & Permissions → Visibility gating](../roles-and-permissions#rules-that-shape-access-over-time).
+- **Disabling is a soft, reversible action** (`visibility = false`). While a project is disabled, non-administrators lose **all** authority on it; the administrator keeps only read, re-enable and delete. See [Roles & Permissions → Visibility gating](/registry/functional/roles-and-permissions#rules-that-shape-access-over-time).
 - **The project list is scoped to the caller.** A user sees only the projects they hold a profile on; a global `USER_ADMINISTRATOR` sees them all.
 
 ## 4. Behavioral scenarios (BDD)
@@ -91,7 +91,7 @@ Scenario: A platform administrator can read any project for support
 
 ## 5. API surface
 
-REST endpoints backing this feature. Project-scoped endpoints live under `/api/v1/projects/{projectId}/...` and are secured by the holder's project-scoped permission. See [Technical → API Reference](../../technical/api-reference).
+REST endpoints backing this feature. Project-scoped endpoints live under `/api/v2/projects/{projectId}/...` and are secured by the holder's project-scoped permission. See [Technical → API Reference](/registry/technical/api-reference).
 
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
@@ -100,6 +100,6 @@ REST endpoints backing this feature. Project-scoped endpoints live under `/api/v
 | `GET` | `/projects/options` | Read available options (metadata) | `REGISTRY_PROJECT_METADATA_R` |
 | `POST` | `/projects` | Create a project (creator becomes administrator) | `REGISTRY_PROJECT_C` (global) |
 | `PATCH` | `/projects/{id}` | Update name, dates or options | scoped `REGISTRY_PROJECT_U` |
-| `PATCH` | `/projects/{id}/disable` | Soft-disable (hide) the project | scoped `REGISTRY_PROJECT_U` |
-| `PATCH` | `/projects/{id}/enable` | Re-enable a disabled project | scoped `REGISTRY_PROJECT_U` |
+| `POST` | `/projects/{id}/disable` | Soft-disable (hide) the project | scoped `REGISTRY_PROJECT_U` |
+| `POST` | `/projects/{id}/enable` | Re-enable a disabled project | scoped `REGISTRY_PROJECT_U` |
 | `DELETE` | `/projects/{id}` | Permanently delete the project | scoped `REGISTRY_PROJECT_D` |

@@ -9,11 +9,11 @@ The base toolset is declared in the repository's `Brewfile`. Two selections — 
 
 ## 2. Access & Trust Boundary
 
-Package installation runs as the user; casks that install into `/Applications` may trigger a Homebrew `sudo` prompt. See [Actors & Trust Boundary](../roles-and-permissions).
+Package installation runs as the user; casks that install into `/Applications` may trigger a Homebrew `sudo` prompt. See [Actors & Trust Boundary](/ponos/functional/roles-and-permissions).
 
 ## 3. What is installed
 
-The base `Brewfile` covers core tools (`git`, `zsh`, `starship`, `chezmoi`, `ansible`), language version managers (`pyenv`, `nvm`), editors and IDE tooling, infrastructure CLIs (`talosctl`, `opentofu`, `kubectl`, `helm`, `velero`), and a set of desktop applications. The exact, authoritative list lives in the `Brewfile` itself; the [Technical → Configuration](../../technical/configuration#brewfile) page enumerates it.
+The base `Brewfile` covers core tools (`git`, `zsh`, `starship`, `chezmoi`, `ansible`), language version managers (`pyenv`, `nvm`), editors and IDE tooling, infrastructure CLIs (`talosctl`, `opentofu`, `kubectl`, `helm`, `velero`), and a set of desktop applications. The exact, authoritative list lives in the `Brewfile` itself; the [Technical → Configuration](/ponos/technical/configuration#brewfile) page enumerates it.
 
 On top of the base file, `sync_mac.sh` appends the interactive selections into a temporary **effective Brewfile**:
 
@@ -28,7 +28,7 @@ On top of the base file, `sync_mac.sh` appends the interactive selections into a
 - **Environment override.** `PONOS_CONTAINER` and `PONOS_BROWSER`, when set, bypass the corresponding prompt entirely and are still persisted.
 - **Non-interactive fallback.** When stdin is not a TTY, both prompts are skipped and the defaults (or persisted values / overrides) are used.
 - **Invalid answer → default.** An unrecognised interactive answer logs a warning and falls back to the default.
-- **Fail-soft install.** A `brew bundle` failure is a warning, not a stop (see [Bootstrap](./bootstrap)).
+- **Fail-soft install.** A `brew bundle` failure is a warning, not a stop (see [Bootstrap](/ponos/functional/features/bootstrap)).
 - **Ephemeral effective Brewfile.** The composed file is written to a temp path and deleted after the run; the tracked `Brewfile` is never modified.
 
 ## 5. Behavioural scenarios (BDD)

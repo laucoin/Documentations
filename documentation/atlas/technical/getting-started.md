@@ -6,7 +6,7 @@ It assumes you have **never deployed Kubernetes or any of these tools before**. 
 
 > The deployment described here uses the **home-self-hosted** pattern: the node sits on your LAN with a private IP (e.g. `10.0.0.10`), but your router forwards ports **80** and **443** from your public IP to the node. A wildcard DNS record `*.atlas.<your-domain>` points at your router's public IP. Browsers (on the LAN or outside) connect over HTTPS to public IP → router → node → Traefik. Certificates are issued by Let's Encrypt via the standard **HTTP-01** challenge (LE connects back on port 80 to prove you own the domain).
 
-If you only want the conceptual overview, read [`AGENTS.md`](./AGENTS.md). If you want to actually install Atlas, read on.
+If you only want the conceptual overview, read [`AGENTS.md`](/atlas/technical/AGENTS). If you want to actually install Atlas, read on.
 
 ---
 

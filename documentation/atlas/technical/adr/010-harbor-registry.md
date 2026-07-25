@@ -25,7 +25,7 @@ Use **Harbor**, deployed via the upstream Helm chart, behind Authentik OIDC for 
 
 - **Closest OSS analogue to JFrog Artifactory** for container images. Web UI, projects, robot accounts, retention policies, garbage collection — all built-in.
 - **Vulnerability scanning out of the box** via the Trivy scanner adapter. Every pushed image is automatically scanned; results appear in the UI.
-- **OIDC integration with Authentik** ([ADR 008](./008-authentik-oidc)) lets users sign in with the platform's single SSO instead of a Harbor-specific password.
+- **OIDC integration with Authentik** ([ADR 008](/atlas/technical/adr/008-authentik-oidc)) lets users sign in with the platform's single SSO instead of a Harbor-specific password.
 - **Project-level RBAC** keeps personal/family/guest images separated within a single Harbor instance — no need to deploy multiple registries.
 - **CNCF graduated**, with a large enterprise install base. Long-term maintenance risk is low.
 - **Replication is available** if Atlas later needs an off-site mirror.
@@ -34,7 +34,7 @@ Use **Harbor**, deployed via the upstream Helm chart, behind Authentik OIDC for 
 
 - **Significantly heavier than Distribution.** Harbor is ~10 deployments (core, registry, registry-controller, jobservice, portal, trivy, postgres, redis, etc.). For a single-node homelab the resource cost is non-trivial — expect ~1 GB RAM at idle.
 - **Trivy scan database is large and frequently updated.** Disk usage grows, and updates can saturate a slow home connection if not throttled.
-- **Robot account credentials are sensitive.** They must live in Infisical ([ADR 009](./009-infisical-secrets)), not in Git or in `~/.docker/config.json` for long.
+- **Robot account credentials are sensitive.** They must live in Infisical ([ADR 009](/atlas/technical/adr/009-infisical-secrets)), not in Git or in `~/.docker/config.json` for long.
 - **Helm chart upgrades occasionally break.** Harbor's chart has historically had non-trivial upgrade notes; the GitOps repo must pin the chart version.
 
 ### Why not Zot or Distribution

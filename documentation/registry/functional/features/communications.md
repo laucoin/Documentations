@@ -4,11 +4,11 @@
 
 - **Goal:** A communication is a short, timestamped message pinned to an operational event — a movement or an alert. Together, the messages on one target form its **discussion thread**: the running commentary staff use to coordinate around a check-in/out or an incident. A message written on a movement can be **escalated into an alert**, turning a passing note into a tracked incident. Communications keep the "who said what, and when" beside the record it concerns instead of in a separate chat.
 - **Who uses it:** Everyone on the project. `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` write, correct and remove messages; `PROJECT_PARTICIPANT` — the ground staff — write and read them.
-- **Option required:** `COMMUNICATION`. The module is enabled per project and itself requires `ACTIVITY` (see [Roles & Permissions → Project options](../roles-and-permissions#project-options-gating)). While the option is off, every endpoint below is closed regardless of role.
+- **Option required:** `COMMUNICATION`. The module is enabled per project and itself requires `ACTIVITY` (see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating)). While the option is off, every endpoint below is closed regardless of role.
 
 ## 2. Roles & Permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](../roles-and-permissions) for the full model, and [Domain Model → Communication](../domain-model#communication-option) for the entity.
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Communication](/registry/functional/domain-model#communication-option) for the entity.
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
@@ -21,7 +21,7 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 - **A message must have a target.** Every communication references a **movement and/or an alert** — at least one of the two (`@AtLeastOneIsDefined`). A message with neither target is rejected.
 - **Message length ≤ 250 characters.** Longer text is rejected.
 - **Timestamped.** Each message carries a timestamp; a thread is read in chronological order.
-- **Escalation.** A message in a movement thread can be turned into an [alert](./alerts), which then carries its own thread. The original message stays on the movement.
+- **Escalation.** A message in a movement thread can be turned into an [alert](/registry/functional/features/alerts), which then carries its own thread. The original message stays on the movement.
 - **Disabling is a soft, reversible action.** Disabling hides a message without deleting it; it can be re-enabled. Deletion is permanent and administrator/coordinator only.
 - **Gated by the option.** If the `COMMUNICATION` option is disabled on the project, the whole feature is invisible and its API is closed.
 
@@ -79,16 +79,16 @@ Scenario: The feature is closed when the option is disabled
 
 ## 5. API surface
 
-REST endpoints backing this feature, all under `/api/v1/projects/{projectId}/communications` and **gated by the `COMMUNICATION` option**. See [Technical → API Reference](../../technical/api-reference).
+REST endpoints backing this feature, all under `/api/v2/projects/{projectId}/communications` and **gated by the `COMMUNICATION` option**. See [Technical → API Reference](/registry/technical/api-reference).
 
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
 | `GET` | `/communications` | List communications on the project | `REGISTRY_PROJECT_COMMUNICATION_R` |
 | `GET` | `/communications/{id}` | Read a single communication | `REGISTRY_PROJECT_COMMUNICATION_R` |
-| `GET` | `/communications/search/movements` | Find communications by movement (metadata) | `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
-| `GET` | `/communications/search/alerts` | Find communications by alert (metadata) | `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
+| `GET` | `/communications/attachable-movements?q=` | Find movements a message can attach to (metadata) | `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
+| `GET` | `/communications/attachable-alerts?q=` | Find alerts a message can attach to (metadata) | `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
 | `POST` | `/communications` | Post a message on a movement and/or alert | `REGISTRY_PROJECT_COMMUNICATION_C` |
 | `PATCH` | `/communications/{id}` | Edit a message | `REGISTRY_PROJECT_COMMUNICATION_U` |
-| `PATCH` | `/communications/{id}/disable` | Soft-disable (hide) a message | `REGISTRY_PROJECT_COMMUNICATION_U` |
-| `PATCH` | `/communications/{id}/enable` | Re-enable a hidden message | `REGISTRY_PROJECT_COMMUNICATION_U` |
+| `POST` | `/communications/{id}/disable` | Soft-disable (hide) a message | `REGISTRY_PROJECT_COMMUNICATION_U` |
+| `POST` | `/communications/{id}/enable` | Re-enable a hidden message | `REGISTRY_PROJECT_COMMUNICATION_U` |
 | `DELETE` | `/communications/{id}` | Permanently delete a message | `REGISTRY_PROJECT_COMMUNICATION_D` |

@@ -1,6 +1,6 @@
 # Functional Documentation
 
-Ponos is the tooling that sets up and maintains a macOS development machine. Everything here is described from the point of view of the person who uses it — what it does to a Mac, who runs it, and the rules that govern each behaviour. The engineering behind it lives in the [Technical Documentation](../technical/).
+Ponos is the tooling that sets up and maintains a macOS development machine. Everything here is described from the point of view of the person who uses it — what it does to a Mac, who runs it, and the rules that govern each behaviour. The engineering behind it lives in the [Technical Documentation](/ponos/technical/).
 
 ## What Ponos is, in one paragraph
 
@@ -37,7 +37,7 @@ Ponos turns a fresh (or drifted) Mac into a fully configured developer workstati
 
 | Page | Purpose |
 | ---- | ------- |
-| [Personas](./personas) | Who runs Ponos and what each context needs from it |
-| [Actors & Trust Boundary](./roles-and-permissions) | The security baseline: who runs it, what it is allowed to touch, privilege escalation, secrets and network access |
-| [Workflows](./workflows) | End-to-end journeys, from bootstrapping a fresh Mac to daily branch and port hygiene |
-| [Features](./features/bootstrap) | One page per capability, each with its behaviour rules and BDD scenarios |
+| [Personas](/ponos/functional/personas) | Who runs Ponos and what each context needs from it |
+| [Actors & Trust Boundary](/ponos/functional/roles-and-permissions) | The security baseline: who runs it, what it is allowed to touch, privilege escalation, secrets and network access |
+| [Workflows](/ponos/functional/workflows) | End-to-end journeys, from bootstrapping a fresh Mac to daily branch and port hygiene |
+| [Features](/ponos/functional/features/bootstrap) | One page per capability, each with its behaviour rules and BDD scenarios |

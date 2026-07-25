@@ -8,7 +8,7 @@ Accepted
 
 The registry is multi-tenant: users act inside **projects**, and a user's rights in one project say nothing about their rights in another. Authorization therefore has two planes — **global** (what a user may do platform-wide) and **project-scoped** (what a user may do *within a given project*).
 
-Authentication is already delegated to an external provider ([ADR 004](./004-oidc-resource-server-auth)); that provider proves identity but does not model this application's project-scoped roles. We also wanted roles and their permissions to be **editable as data**, so that adjusting who-can-do-what does not require a code change and redeploy, and we wanted per-request checks to be **cheap**.
+Authentication is already delegated to an external provider ([ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)); that provider proves identity but does not model this application's project-scoped roles. We also wanted roles and their permissions to be **editable as data**, so that adjusting who-can-do-what does not require a code change and redeploy, and we wanted per-request checks to be **cheap**.
 
 ## Decision
 
@@ -26,7 +26,7 @@ Implement RBAC as **data in the database, enforced by Spring method security wit
   Project-scoped authorization is therefore a **namespaced-string membership test**.
 - **Visibility gating:** for a disabled (invisible) project, non-admins receive **no authorities** at all; even admins keep only project **read/update/delete**.
 
-Authorities are computed at **token-conversion time** — the same custom converter that maps the OIDC token to the local user ([ADR 004](./004-oidc-resource-server-auth)) builds this authority set.
+Authorities are computed at **token-conversion time** — the same custom converter that maps the OIDC token to the local user ([ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)) builds this authority set.
 
 ## Consequences
 
@@ -35,7 +35,7 @@ Authorities are computed at **token-conversion time** — the same custom conver
 - **Roles and permissions are editable as data.** Changing what a role grants is a database change (a migration), not a code change — no redeploy to adjust the permission model.
 - **Multi-tenant isolation comes for free.** Because project authorities are namespaced by `projectId`, a permission in project A (`A_EDIT`) can never satisfy a check in project B (`B_EDIT`). Cross-tenant leakage is structurally impossible in the string form.
 - **Checks are simple and fast.** Both planes reduce to an in-memory string-set lookup, so `@PreAuthorize` adds negligible per-request cost.
-- **Declarative and co-located.** `@PreAuthorize` sits on the contract interfaces of [ADR 001](./001-hexagonal-architecture), so the required permission for an endpoint is visible right at the API surface.
+- **Declarative and co-located.** `@PreAuthorize` sits on the contract interfaces of [ADR 001](/registry/technical/adr/001-hexagonal-architecture), so the required permission for an endpoint is visible right at the API surface.
 - **Visibility gating is centralized.** The rule that an invisible project collapses a user's authorities lives in one place (authority computation), not scattered across handlers.
 
 ### Negative
@@ -47,7 +47,7 @@ Authorities are computed at **token-conversion time** — the same custom conver
 
 ### Why not the identity provider's roles/groups
 
-The OIDC provider ([ADR 004](./004-oidc-resource-server-auth)) can carry roles and groups in the token, which would avoid a local permission model entirely. We rejected leaning on it because the provider does not model this application's **project-scoped** plane — encoding per-project authorities for every project into provider groups does not scale, and it would couple the tenant permission model to IdP administration. Keeping authorization local and data-driven keeps it under application control and editable by a migration.
+The OIDC provider ([ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)) can carry roles and groups in the token, which would avoid a local permission model entirely. We rejected leaning on it because the provider does not model this application's **project-scoped** plane — encoding per-project authorities for every project into provider groups does not scale, and it would couple the tenant permission model to IdP administration. Keeping authorization local and data-driven keeps it under application control and editable by a migration.
 
 ### Why not a fine-grained ACL / policy engine
 
