@@ -26,14 +26,14 @@ When the backend runs with API docs enabled, an interactive OpenAPI/Swagger UI i
 | ------ | ---- | ------- | ---------- |
 | GET | `/?q=&page=&size=&sort=` | Search / list users | `REGISTRY_USER_R` |
 | GET | `/{id}` | Get a user | `REGISTRY_USER_R` |
-| GET | `/roles` | Assignable user roles | `REGISTRY_USER_METADATA_R` |
-| PATCH | `/{id}/role` | Change a user's global role (body: `role`) | `REGISTRY_USER_U` |
+| GET | `/assignable-roles` | Roles the caller may assign (eligibility sub-collection) | `REGISTRY_USER_METADATA_R` |
+| PATCH | `/{id}` | Update editable fields (body: changed fields, e.g. `role`) | `REGISTRY_USER_U` |
 | POST | `/{id}/block` · `/{id}/unblock` | Block / unblock an account | `REGISTRY_USER_U` |
 | POST | `/{id}/anonymize` | Anonymize (GDPR purge) another user | `REGISTRY_USER_D` |
 | POST | `/anonymize` | Anonymize the caller's own account | authenticated |
 | DELETE | `/{id}` | Delete a user | `REGISTRY_USER_D` |
 
-> **v1 → v2:** `PATCH …/block` → `POST …/block`; `PATCH …/unblock` → `POST …/unblock`; `PATCH …/impersonate` → `POST …/anonymize` (renamed for accuracy — it never was impersonation); `PATCH /impersonate` → `POST /anonymize`.
+> **v1 → v2:** `PATCH …/block` → `POST …/block`; `PATCH …/unblock` → `POST …/unblock`; `PATCH …/impersonate` → `POST …/anonymize` (renamed for accuracy — it never was impersonation); `PATCH /impersonate` → `POST /anonymize`; `GET /roles` → `GET /assignable-roles`; `PATCH /{id}/role?role=` → `PATCH /{id}` with body `{ "role": … }`.
 
 ## Preferences — `/api/v2/users/preferences` *(self)*
 

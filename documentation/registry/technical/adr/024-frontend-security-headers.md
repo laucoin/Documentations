@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted — the **frontend half of the security work** (backend half: [ADR 019](/registry/technical/adr/019-backend-security-hardening)). The CSP baseline is committed: **strict nonce-based `script-src`** as the floor and a **pragmatic `style-src`** as the guaranteed baseline. A fully-strict `style-src` is an **upgrade** the Phase-0 spike (see [Migration Plan](/registry/technical/migration-plan/2026-07-25-plan)) may unlock via SSR style extraction ([ADR 013](/registry/technical/adr/013-ant-design-vue)) — an upgrade, not a gate.
+Accepted — the **frontend half of the security work** (backend half: [ADR 019](/registry/technical/adr/019-backend-security-hardening)). The CSP baseline is committed: **strict nonce-based `script-src`** as the floor and a **pragmatic `style-src`** as the guaranteed baseline.
+
+**Phase-0 spike outcome (2026-07-25): the fully-strict `style-src` upgrade is rejected.** The spike (see [Migration Plan](/registry/technical/migration-plan/2026-07-25-plan)) proved SSR-extracted Ant Design Vue styles *can* be nonced, but ant-design-vue 4.x never forwards a nonce to **client-side** component style injection (`ConfigProvider`'s `csp` prop is inert for component styles) — under a nonce-only `style-src` the first client-side style regeneration (theme switch, lazily-mounted overlay) is refused and the UI renders unstyled. The committed baseline below is therefore the **final posture** unless an upstream fix lands; strict nonced `script-src` was verified end-to-end on the spike's production build.
 
 ## Context
 
