@@ -60,6 +60,43 @@ Scenario: Refusing to invent guests on their way out
   Then the movement is rejected, because a guest who leaves must first have arrived
 ```
 
+## Moving a whole group at once
+
+Picking a **group** when recording a movement is the single most common gesture at a busy gate: one selection instead of fifteen. What Registry stores, though, is not a link to the group — it is a **snapshot of it**.
+
+Choosing a group expands it into one content line per member, and stamps each line with the **group's name**. Participants picked individually carry no name. When the movement is read back, lines sharing a name are re-grouped for display, so the movement shows *"the red team (8) plus Léa and Marc"* rather than ten anonymous rows. Removing the group from a movement removes every line that carries its name.
+
+The consequence is the point:
+
+| | A stored link to the group | The name, copied onto each line |
+| --- | --- | --- |
+| Members change afterwards | The movement silently rewrites itself | The movement keeps who actually went |
+| A member leaves the group | They vanish from a movement they were on | They stay, correctly |
+| The group is deleted | The movement loses its shape | The movement is unaffected |
+| Membership must be re-checked when recording | Yes | No |
+
+So a movement records **who moved, and under which banner, at that moment** — not who is in that group today. It is a deliberate denormalisation: history stays true, and recording a movement never has to re-validate that everyone selected is still a member.
+
+::: tip Nothing enforces the name
+The field is free text, and Registry does not verify that a line's participants really belong to a group of that name. The name is a label the interface writes, not a reference it resolves — which is exactly what makes the snapshot immune to later edits.
+:::
+
+```gherkin
+Scenario: Recording a movement for a whole group
+  Given the red team has eight members
+  When I select the red team while recording an OUT movement
+  Then the movement carries eight lines, each labelled with the team's name
+
+Scenario: The snapshot surviving a membership change
+  Given a movement was recorded for the red team
+  When a member is later removed from the red team
+  Then the movement still shows them as having gone
+
+Scenario: Mixing a group and individuals
+  When I select the red team and two other participants
+  Then the movement groups the team's lines together and shows the other two on their own
+```
+
 ## Why are they leaving?
 
 A movement may carry a **reason** or an **activity** — never both, never neither where one is required. Each reason is bound to one direction and one content type, so the vocabulary can never contradict the event:
@@ -111,11 +148,9 @@ Scenario: Refusing both a reason and an activity
   Then the movement is rejected
 ```
 
-## Wheels, drivers and who sat where
+## Wheels and drivers
 
 With the `VEHICLE` option on, any line of a movement can be attached to a vehicle. The person on that line is its **driver** for this trip, and vehicles gain a presence status of their own, derived exactly like a person's.
-
-Each line may also carry a free-text **pool name** — *"minibus"*, *"Sophie's car"*, *"walking group"* — to record how people were distributed without inventing a permanent group for a single afternoon.
 
 One rule is absolute:
 

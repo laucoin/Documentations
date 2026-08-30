@@ -62,7 +62,7 @@ Read the diagram in three bands: **identity** at the top (users, profiles, prefe
 | Entity | What it is | Notable |
 | ------ | ---------- | ------- |
 | **Movement** | A dated `IN` or `OUT` event | Carries a content type, and either a reason or an activity |
-| **Movement content** | One line of a movement: a participant, optionally a vehicle, optionally a pool name | The join that makes a movement multi-person |
+| **Movement content** | One line of a movement: a participant, optionally a vehicle, optionally the name of the group they moved with | The join that makes a movement multi-person. The group name is **copied**, not linked — a snapshot that survives later membership changes |
 | **Communication** | A timestamped message attached to a movement or an alert | Requires the `COMMUNICATION` option |
 | **Alert** | An incident opened on the project, with a status | Requires the `ALERT` option |
 
