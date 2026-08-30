@@ -190,14 +190,14 @@ Filters: `currentMovements`, `linkedToActivity`, `visibilitySearched`, `typeSear
 | ------ | ---- | ------------- |
 | `GET` | `/` | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_R` |
 | `GET` | `/{id}` | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_R` |
-| `GET` | `/search/movements` | `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` **only** |
-| `GET` | `/search/alerts` | `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` **only** |
+| `GET` | `/search/movements` | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
+| `GET` | `/search/alerts` | `OPTION_ALERT` + `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
 | `POST` | `/` | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_C` |
 | `PATCH` | `/{id}` · `/{id}/disable` · `/{id}/enable` | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_U` |
 | `DELETE` | `/{id}` | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_D` |
 
-::: warning The two search endpoints carry no option gate
-`/search/movements` and `/search/alerts` are annotated with the metadata permission alone, unlike every other endpoint on this controller. Attaching a communication to an alert *is* separately checked for `OPTION_ALERT` inside the service, but the pickers themselves are reachable whenever the caller holds the metadata permission.
+::: tip The alert picker is gated on `ALERT`, not `COMMUNICATION`
+`/search/alerts` returns alerts, so it carries the `ALERT` option rather than its controller's usual `COMMUNICATION` one. Because the option chain makes `ALERT` imply `COMMUNICATION`, that is the stricter of the two — and it matches the option the service checks when a communication is actually attached to an alert.
 :::
 
 `/search/movements` returns only movements that can legally receive a communication: `OUT`, of registered participants, visible.
