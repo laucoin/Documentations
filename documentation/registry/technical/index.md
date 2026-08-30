@@ -43,6 +43,19 @@ The browser never calls the identity provider's token endpoint itself: the backe
 | Packaging | Distroless Java 25 image | nginx-unprivileged image |
 | Quality gates | Kover coverage, ArchUnit rules, JUnit 5 + Testcontainers | ESLint (angular-eslint) |
 
-## Where to go next
+## Documentation map
 
-The technical documentation is completed in the following pages: getting started, the system architecture, one page per side, the data model, the API reference, the security model, and the Architecture Decision Records. They are listed in the sidebar as they are published.
+| Page | Purpose |
+| ---- | ------- |
+| [Getting Started](/registry/technical/getting-started) | Prerequisites and the exact procedure to run both sides locally, plus a troubleshooting table |
+| [Architecture](/registry/technical/architecture) | Deployment topology, the authenticated request flow, where each concern lives, and the delivery pipeline |
+| [Backend](/registry/technical/backend) | Hexagonal layering and the rules ArchUnit enforces, the controller-interface pattern, reactive discipline, validation, configuration, testing |
+| [Frontend](/registry/technical/frontend) | Application shape, routing and guards, the NGXS flow, browser authentication, runtime configuration, delivery |
+| [Data Model](/registry/technical/data-model) | Schema conventions, the access-control tables, search, the derived reads, indexing and the migration history |
+| [API Reference](/registry/technical/api-reference) | Every v1 endpoint with the exact authorisation rule it applies |
+| [Security](/registry/technical/security) | The filter chain, how a token becomes project-prefixed authorities, and the boundary defences |
+| [ADR index](/registry/technical/adr/) | The twelve decision records, in causal order |
+
+## Reading order
+
+Start with [Architecture](/registry/technical/architecture) for the shape of the system, then [Security](/registry/technical/security) — the authority model is the one mechanism that, once understood, explains most of the rest. The per-side pages assume both.
