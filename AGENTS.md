@@ -84,6 +84,39 @@ All in-repo links **must be root-absolute** — resolved from the VitePress sour
 
 ---
 
+## Editor Formatting — Markdown Is Reformatted On Save
+
+The IDE reformats Markdown on save: it **reflows prose to the editor's line width** and **realigns table pipes**. This happens to files an agent has already written, often while the agent is still working, so a clean working tree can acquire modifications nobody typed.
+
+Treat that as expected, not as corruption — but check it, because one reformat is **not** safe.
+
+### The one that breaks rendering
+
+VitePress custom containers take their title from **the remainder of the marker line**. Reflowing pulls the first line of the body up onto that line, so the whole paragraph becomes the title:
+
+| | Markdown | Renders as |
+| --- | -------- | ---------- |
+| **Right** | `::: tip Short title`<br>`Body text on the next line.`<br>`:::` | Title: *Short title* |
+| **Wrong** | `::: tip Short title Body text pulled up by the reflow`<br>`:::` | Title: *Short title Body text pulled up by the reflow*, body empty |
+
+**After any reformat, inspect every `:::` marker line and re-split any that swallowed its body.** The build does **not** catch this — the page compiles happily and renders wrong, so `pnpm build` passing is not evidence that the callouts survived.
+
+A quick way to spot suspects:
+
+```shell
+grep -rn "^::: \(tip\|warning\|info\|danger\|details\) " documentation/ | awk 'length($0)>120'
+```
+
+### Rules
+
+- **Never fight the formatter.** Do not hand-rewrap prose to defeat it, and do not add formatter-disabling pragmas. Let it reflow, then repair what it broke.
+- **Commit reformatting separately.** A reformat touching many files must land as its own `style(...)` commit, never mixed into a content commit — otherwise the real change is unreviewable in the diff.
+- **Put the reformat on the branch that owns the files.** In a stacked series, formatting of `functional/` pages belongs to the functional PR and `technical/` pages to the technical one. Split the working tree by path, commit each on its own branch, then rebase the later branches (see [Git Strategy — Stacked PRs](#git-strategy--stacked-prs)).
+- **Verify Mermaid and fenced code still render.** Reflow does not respect diagram semantics; check any page whose diagram or code block was touched.
+- **Re-check after the final save**, since the formatter may run again on the last edit before you commit.
+
+---
+
 ## CSS Conventions — OOCSS
 
 All inline `<style scoped>` blocks follow **OOCSS** (Object-Oriented CSS). Split every style block into two clearly labelled sections:
@@ -245,6 +278,8 @@ Add a sidebar entry under `themeConfig.sidebar`:
 
 - Do not write documentation in any language other than English (e.g., French).
 - Do not use relative (`./` / `../`) links between doc pages — always link root-absolute from `documentation/` (see [Links & Cross-References](#links--cross-references)).
+- Do not leave a `:::` container whose title line swallowed its body after an editor reformat, and do not assume a green build means the containers survived (see [Editor Formatting](#editor-formatting--markdown-is-reformatted-on-save)).
+- Do not mix an editor reformat into a content commit — land it as its own `style(...)` commit.
 - Do not populate `technical/` before `functional/` and `roles-and-permissions.md` are completed.
 - Do not bypass interactive choices (always provide options + "Other").
 - Do not create features without explicitly defining permissions for every role.
