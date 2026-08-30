@@ -118,7 +118,7 @@ Any task spanning more than one independently reviewable change (e.g. a project'
 4. **Stack the base:** open the PR against the previous step's branch, not `main`.
 5. **Confirm before continuing:** stop and get user validation before starting the next step in the stack.
 
-This mirrors the Spec-Driven Development / Stacked PR discipline defined in `.github/prompt/generate_agents_md_for_project.md` for per-project `AGENTS.md` generation.
+This mirrors the Spec-Driven Development / Stacked PR discipline defined in `.github/prompts/generate_agents_md_for_project.md` for per-project `AGENTS.md` generation.
 
 ---
 
