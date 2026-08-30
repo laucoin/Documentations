@@ -7,29 +7,28 @@ Registry is two independently built, independently released applications that me
 ```mermaid
 flowchart TB
     subgraph Client["Browser"]
-      SPA["Angular SPA<br/>tokens in session storage"]
+        SPA["Angular SPA<br/>tokens in session storage"]
     end
 
     subgraph Edge["Frontend container"]
-      NGX["nginx-unprivileged :8080<br/>static bundle + settings/*.json"]
+        NGX["nginx-unprivileged :8080<br/>static bundle + settings/*.json"]
     end
 
     subgraph Api["Backend container"]
-      BE["Spring Boot WebFlux :8081<br/>distroless Java 25"]
+        BE["Spring Boot WebFlux :8081<br/>distroless Java 25"]
     end
 
     DB[("PostgreSQL<br/>uuid-ossp · unaccent · pg_trgm")]
     IDP["OIDC provider<br/>(Authentik)"]
     PROM["Prometheus"]
-
-    SPA -->|"HTML, JS, runtime config"| NGX
-    SPA -->|"/api/v1/** · Bearer JWT · CORS"| BE
-    SPA -->|"browser redirect: authorize / end-session"| IDP
-    BE -->|"code & refresh exchange<br/>client secret"| IDP
-    BE -->|"JWKS: validate every token"| IDP
-    BE -->|"R2DBC pool"| DB
-    BE -->|"Flyway at boot (JDBC)"| DB
-    PROM -->|"scrape /actuator/prometheus"| BE
+    SPA -->|" HTML, JS, runtime config "| NGX
+    SPA -->|" /api/v1/** · Bearer JWT · CORS "| BE
+    SPA -->|" browser redirect: authorize / end-session "| IDP
+    BE -->|" code & refresh exchange<br/>client secret "| IDP
+    BE -->|" JWKS: validate every token "| IDP
+    BE -->|" R2DBC pool "| DB
+    BE -->|" Flyway at boot (JDBC) "| DB
+    PROM -->|" scrape /actuator/prometheus "| BE
 ```
 
 Three details in that picture are load-bearing:
