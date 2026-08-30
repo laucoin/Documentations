@@ -6,6 +6,10 @@ export default withMermaid(
   defineConfig({
   srcDir: "documentation",
 
+  // Per-project agent instruction files live next to the docs they govern
+  // but are not site pages.
+  srcExclude: ["**/AGENTS.md"],
+
   // Pre-bundle mermaid so esbuild resolves its transitive UMD deps (dayjs)
   // through mermaid itself and fixes the CJS→ESM interop. Including "dayjs"
   // directly fails under pnpm since it isn't hoisted to the project root.
@@ -30,9 +34,6 @@ export default withMermaid(
   description: "Here a multi-project documentation about Luc’s personal works.",
   // Dev/example URLs and non-doc references that are not resolvable pages.
   ignoreDeadLinks: [/^https?:\/\/localhost/, /\/AGENTS$/],
-  rewrites: {
-    "../packages/atlas/docs/:page*": "atlas/:page*",
-  },
   head: [['link', { rel: 'icon', href: '/favicon.ico' }]],
   themeConfig: {
     footer: {
@@ -145,8 +146,69 @@ export default withMermaid(
           items: [
             { text: "Overview", link: "/atlas/functional/" },
             { text: "Personas", link: "/atlas/functional/personas" },
-            { text: "Services", link: "/atlas/functional/services" },
+            {
+              text: "Actors, Roles & Trust Boundary",
+              link: "/atlas/functional/roles-and-permissions",
+            },
             { text: "Workflows", link: "/atlas/functional/workflows" },
+            {
+              text: "Features",
+              collapsed: false,
+              items: [
+                {
+                  text: "Host Hardening",
+                  link: "/atlas/functional/features/hardening",
+                },
+                {
+                  text: "Storage Isolation",
+                  link: "/atlas/functional/features/storage",
+                },
+                {
+                  text: "Ingress & TLS",
+                  link: "/atlas/functional/features/ingress",
+                },
+                {
+                  text: "Identity & Single Sign-On",
+                  link: "/atlas/functional/features/identity",
+                },
+                {
+                  text: "Container Registry",
+                  link: "/atlas/functional/features/registry",
+                },
+                {
+                  text: "Code Quality",
+                  link: "/atlas/functional/features/code-quality",
+                },
+                {
+                  text: "Home Automation",
+                  link: "/atlas/functional/features/home-automation",
+                },
+                {
+                  text: "Object Storage",
+                  link: "/atlas/functional/features/object-storage",
+                },
+                {
+                  text: "Observability",
+                  link: "/atlas/functional/features/observability",
+                },
+                {
+                  text: "Backup & Recovery",
+                  link: "/atlas/functional/features/backup",
+                },
+                {
+                  text: "Application Hosting",
+                  link: "/atlas/functional/features/app-hosting",
+                },
+                {
+                  text: "Shell Environment",
+                  link: "/atlas/functional/features/shell-environment",
+                },
+                {
+                  text: "Unified Theme",
+                  link: "/atlas/functional/features/unified-theme",
+                },
+              ],
+            },
           ],
         },
         {
@@ -154,14 +216,30 @@ export default withMermaid(
           collapsed: false,
           items: [
             { text: "Overview", link: "/atlas/technical/" },
-            {
-              text: "Getting Started",
-              link: "/atlas/technical/getting-started",
-            },
             { text: "Architecture", link: "/atlas/technical/architecture" },
             {
-              text: "Bootstrap Orchestration",
-              link: "/atlas/technical/bootstrap",
+              text: "Storage Layout",
+              link: "/atlas/technical/storage-layout",
+            },
+            {
+              text: "Network Topology",
+              link: "/atlas/technical/network-topology",
+            },
+            {
+              text: "Security Model",
+              link: "/atlas/technical/security-model",
+            },
+            {
+              text: "Backup & Recovery",
+              link: "/atlas/technical/backup-recovery",
+            },
+            {
+              text: "Ansible Conventions",
+              link: "/atlas/technical/ansible-conventions",
+            },
+            {
+              text: "Implementation Plan",
+              link: "/atlas/technical/implementation-plan",
             },
             {
               text: "ADRs",
@@ -169,60 +247,8 @@ export default withMermaid(
               items: [
                 { text: "Index", link: "/atlas/technical/adr/" },
                 {
-                  text: "001 — Kubernetes vs Docker",
-                  link: "/atlas/technical/adr/001-kubernetes-vs-docker",
-                },
-                {
-                  text: "002 — Talos vs k3s/Debian",
-                  link: "/atlas/technical/adr/002-talos-vs-k3s-debian",
-                },
-                {
-                  text: "003 — OpenTofu vs Terraform vs Pulumi",
-                  link: "/atlas/technical/adr/003-opentofu-vs-terraform-vs-pulumi",
-                },
-                {
-                  text: "004 — Argo CD vs Flux",
-                  link: "/atlas/technical/adr/004-argocd-vs-flux",
-                },
-                {
-                  text: "005 — Traefik",
-                  link: "/atlas/technical/adr/005-traefik-ingress",
-                },
-                {
-                  text: "006 — cert-manager",
-                  link: "/atlas/technical/adr/006-cert-manager-tls",
-                },
-                {
-                  text: "007 — local-path + Restic",
-                  link: "/atlas/technical/adr/007-local-path-restic-storage",
-                },
-                {
-                  text: "008 — Authentik",
-                  link: "/atlas/technical/adr/008-authentik-oidc",
-                },
-                {
-                  text: "009 — Infisical",
-                  link: "/atlas/technical/adr/009-infisical-secrets",
-                },
-                {
-                  text: "010 — Harbor",
-                  link: "/atlas/technical/adr/010-harbor-registry",
-                },
-                {
-                  text: "011 — Prometheus + Loki",
-                  link: "/atlas/technical/adr/011-prometheus-loki-observability",
-                },
-                {
-                  text: "012 — OpenTofu owns L3 handshake",
-                  link: "/atlas/technical/adr/012-opentofu-owns-identity-secret-bootstrap",
-                },
-                {
-                  text: "013 — SonarQube",
-                  link: "/atlas/technical/adr/013-sonarqube-code-quality",
-                },
-                {
-                  text: "014 — Home Assistant",
-                  link: "/atlas/technical/adr/014-home-assistant",
+                  text: "001 — Debian & Docker over Talos & Kubernetes",
+                  link: "/atlas/technical/adr/001-debian-docker-over-talos-kubernetes",
                 },
               ],
             },

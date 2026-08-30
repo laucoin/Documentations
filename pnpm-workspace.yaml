@@ -1,4 +1,2 @@
-allowBuilds:
-  esbuild: true
 minimumReleaseAgeExclude:
   - mermaid@11.17.2

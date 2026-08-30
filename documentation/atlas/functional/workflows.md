@@ -1,57 +1,240 @@
 # Workflows
 
-These are the journeys Atlas exists to support. Each one is described from the actor's point of view, with the platform doing the work behind the scenes.
+End-to-end journeys through Atlas, written from the point of view of whoever is living them. Each is expressed as behaviour that can be verified, so that an implementation is either finished or it is not.
 
-## W1 — A guest signs in for the first time
+## 1. Converging the node
 
-1. I create an account for the guest in Authentik and put them in the right group (for example `grafana-viewers`).
-2. I send them the link to the application I want them to see, e.g. `grafana.<my-domain>`.
-3. They open the link, get redirected to Authentik, type their credentials, and land back on the dashboard already logged in.
-4. The next time they visit any Atlas service they have access to, they go straight in.
+The maintainer has changed something in the repository and wants it applied.
 
-**Why this matters**: a single, professional-looking login flow for non-technical users; no per-app credential to lose.
+```gherkin
+Feature: Applying declared state to the node
 
-## W2 — I push a container image
+  Scenario: Reviewing before applying
+    Given the maintainer has committed a change to the repository
+    When they run the playbook in check mode
+    Then every task that would change the node is listed with its diff
+    And nothing on the node has been modified
 
-1. From my laptop I run `docker login harbor.<my-domain>` (or use a Harbor robot account credential stored in Infisical).
-2. I tag and push my image: `docker push harbor.<my-domain>/personal/my-app:1.2.3`.
-3. Harbor receives the image, scans it for known vulnerabilities, and shows the result in the UI within seconds.
-4. The image is now pullable by the cluster (and by other machines I authorize) over HTTPS.
+  Scenario: Applying the change
+    Given the maintainer has reviewed the planned diff
+    When they run the playbook for real
+    Then only the reviewed tasks report a change
+    And a service is restarted only if its rendered configuration changed
 
-**Why this matters**: my images stay private, scanned, and signed; I do not depend on a third-party registry.
+  Scenario: Proving idempotency
+    Given a converge has just completed
+    When the maintainer runs the same playbook again immediately
+    Then no task reports a change
+    And no service is restarted
 
-## W3 — I add a secret for a workload
+  Scenario: Converging one service in isolation
+    Given the maintainer wants to update only the registry
+    When they run the playbook limited to that service's tag
+    Then no other service is stopped, restarted or reconfigured
+```
 
-1. I open Infisical at `infisical.<my-domain>` and sign in via Authentik.
-2. I create or pick a project, then add a new secret (e.g. `STRIPE_API_KEY`) to the relevant environment.
-3. In the cluster, an `ExternalSecret` resource references the Infisical project; External Secrets Operator pulls the value and creates a Kubernetes `Secret`.
-4. The workload that mounts that secret restarts and picks up the new value automatically.
+## 2. Signing in
 
-**Why this matters**: secrets live in one auditable place; they never appear in Git or in a shell history.
+A household member opens a service for the first time on a new device.
 
-## W4 — I look at the health of the platform
+```gherkin
+Feature: Single sign-on with a mandatory second factor
 
-1. I open Grafana at `grafana.<my-domain>` and sign in via Authentik.
-2. The home dashboard shows me cluster CPU/RAM, disk usage, ingress traffic, and the status of every Argo CD application.
-3. If anything is red, I drill into the relevant dashboard (per-workload, per-namespace) and check recent logs in the embedded Loki panels.
-4. If an alert is firing, Alertmanager has already notified me; Grafana shows me which rule, when, and on which target.
+  Scenario: First sign-in on a new device
+    Given a household member has an account and a registered second factor
+    When they open a gated service
+    Then they are redirected to the sign-on portal
+    And after providing their password and second factor they reach the service already authenticated
+    And they are not asked to sign in again by the service itself
 
-**Why this matters**: I have one place to look when something feels off, instead of a dozen `kubectl` commands.
+  Scenario: Moving between services
+    Given a household member has an active session
+    When they open a different gated service
+    Then they reach it without any further prompt
 
-## W5 — I recover from a disk failure
+  Scenario: Reaching a service they are not permitted to use
+    Given a household member has an active session
+    When they open an administrative service
+    Then they are refused
 
-1. I provision a new SSD (or a new machine) and re-run the OpenTofu bootstrap procedure documented in [Technical → Architecture](/atlas/technical/architecture).
-2. Argo CD reinstalls every workload from Git within minutes.
-3. I restore application data (Harbor blobs, Authentik database, Infisical database, Grafana dashboards, Prometheus history) from the latest Restic snapshot.
-4. The platform is back online at the same URLs with the same data, modulo whatever happened between the last snapshot and the failure.
+  Scenario: The gate is unavailable
+    Given the sign-on service is not running
+    When anyone opens a gated service
+    Then the request is refused
+    And no gated service is reachable without authentication
+```
 
-**Why this matters**: a hardware failure is an inconvenience, not a catastrophe. The bootstrap is the disaster-recovery plan.
+## 3. Publishing and consuming an image
 
-## W6 — I deploy a new application to the platform
+Continuous integration has built a new image; the maintainer deploys it.
 
-1. I add a new directory under `apps/` in the GitOps repository with the Helm chart or raw manifests for the application.
-2. I add an entry to the Argo CD `app-of-apps` manifest pointing at it.
-3. I commit and push.
-4. Within the next sync interval, Argo CD picks up the new application and deploys it. If it depends on a public hostname, Traefik picks up the new `IngressRoute` and cert-manager issues a certificate.
+```gherkin
+Feature: Container registry
 
-**Why this matters**: adding a workload is a pull request, not a server-administration session.
+  Scenario: Continuous integration publishes an image
+    Given a workflow holds a registry push token
+    When it pushes a tagged image
+    Then the image is stored
+    And no browser-based authentication was required at any point
+
+  Scenario: A stranger pulls a public package
+    Given a package is marked public
+    When an anonymous client pulls it
+    Then the pull succeeds without credentials
+
+  Scenario: A stranger attempts a private package
+    Given a package is not marked public
+    When an anonymous client pulls it
+    Then the pull is refused
+
+  Scenario: Reclaiming space
+    Given a package has more than ten tagged versions
+    When the weekly cleanup runs
+    Then only the ten most recent tags are retained
+    And untagged layers are removed
+    And no currently deployed image is ever removed
+```
+
+## 4. Deploying an application
+
+The maintainer ships a new version of one of their own projects.
+
+```gherkin
+Feature: Deploying a hosted application
+
+  Scenario: Promoting a new version
+    Given continuous integration has published a new image digest
+    When the maintainer updates that application's version in the repository and converges
+    Then the application is restarted on the new image
+    And no other application is affected
+
+  Scenario: Onboarding a new application
+    Given a new application is declared with a name, an image and its needs
+    When the maintainer converges
+    Then it receives its own database if it asked for one
+    And its own storage volume if it asked for one
+    And its own object-storage bucket and credential if it asked for one
+    And a public HTTPS route under its own subdomain
+    And it is placed behind the gate unless it was declared public
+
+  Scenario: A staging application is never public
+    Given an application is declared as a staging environment
+    When an anonymous visitor opens its address
+    Then they are sent to the sign-on portal
+```
+
+## 5. Living in the house
+
+A household member interacts with home automation, and the internet is down.
+
+```gherkin
+Feature: Home automation
+
+  Scenario: Controlling a light from a phone
+    Given a household member is signed in to the companion app
+    When they turn on a lamp
+    Then the lamp responds
+
+  Scenario: The internet connection is lost
+    Given the household's internet connection is down
+    When a wall switch is pressed
+    Then the light still responds
+    And local automations continue to run
+
+  Scenario: Long-term energy history
+    Given energy monitoring has been running for more than a year
+    When the maintainer opens the energy dashboard
+    Then consumption from the same month last year is available for comparison
+```
+
+## 6. Being told something is wrong
+
+```gherkin
+Feature: Alerting
+
+  Scenario: A volume is filling up
+    Given a declared volume passes 85 percent usage
+    When the alert rules are next evaluated
+    Then the maintainer receives an immediate notification on their phone
+    And the notification names the volume and its usage
+
+  Scenario: A public service stops responding
+    Given a published service has been failing for more than five minutes
+    When the alert rules are next evaluated
+    Then the maintainer receives an immediate notification
+
+  Scenario: Something minor happened
+    Given a container restarted once and recovered
+    When the alert rules are next evaluated
+    Then no immediate notification is sent
+    And the event appears in the next daily summary
+
+  Scenario: The whole node is down
+    Given the node has lost power
+    When it fails to respond
+    Then no notification is sent, because alerting runs on the node itself
+    And the maintainer discovers the outage by other means
+```
+
+## 7. Recovering
+
+The disaster the whole design is measured against.
+
+```gherkin
+Feature: Recovery
+
+  Scenario: Restoring one service after a bad upgrade
+    Given a service has been upgraded and is failing
+    When the maintainer pins the previous image version and converges
+    Then the service returns to its prior working state
+    And its data is untouched
+
+  Scenario: Restoring a database from a snapshot
+    Given a database has been corrupted
+    When the maintainer restores the most recent nightly snapshot
+    Then at most twenty-four hours of data is lost
+    And the service starts against the restored database
+
+  Scenario: Rebuilding the node from nothing
+    Given the disk has failed and been replaced
+    And the maintainer holds the repository decryption key and the backup password
+    When they install Debian, prepare the storage layout, converge and restore
+    Then every service returns to its declared state
+    And data is restored to the last successful backup
+
+  Scenario: The key is lost
+    Given the maintainer has lost the backup password
+    When they attempt a restore
+    Then no data can be recovered
+    And this is understood and accepted as the consequence of losing it
+```
+
+## 8. Verifying that backups are real
+
+```gherkin
+Feature: Backup verification
+
+  Scenario: Nightly protection
+    Given the scheduled time has arrived
+    When the backup runs
+    Then every declared dataset is captured
+    And databases are captured as consistent dumps rather than copied files
+    And container image layers are excluded
+
+  Scenario: A backup fails
+    Given the backup job exits with an error
+    When the alert rules are next evaluated
+    Then the maintainer receives an immediate notification
+
+  Scenario: Silent corruption
+    Given a week has passed
+    When the integrity check runs
+    Then a portion of the stored data is read back and verified
+    And any corruption raises an immediate notification
+
+  Scenario: The quarterly drill
+    Given three months have passed since the last drill
+    When the maintainer restores one database to a scratch location
+    Then it opens and contains the data expected
+    And the drill is recorded as completed
+```

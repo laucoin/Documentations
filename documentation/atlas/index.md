@@ -3,16 +3,16 @@ layout: home
 
 hero:
   name: "Atlas"
-  text: "Self-hosted homelab platform on Talos Linux"
-  tagline: "A GitOps-driven, single-node Kubernetes platform delivering image registry, identity, secrets, ingress and observability for me and the people I share with."
+  text: "A single Linux server, described entirely in code"
+  tagline: "One Debian host, one Ansible repository, a dozen hardened containers. Ingress and single sign-on, a container registry, home automation, object storage, observability and backups — deliberately built without an orchestrator."
 
 features:
   - title: Functional Documentation
-    details: What Atlas does, who it serves, and which services it exposes — described from a user's point of view.
+    details: What Atlas does, who it serves, and the rules that govern each capability — from the security baseline to the daily journeys of running it.
     link: /atlas/functional/
     linkText: Explore
   - title: Technical Documentation
-    details: Architecture overview, bootstrap chain, and the Architecture Decision Records that justify every component.
+    details: Host architecture, storage layout, network topology, the security model, backup and recovery runbooks, and the decision behind choosing Debian and Docker.
     link: /atlas/technical/
     linkText: Explore
 ---

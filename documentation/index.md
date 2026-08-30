@@ -28,8 +28,8 @@ lastUpdated: false
     <div class="card card--portal">
       <div class="card-icon">🛰️</div>
       <div class="card-body">
-        <h3 class="card-title">Atlas (Homelab Platform)</h3>
-        <p class="card-description">Self-hosted, GitOps-driven Talos Linux platform: image registry, identity, secrets, ingress and observability — all deployed with IaC.</p>
+        <h3 class="card-title">Atlas (Personal Server)</h3>
+        <p class="card-description">A single hardened Debian server described entirely in Ansible: ingress and single sign-on, a container registry, home automation, object storage, observability and backups — deliberately built without an orchestrator.</p>
         <div class="card-actions">
           <a href="/atlas/" class="btn btn--primary">Documentation →</a>
         </div>

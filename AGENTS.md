@@ -25,7 +25,7 @@ This file documents conventions for AI agents (Claude Code, Copilot, etc.) worki
 
 ## Repository Layout
 
-```
+```O
 .
 ├── .github/
 │   └── prompts/                — Single source of truth for AI skills
