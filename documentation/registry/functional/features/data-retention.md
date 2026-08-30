@@ -1,41 +1,50 @@
 # Feature: Data Retention
 
-> Registry holds names, birthdays and the movements of minors. Keeping that forever is not caution, it is a liability. So every night, four sweeps ask the same question — *is anything here older than we agreed to keep?* — and remove what has aged out.
+> Registry holds names, birthdays and the movements of minors. Keeping that forever is not caution, it is a liability.
+> So every night, four sweeps ask the same question — *is anything here older than we agreed to keep?* — and remove what
+> has aged out.
 
-**Who this is for:** nobody, in the usual sense. This is the only feature whose operator is a scheduled job rather than a person.
+**Who this is for:** nobody, in the usual sense. This is the only feature whose operator is a scheduled job rather than
+a person.
 
 ## Who can do what
 
-| Role | May do | Limits |
-| ---- | ------ | ------ |
-| The **service account** (`REGISTRY_JOB_C`) | Trigger any of the four sweeps | The account exists solely for this |
-| `USER_ADMINISTRATOR` | The same, by virtue of holding the job permission | Useful for running a dry run on demand |
-| Everyone else | Nothing | — |
+| Role                                       | May do                                            | Limits                                 |
+|--------------------------------------------|---------------------------------------------------|----------------------------------------|
+| The **service account** (`REGISTRY_JOB_C`) | Trigger any of the four sweeps                    | The account exists solely for this     |
+| `USER_ADMINISTRATOR`                       | The same, by virtue of holding the job permission | Useful for running a dry run on demand |
+| Everyone else                              | Nothing                                           | —                                      |
 
-Purging is a global operation. It is the one thing in Registry that reaches across every project at once, which is exactly why it is behind a permission nobody holds by accident.
+Purging is a global operation. It is the one thing in Registry that reaches across every project at once, which is
+exactly why it is behind a permission nobody holds by accident.
 
 ## Four sweeps, in a deliberate order
 
-| Sweep | Removes | Default schedule | Default threshold |
-| ----- | ------- | ---------------- | ----------------- |
-| **Users** | Accounts with no sign-in since the threshold | 01:00 daily | 12 months |
-| **Projects** | Projects untouched since the threshold | 01:30 daily | 12 months |
-| **Project content** | Movements, communications and alerts | 02:00 daily | 12 months |
-| **Project configuration** | Vehicles, activities, groups and participants | 02:30 daily | 12 months |
+| Sweep                     | Removes                                       | Default schedule | Default threshold |
+|---------------------------|-----------------------------------------------|------------------|-------------------|
+| **Users**                 | Accounts with no sign-in since the threshold  | 01:00 daily      | 12 months         |
+| **Projects**              | Projects untouched since the threshold        | 01:30 daily      | 12 months         |
+| **Project content**       | Movements, communications and alerts          | 02:00 daily      | 12 months         |
+| **Project configuration** | Vehicles, activities, groups and participants | 02:30 daily      | 12 months         |
 
 The half-hour gaps are not decoration — the order matters:
 
-**Content is purged before configuration**, because participants, vehicles and activities all refuse deletion while a movement still references them. Remove the movements first and the configuration becomes removable; do it the other way round and the configuration sweep achieves nothing.
+**Content is purged before configuration**, because participants, vehicles and activities all refuse deletion while a
+movement still references them. Remove the movements first and the configuration becomes removable; do it the other way
+round and the configuration sweep achieves nothing.
 
-Within the content sweep the same logic applies internally: communications whose movement and alert have both gone are removed as **orphans**, and alerts that still carry communications are protected until those communications are cleared.
+Within the content sweep the same logic applies internally: communications whose movement and alert have both gone are
+removed as **orphans**, and alerts that still carry communications are protected until those communications are cleared.
 
 ## Dry run first
 
-Every sweep takes a **dry run** flag, and it defaults to **on**. A dry run reports exactly which records would be removed and touches nothing.
+Every sweep takes a **dry run** flag, and it defaults to **on**. A dry run reports exactly which records would be
+removed and touches nothing.
 
 That default is the point: an accidental call does no damage. Deleting requires deliberately asking for it.
 
-Each sweep also accepts an explicit **date threshold**, overriding the configured default — useful for a one-off deeper clean, or for asking "what would a six-month policy remove?" without committing to one.
+Each sweep also accepts an explicit **date threshold**, overriding the configured default — useful for a one-off deeper
+clean, or for asking "what would a six-month policy remove?" without committing to one.
 
 ```gherkin
 Scenario: Previewing what a sweep would remove
@@ -62,21 +71,24 @@ Scenario: Denying a purge to a user without the job permission
 
 Each sweep has its own definition, and they are not interchangeable:
 
-| Sweep | Considered dormant when |
-| ----- | ----------------------- |
-| Users | The account's **last sign-in** predates the threshold |
-| Projects | The project has not been **modified** since the threshold |
-| Content | The movement, communication or alert predates the threshold |
+| Sweep         | Considered dormant when                                                          |
+|---------------|----------------------------------------------------------------------------------|
+| Users         | The account's **last sign-in** predates the threshold                            |
+| Projects      | The project has not been **modified** since the threshold                        |
+| Content       | The movement, communication or alert predates the threshold                      |
 | Configuration | The element has been **unused** since the threshold — no movement, no membership |
 
-An account that signs in every month is never purged, however old it is. A project touched last week survives regardless of when it was created. Retention here measures **activity**, not age.
+An account that signs in every month is never purged, however old it is. A project touched last week survives regardless
+of when it was created. Retention here measures **activity**, not age.
 
 ## What survives a purge
 
 Two things deliberately do not disappear:
 
-- **Anonymised accounts** stay as rows. Their identity is already gone; the row keeps the history they authored coherent. See [Users](/registry/functional/features/users).
-- **Groups that still have members** are not removed by the configuration sweep — only empty and unused ones are, on the same principle that a group is never allowed to be empty.
+- **Anonymised accounts** stay as rows. Their identity is already gone; the row keeps the history they authored
+  coherent. See [Users](/registry/functional/features/users).
+- **Groups that still have members** are not removed by the configuration sweep — only empty and unused ones are, on the
+  same principle that a group is never allowed to be empty.
 
 ## Related
 

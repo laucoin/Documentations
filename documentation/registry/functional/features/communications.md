@@ -3,7 +3,8 @@
 > 14:20 — *"Called the group, they're leaving the climbing wall now."*
 > 14:55 — *"Back on site, everyone accounted for."*
 
-A communication is a short, timestamped note pinned to something that is unfolding: a group that is out, or an incident that is open. It is the running commentary that turns a movement log into a story someone can follow afterwards.
+A communication is a short, timestamped note pinned to something that is unfolding: a group that is out, or an incident
+that is open. It is the running commentary that turns a movement log into a story someone can follow afterwards.
 
 Communications require the project's `COMMUNICATION` option, which itself requires `ACTIVITY`.
 
@@ -11,17 +12,20 @@ Communications require the project's `COMMUNICATION` option, which itself requir
 
 ## Who can do what
 
-| Role | May do | Limits |
-| ---- | ------ | ------ |
+| Role                    | May do                                                                               | Limits                              |
+|-------------------------|--------------------------------------------------------------------------------------|-------------------------------------|
 | `PROJECT_ADMINISTRATOR` | Create · Read · Update · Disable · Enable · **Delete** · search movements and alerts | Requires the `COMMUNICATION` option |
-| `PROJECT_COORDINATOR` | Create · Read · Update · Disable · Enable · search movements and alerts | Cannot delete |
-| `PROJECT_PARTICIPANT` | Create · Read · Update · Disable · Enable · search movements and alerts | Cannot delete |
+| `PROJECT_COORDINATOR`   | Create · Read · Update · Disable · Enable · search movements and alerts              | Cannot delete                       |
+| `PROJECT_PARTICIPANT`   | Create · Read · Update · Disable · Enable · search movements and alerts              | Cannot delete                       |
 
-Reading the communications attached to a **movement** additionally requires the `COMMUNICATION` option; reading those attached to an **alert** requires `ALERT`.
+Reading the communications attached to a **movement** additionally requires the `COMMUNICATION` option; reading those
+attached to an **alert** requires `ALERT`.
 
 ## What a communication carries
 
-A **date and time**, an optional **message** of up to 250 characters, and an attachment: a movement, an alert, or both — but **never neither**. A communication with nothing to attach to is rejected, because a note floating free of context is not information.
+A **date and time**, an optional **message** of up to 250 characters, and an attachment: a movement, an alert, or both —
+but **never neither**. A communication with nothing to attach to is rejected, because a note floating free of context is
+not information.
 
 ```gherkin
 Scenario: Refusing a communication attached to nothing
@@ -48,7 +52,8 @@ Not every movement can carry a communication. It must be:
 - **visible**, and belonging to the same project;
 - **dated at or before** the communication itself.
 
-Read those together and the intent is clear: communications track *our own people who are currently away*. Searching for movements to attach to returns exactly that shortlist.
+Read those together and the intent is clear: communications track *our own people who are currently away*. Searching for
+movements to attach to returns exactly that shortlist.
 
 ```gherkin
 Scenario: Attaching a note to a group that is out
@@ -71,9 +76,12 @@ Scenario: Refusing a note that predates its movement
 
 ### Alerts — but only while they are open
 
-An alert can only receive communications while its status is `IN_PROGRESS`. Once it is resolved or cancelled, the conversation is closed. The alert must also be visible, belong to the same project, and be dated at or before the communication.
+An alert can only receive communications while its status is `IN_PROGRESS`. Once it is resolved or cancelled, the
+conversation is closed. The alert must also be visible, belong to the same project, and be dated at or before the
+communication.
 
-Attaching to an alert additionally requires the caller to hold the project's `ALERT` option — checked explicitly, over and above the communication permission.
+Attaching to an alert additionally requires the caller to hold the project's `ALERT` option — checked explicitly, over
+and above the communication permission.
 
 ```gherkin
 Scenario: Adding to an open incident
@@ -103,9 +111,11 @@ Neither side can quietly strand the other.
 
 ## Disabling and deleting
 
-Disabling hides a communication from the thread while keeping it on record — the way to retract a note that turned out to be wrong without pretending it was never said. Deletion is administrator-only.
+Disabling hides a communication from the thread while keeping it on record — the way to retract a note that turned out
+to be wrong without pretending it was never said. Deletion is administrator-only.
 
-There is one automatic case: the retention pass removes **orphan communications**, those whose movement and alert have both been purged.
+There is one automatic case: the retention pass removes **orphan communications**, those whose movement and alert have
+both been purged.
 
 ```gherkin
 Scenario: Denying deletion to a coordinator

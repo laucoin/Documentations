@@ -1,45 +1,51 @@
 # Feature: Alerts
 
-> A group is two hours overdue. Someone opens an alert, and from that moment every phone call, every sighting, every decision gets pinned to it. Three hours later the alert is resolved — and the whole sequence is still there, in order, for whoever has to explain it.
+> A group is two hours overdue. Someone opens an alert, and from that moment every phone call, every sighting, every
+> decision gets pinned to it. Three hours later the alert is resolved — and the whole sequence is still there, in order,
+> for whoever has to explain it.
 
-An alert is an incident: a titled, timestamped thing that is **open until it is closed**, gathering communications as it goes.
+An alert is an incident: a titled, timestamped thing that is **open until it is closed**, gathering communications as it
+goes.
 
-Alerts sit at the top of the option chain — the project needs `ALERT`, which needs `COMMUNICATION`, which needs `ACTIVITY`.
+Alerts sit at the top of the option chain — the project needs `ALERT`, which needs `COMMUNICATION`, which needs
+`ACTIVITY`.
 
 **Who this is for:** everyone with a profile. Whoever notices the problem opens the alert.
 
 ## Who can do what
 
-| Role | May do | Limits |
-| ---- | ------ | ------ |
+| Role                    | May do                                                                                                | Limits                      |
+|-------------------------|-------------------------------------------------------------------------------------------------------|-----------------------------|
 | `PROJECT_ADMINISTRATOR` | Create · Read · Update · change status · Disable · Enable · **Delete** · read attached communications | Requires the `ALERT` option |
-| `PROJECT_COORDINATOR` | Create · Read · Update · change status · Disable · Enable · read attached communications | Cannot delete |
-| `PROJECT_PARTICIPANT` | Create · Read · Update · change status · Disable · Enable · read attached communications | Cannot delete |
+| `PROJECT_COORDINATOR`   | Create · Read · Update · change status · Disable · Enable · read attached communications              | Cannot delete               |
+| `PROJECT_PARTICIPANT`   | Create · Read · Update · change status · Disable · Enable · read attached communications              | Cannot delete               |
 
-Opening and **closing** an alert is available to every role. That is deliberate: an incident should never wait for an administrator to be found.
+Opening and **closing** an alert is available to every role. That is deliberate: an incident should never wait for an
+administrator to be found.
 
 ## The life of an alert
 
 ```mermaid
 stateDiagram-v2
-    [*] --> IN_PROGRESS : opened
-    IN_PROGRESS --> RESOLVED : handled
-    IN_PROGRESS --> CANCELED : false alarm
+    [*] --> IN_PROGRESS: opened
+    IN_PROGRESS --> RESOLVED: handled
+    IN_PROGRESS --> CANCELED: false alarm
     RESOLVED --> [*]
     CANCELED --> [*]
 ```
 
-`RESOLVED` and `CANCELED` are both terminal, and they mean different things — *"this happened and we dealt with it"* versus *"this never really happened"*. Preserving that distinction is why there are two closing states rather than one.
+`RESOLVED` and `CANCELED` are both terminal, and they mean different things — *"this happened and we dealt with it"*
+versus *"this never really happened"*. Preserving that distinction is why there are two closing states rather than one.
 
 ## Open means editable; closed means frozen
 
 This is the rule that shapes everything else:
 
-| While `IN_PROGRESS` | Once closed |
-| ------------------- | ----------- |
-| Title and date can be corrected | Content is frozen — edits are rejected |
-| New communications can be attached | No new communications |
-| Can be closed as resolved or cancelled | — |
+| While `IN_PROGRESS`                    | Once closed                            |
+|----------------------------------------|----------------------------------------|
+| Title and date can be corrected        | Content is frozen — edits are rejected |
+| New communications can be attached     | No new communications                  |
+| Can be closed as resolved or cancelled | —                                      |
 
 An alert is a live record while the situation is live, and evidence afterwards.
 
@@ -67,9 +73,11 @@ Scenario: Closing an alert
 
 ## What an alert carries
 
-A **title** of up to 50 characters and a **date and time**, which must fall inside the project's own date range. The status completes it. Alerts are searched by fuzzy text on the title and filtered by status, visibility and a date range.
+A **title** of up to 50 characters and a **date and time**, which must fall inside the project's own date range. The
+status completes it. Alerts are searched by fuzzy text on the title and filtered by status, visibility and a date range.
 
-Its **communications** are read as their own paginated thread, which is where the substance of an incident actually lives.
+Its **communications** are read as their own paginated thread, which is where the substance of an incident actually
+lives.
 
 ```gherkin
 Scenario: Refusing an alert outside the project's dates
@@ -86,7 +94,8 @@ Scenario: Refusing to move an alert away from its communications
 
 Disabling hides an alert from the day-to-day list without erasing it — the way to clear a duplicate off the board.
 
-Deletion is administrator-only and refused outright for **any alert that carries communications**. An incident that generated a conversation cannot be made to disappear; empty the thread first, or hide the alert instead.
+Deletion is administrator-only and refused outright for **any alert that carries communications**. An incident that
+generated a conversation cannot be made to disappear; empty the thread first, or hide the alert instead.
 
 ```gherkin
 Scenario: Refusing to delete an alert with communications

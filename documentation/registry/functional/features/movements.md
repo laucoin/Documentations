@@ -1,24 +1,32 @@
 # Feature: Movements
 
-> Eight o'clock. A minibus pulls out of the camp with six teenagers and a driver, heading for the supermarket. Twenty minutes later a supplier's van arrives at the gate. By nine, someone will ask the only question that matters: **who is on site right now?**
+> Eight o'clock. A minibus pulls out of the camp with six teenagers and a driver, heading for the supermarket. Twenty
+> minutes later a supplier's van arrives at the gate. By nine, someone will ask the only question that matters: **who is
+on site right now?**
 
-Movements are how Registry answers it. Every entry and every exit is recorded as a dated event, and **presence is never stored — it is derived**. The dashboard, the counters, the vehicle board: all of it is read back out of the movement log. Delete the log and you delete the truth; that is why so many of the rules below are about protecting it.
+Movements are how Registry answers it. Every entry and every exit is recorded as a dated event, and **presence is never
+stored — it is derived**. The dashboard, the counters, the vehicle board: all of it is read back out of the movement
+log. Delete the log and you delete the truth; that is why so many of the rules below are about protecting it.
 
-**Who this is for:** everyone holding a profile on the project. Recording movements is the platform's daily gesture, not an administrator's chore.
+**Who this is for:** everyone holding a profile on the project. Recording movements is the platform's daily gesture, not
+an administrator's chore.
 
 ## Who can do what
 
-| Role | May do | Limits |
-| ---- | ------ | ------ |
-| `PROJECT_ADMINISTRATOR` | Create · Read · Update · **Delete** · search · read attached communications | This project only |
-| `PROJECT_COORDINATOR` | Create · Read · Update · **Delete** · search · read attached communications | This project only |
-| `PROJECT_PARTICIPANT` | Create · Read · Update · search · read attached communications | This project only — **no deletion** |
-| Global `USER_ADMINISTRATOR` with no profile here | Nothing | The global plane grants nothing inside a project |
-| Anyone whose profile is not accepted, or outside its access window | Nothing | Rights are recomputed on every request |
+| Role                                                               | May do                                                                      | Limits                                           |
+|--------------------------------------------------------------------|-----------------------------------------------------------------------------|--------------------------------------------------|
+| `PROJECT_ADMINISTRATOR`                                            | Create · Read · Update · **Delete** · search · read attached communications | This project only                                |
+| `PROJECT_COORDINATOR`                                              | Create · Read · Update · **Delete** · search · read attached communications | This project only                                |
+| `PROJECT_PARTICIPANT`                                              | Create · Read · Update · search · read attached communications              | This project only — **no deletion**              |
+| Global `USER_ADMINISTRATOR` with no profile here                   | Nothing                                                                     | The global plane grants nothing inside a project |
+| Anyone whose profile is not accepted, or outside its access window | Nothing                                                                     | Rights are recomputed on every request           |
 
-Deleting a movement is the one place where a coordinator is trusted as much as an administrator — correcting a mistyped check-in at seven in the morning is routine work, not governance.
+Deleting a movement is the one place where a coordinator is trusted as much as an administrator — correcting a mistyped
+check-in at seven in the morning is routine work, not governance.
 
-Two reads carry an extra gate on top of the permission: a movement's **communications** require the project's `COMMUNICATION` option, and **vehicle presence** requires `VEHICLE`. Full model in [Roles & Permissions](/registry/functional/roles-and-permissions).
+Two reads carry an extra gate on top of the permission: a movement's **communications** require the project's
+`COMMUNICATION` option, and **vehicle presence** requires `VEHICLE`. Full model
+in [Roles & Permissions](/registry/functional/roles-and-permissions).
 
 ```gherkin
 Scenario: Denying deletion to a project participant
@@ -34,17 +42,20 @@ Scenario: Denying access once an access window has closed
 
 ## Insiders and outsiders are mirror images
 
-A movement's **content type** is either `REGISTERED` or `GUEST`, and that single choice flips the meaning of everything else.
+A movement's **content type** is either `REGISTERED` or `GUEST`, and that single choice flips the meaning of everything
+else.
 
-| | Registered participants | Guests |
-| --- | --- | --- |
-| Who | People registered in the project | Outsiders — emergency services, suppliers, visitors, partner animators |
-| Where they are by default | On site | Elsewhere |
-| `IN` means | They came back | They arrived |
-| `OUT` means | They left | They went home |
-| How they enter the system | Registered beforehand | Captured on the entrance itself |
+|                           | Registered participants          | Guests                                                                 |
+|---------------------------|----------------------------------|------------------------------------------------------------------------|
+| Who                       | People registered in the project | Outsiders — emergency services, suppliers, visitors, partner animators |
+| Where they are by default | On site                          | Elsewhere                                                              |
+| `IN` means                | They came back                   | They arrived                                                           |
+| `OUT` means               | They left                        | They went home                                                         |
+| How they enter the system | Registered beforehand            | Captured on the entrance itself                                        |
 
-Read the table diagonally and the design falls out: the interesting direction is **registered people leaving** and **guests arriving**. Those are the two moments that need an explanation — and, as the next section shows, the only two that Registry insists on justifying.
+Read the table diagonally and the design falls out: the interesting direction is **registered people leaving** and
+**guests arriving**. Those are the two moments that need an explanation — and, as the next section shows, the only two
+that Registry insists on justifying.
 
 Guests are created by the entrance that brings them in. They leave by being named, not re-described:
 
@@ -62,23 +73,31 @@ Scenario: Refusing to invent guests on their way out
 
 ## Moving a whole group at once
 
-Picking a **group** when recording a movement is the single most common gesture at a busy gate: one selection instead of fifteen. What Registry stores, though, is not a link to the group — it is a **snapshot of it**.
+Picking a **group** when recording a movement is the single most common gesture at a busy gate: one selection instead of
+fifteen. What Registry stores, though, is not a link to the group — it is a **snapshot of it**.
 
-Choosing a group expands it into one content line per member, and stamps each line with the **group's name**. Participants picked individually carry no name. When the movement is read back, lines sharing a name are re-grouped for display, so the movement shows *"the red team (8) plus Léa and Marc"* rather than ten anonymous rows. Removing the group from a movement removes every line that carries its name.
+Choosing a group expands it into one content line per member, and stamps each line with the **group's name**.
+Participants picked individually carry no name. When the movement is read back, lines sharing a name are re-grouped for
+display, so the movement shows *"the red team (8) plus Léa and Marc"* rather than ten anonymous rows. Removing the group
+from a movement removes every line that carries its name.
 
 The consequence is the point:
 
-| | A stored link to the group | The name, copied onto each line |
-| --- | --- | --- |
-| Members change afterwards | The movement silently rewrites itself | The movement keeps who actually went |
-| A member leaves the group | They vanish from a movement they were on | They stay, correctly |
-| The group is deleted | The movement loses its shape | The movement is unaffected |
-| Membership must be re-checked when recording | Yes | No |
+|                                              | A stored link to the group               | The name, copied onto each line      |
+|----------------------------------------------|------------------------------------------|--------------------------------------|
+| Members change afterwards                    | The movement silently rewrites itself    | The movement keeps who actually went |
+| A member leaves the group                    | They vanish from a movement they were on | They stay, correctly                 |
+| The group is deleted                         | The movement loses its shape             | The movement is unaffected           |
+| Membership must be re-checked when recording | Yes                                      | No                                   |
 
-So a movement records **who moved, and under which banner, at that moment** — not who is in that group today. It is a deliberate denormalisation: history stays true, and recording a movement never has to re-validate that everyone selected is still a member.
+So a movement records **who moved, and under which banner, at that moment** — not who is in that group today. It is a
+deliberate denormalisation: history stays true, and recording a movement never has to re-validate that everyone selected
+is still a member.
 
 ::: tip Nothing enforces the name
-The field is free text, and Registry does not verify that a line's participants really belong to a group of that name. The name is a label the interface writes, not a reference it resolves — which is exactly what makes the snapshot immune to later edits.
+The field is free text, and Registry does not verify that a line's participants really
+belong to a group of that name. The name is a label the interface writes, not a reference it resolves — which is exactly
+what makes the snapshot immune to later edits.
 :::
 
 ```gherkin
@@ -99,24 +118,28 @@ Scenario: Mixing a group and individuals
 
 ## Why are they leaving?
 
-A movement may carry a **reason** or an **activity** — never both, never neither where one is required. Each reason is bound to one direction and one content type, so the vocabulary can never contradict the event:
+A movement may carry a **reason** or an **activity** — never both, never neither where one is required. Each reason is
+bound to one direction and one content type, so the vocabulary can never contradict the event:
 
-| Reason | Direction | Applies to |
-| ------ | :-------: | ---------- |
-| `EMERGENCY` | `IN` | Guests |
-| `LOGISTICS` | `IN` | Guests |
-| `PARTNER_ANIMATION` | `IN` | Guests |
-| `VISIT` | `IN` | Guests |
-| `SHOPPING` | `OUT` | Registered |
-| `MEDICAL` | `OUT` | Registered |
-| `DEFINITIVE_DEPARTURE` | `OUT` | Registered |
-| `OTHER` | `OUT` | Registered |
+| Reason                 | Direction | Applies to |
+|------------------------|:---------:|------------|
+| `EMERGENCY`            |   `IN`    | Guests     |
+| `LOGISTICS`            |   `IN`    | Guests     |
+| `PARTNER_ANIMATION`    |   `IN`    | Guests     |
+| `VISIT`                |   `IN`    | Guests     |
+| `SHOPPING`             |   `OUT`   | Registered |
+| `MEDICAL`              |   `OUT`   | Registered |
+| `DEFINITIVE_DEPARTURE` |   `OUT`   | Registered |
+| `OTHER`                |   `OUT`   | Registered |
 
 ::: tip Coming home needs no excuse
-A registered `OUT` must be justified; a registered `IN` must not. A guest `IN` must be justified; a guest `OUT` must not. Registry only ever asks *why* about the direction that changes someone's expected place.
+A registered `OUT` must be justified; a registered `IN` must not. A guest `IN` must
+be justified; a guest `OUT` must not. Registry only ever asks *why* about the direction that changes someone's expected
+place.
 :::
 
-When the project has the `ACTIVITY` option, an activity can stand in for a reason — *"they're out because they're at the climbing session"* — which additionally files the movement into that activity's history.
+When the project has the `ACTIVITY` option, an activity can stand in for a reason — *"they're out because they're at the
+climbing session"* — which additionally files the movement into that activity's history.
 
 ```gherkin
 Scenario: Recording a group leaving to go shopping
@@ -150,7 +173,8 @@ Scenario: Refusing both a reason and an activity
 
 ## Wheels and drivers
 
-With the `VEHICLE` option on, any line of a movement can be attached to a vehicle. The person on that line is its **driver** for this trip, and vehicles gain a presence status of their own, derived exactly like a person's.
+With the `VEHICLE` option on, any line of a movement can be attached to a vehicle. The person on that line is its
+**driver** for this trip, and vehicles gain a presence status of their own, derived exactly like a person's.
 
 One rule is absolute:
 
@@ -163,7 +187,9 @@ Scenario: Refusing a minor as a driver
 
 ## When it happened
 
-A movement must sit **inside the project's own date range** — nothing before the project opens, nothing after it closes. Everyone and everything it references must belong to the same project and be visible; a movement can never reach across tenants.
+A movement must sit **inside the project's own date range** — nothing before the project opens, nothing after it closes.
+Everyone and everything it references must belong to the same project and be visible; a movement can never reach across
+tenants.
 
 ```gherkin
 Scenario: Refusing a movement outside the project's dates
@@ -178,19 +204,23 @@ Scenario: Refusing to strand an attached communication
 
 ## What is written, stays written
 
-A movement is a record of something that happened, so editing it is deliberately narrow. Its date, reason, activity and content lines can be corrected. Two things cannot:
+A movement is a record of something that happened, so editing it is deliberately narrow. Its date, reason, activity and
+content lines can be corrected. Two things cannot:
 
-- **The direction never changes.** An entrance can never become an exit. Recorded backwards? Hide it or delete it, and record it again the right way round.
+- **The direction never changes.** An entrance can never become an exit. Recorded backwards? Hide it or delete it, and
+  record it again the right way round.
 - **The content type never changes.** A movement of registered participants can never become a movement of guests.
 
-And two movements are **terminal** — they close a story, so they are frozen against update, hiding, re-enabling and deletion:
+And two movements are **terminal** — they close a story, so they are frozen against update, hiding, re-enabling and
+deletion:
 
-| Terminal movement | Why it is frozen |
-| ----------------- | ---------------- |
+| Terminal movement             | Why it is frozen                                                                                                                                  |
+|-------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
 | Reason `DEFINITIVE_DEPARTURE` | The person has gone for good; the departure also **shortens their availability window** to that exact moment, so they stop being expected on site |
-| Any guest `OUT` | The visit is over and the guest has left the project's world |
+| Any guest `OUT`               | The visit is over and the guest has left the project's world                                                                                      |
 
-Guests already recorded on an entrance cannot be dropped by a later edit either. If they were let in, they must be let out.
+Guests already recorded on an entrance cannot be dropped by a later edit either. If they were let in, they must be let
+out.
 
 ```gherkin
 Scenario: Refusing to reverse the direction of a movement
@@ -212,7 +242,9 @@ Scenario: Refusing to remove a guest from a recorded entrance
 
 ## Hiding is not deleting
 
-Disabling a movement hides it from day-to-day lists **and takes it out of the presence computation** — the movement before it becomes the current one again. That makes hiding the safe way to undo a mistake: reversible, and it leaves the history intact. Deleting is permanent, and reserved to administrators and coordinators.
+Disabling a movement hides it from day-to-day lists **and takes it out of the presence computation** — the movement
+before it becomes the current one again. That makes hiding the safe way to undo a mistake: reversible, and it leaves the
+history intact. Deleting is permanent, and reserved to administrators and coordinators.
 
 ```gherkin
 Scenario: Hiding a movement restores the previous presence
@@ -225,12 +257,17 @@ Scenario: Hiding a movement restores the previous presence
 
 For any person or vehicle, Registry looks at the **latest visible movement** that mentions them:
 
-| Latest visible movement | Status |
-| ----------------------- | ------ |
-| An `IN` movement | `IN` — on site |
-| An `OUT` movement | `OUT` — away |
-| None at all | `OUT` — not yet checked in |
+| Latest visible movement | Status                     |
+|-------------------------|----------------------------|
+| An `IN` movement        | `IN` — on site             |
+| An `OUT` movement       | `OUT` — away               |
+| None at all             | `OUT` — not yet checked in |
 
-Availability then has the last word: anyone outside their availability window reads as `UNAVAILABLE`, whatever their movement history says. Someone who has not arrived yet, or who has definitively departed, is neither present nor absent — they are simply not part of today's count.
+Availability then has the last word: anyone outside their availability window reads as `UNAVAILABLE`, whatever their
+movement history says. Someone who has not arrived yet, or who has definitively departed, is neither present nor
+absent — they are simply not part of today's count.
 
-The project dashboard rolls this up into five live counters — registered adults present, registered adults away, registered minors present, registered minors away, and guests currently on site — plus, with the `VEHICLE` option, vehicles present and away. Adulthood is computed from the birthday against today's date, the same way the driver rule computes it.
+The project dashboard rolls this up into five live counters — registered adults present, registered adults away,
+registered minors present, registered minors away, and guests currently on site — plus, with the `VEHICLE` option,
+vehicles present and away. Adulthood is computed from the birthday against today's date, the same way the driver rule
+computes it.

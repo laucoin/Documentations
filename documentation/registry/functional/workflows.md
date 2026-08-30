@@ -11,15 +11,14 @@ sequenceDiagram
     actor U as New user
     participant R as Registry
     participant I as Identity provider
-
-    U->>R: Open the application
-    R->>U: Redirect to the provider
-    U->>I: Authenticate
-    I->>R: Authorization code
-    R->>I: Exchange code for tokens
-    R->>R: No account for this subject — look up by email
-    R->>R: None found — create the account with the default role
-    R->>U: Signed in, with no project yet
+    U ->> R: Open the application
+    R ->> U: Redirect to the provider
+    U ->> I: Authenticate
+    I ->> R: Authorization code
+    R ->> I: Exchange code for tokens
+    R ->> R: No account for this subject — look up by email
+    R ->> R: None found — create the account with the default role
+    R ->> U: Signed in, with no project yet
 ```
 
 You land with the global `USER` role, which grants exactly one meaningful thing: **you may create a project.**
