@@ -86,5 +86,5 @@ Scenario: Denying deletion to a coordinator
 
 ## Related
 
-- [Movements](/registry/functional/features/movements) — attaching vehicles and drivers, and pool names
+- [Movements](/registry/functional/features/movements) — attaching vehicles and drivers
 - [Projects](/registry/functional/features/projects) — enabling the `VEHICLE` option

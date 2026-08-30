@@ -65,6 +65,10 @@ Scenario: Refusing a duplicate member
   Then the request is rejected
 ```
 
+::: tip Reshaping a group never rewrites history
+Movements do not link back to the group — they store its **name**, copied onto each line at the moment they were recorded. Add someone to the red team today and yesterday's movements are untouched; remove someone and they still appear on the trips they actually went on. See [Movements](/registry/functional/features/movements#moving-a-whole-group-at-once).
+:::
+
 ## A group is never empty
 
 The rule that shapes the whole feature: **the last member cannot be removed.** Not by removing them from the group, not by disabling them, not by deleting them.
