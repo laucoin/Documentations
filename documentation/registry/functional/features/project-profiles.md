@@ -1,43 +1,51 @@
 # Feature: Project Profiles
 
-> A profile is the **unit of access**. Not the account, not the role — the profile. It says: *this user, on this project, with this role, between these dates, in this state.* Everything a person can do inside a project flows from one.
+> A profile is the **unit of access**. Not the account, not the role — the profile. It says: *this user, on this
+project, with this role, between these dates, in this state.* Everything a person can do inside a project flows from
+> one.
 
 **Who this is for:** administrators granting access, and every user answering an invitation.
 
 ## Who can do what
 
-| Role | May do | Limits |
-| ---- | ------ | ------ |
-| `PROJECT_ADMINISTRATOR` | Create (invite) · Read · Update · Block · Unblock · Delete · search users · list assignable roles | This project only |
-| `PROJECT_COORDINATOR` | Read the project's profiles | Cannot invite, edit or remove anyone |
-| `PROJECT_PARTICIPANT` | Nothing | Cannot even see who else has access |
-| Global `USER_ADMINISTRATOR` | Create a **support profile** for themselves on any project | One hour, administrator-level, fully visible |
-| Any authenticated user | List **their own** profiles and invitations, accept, reject, remove their own | Acting on themselves only |
+| Role                        | May do                                                                                            | Limits                                       |
+|-----------------------------|---------------------------------------------------------------------------------------------------|----------------------------------------------|
+| `PROJECT_ADMINISTRATOR`     | Create (invite) · Read · Update · Block · Unblock · Delete · search users · list assignable roles | This project only                            |
+| `PROJECT_COORDINATOR`       | Read the project's profiles                                                                       | Cannot invite, edit or remove anyone         |
+| `PROJECT_PARTICIPANT`       | Nothing                                                                                           | Cannot even see who else has access          |
+| Global `USER_ADMINISTRATOR` | Create a **support profile** for themselves on any project                                        | One hour, administrator-level, fully visible |
+| Any authenticated user      | List **their own** profiles and invitations, accept, reject, remove their own                     | Acting on themselves only                    |
 
-Managing access is deliberately concentrated: only the administrator invites, edits and removes. The coordinator can see the team; the participant cannot.
+Managing access is deliberately concentrated: only the administrator invites, edits and removes. The coordinator can see
+the team; the participant cannot.
 
 ## The life of a profile
 
 ```mermaid
 stateDiagram-v2
-    [*] --> INVITED : administrator invites
-    INVITED --> ACCEPTED : user accepts
-    INVITED --> REJECTED : user declines
-    ACCEPTED --> BLOCKED : administrator blocks
-    BLOCKED --> ACCEPTED : administrator unblocks
-    ACCEPTED --> [*] : deleted
-    REJECTED --> [*] : deleted
+    [*] --> INVITED: administrator invites
+    INVITED --> ACCEPTED: user accepts
+    INVITED --> REJECTED: user declines
+    ACCEPTED --> BLOCKED: administrator blocks
+    BLOCKED --> ACCEPTED: administrator unblocks
+    ACCEPTED --> [*]: deleted
+    REJECTED --> [*]: deleted
 ```
 
-Only `ACCEPTED` grants rights — and only while the access window is open. `INVITED`, `REJECTED` and `BLOCKED` grant nothing at all.
+Only `ACCEPTED` grants rights — and only while the access window is open. `INVITED`, `REJECTED` and `BLOCKED` grant
+nothing at all.
 
-Two profiles skip the invitation entirely and start `ACCEPTED`, because there is nobody to ask: the one created by **creating a project**, and the **support profile**.
+Two profiles skip the invitation entirely and start `ACCEPTED`, because there is nobody to ask: the one created by
+**creating a project**, and the **support profile**.
 
 ## You cannot grant what you do not have
 
-Roles are ranked by level, and the rule is uniform: **you may assign your own role or a weaker one, never a stronger one.** A coordinator inviting people could only ever create coordinators and participants — except coordinators cannot invite at all, so in practice this bites when an administrator edits a profile.
+Roles are ranked by level, and the rule is uniform: **you may assign your own role or a weaker one, never a stronger
+one.** A coordinator inviting people could only ever create coordinators and participants — except coordinators cannot
+invite at all, so in practice this bites when an administrator edits a profile.
 
-The rule is checked twice on an edit: against the profile's **current** role, and against the **new** one. You cannot edit a profile that already outranks you, and you cannot promote anyone past yourself.
+The rule is checked twice on an edit: against the profile's **current** role, and against the **new** one. You cannot
+edit a profile that already outranks you, and you cannot promote anyone past yourself.
 
 ```gherkin
 Scenario: Refusing to assign a role stronger than my own
@@ -57,9 +65,12 @@ Scenario: Listing the roles I may assign
 
 ## Access windows, and why two profiles cannot overlap
 
-A profile may carry a start and an end. Outside that window it grants nothing — enforced continuously, not merely at sign-in, so access granted "for the weekend" ends by itself on Monday.
+A profile may carry a start and an end. Outside that window it grants nothing — enforced continuously, not merely at
+sign-in, so access granted "for the weekend" ends by itself on Monday.
 
-Because of that, **one user may not hold two profiles on the same project whose windows overlap**. Two live profiles would make "your role here" ambiguous. Non-overlapping profiles are fine: a coordinator in June, an administrator in July.
+Because of that, **one user may not hold two profiles on the same project whose windows overlap**. Two live profiles
+would make "your role here" ambiguous. Non-overlapping profiles are fine: a coordinator in June, an administrator in
+July.
 
 ```gherkin
 Scenario: Refusing an overlapping profile
@@ -75,7 +86,9 @@ Scenario: Losing access when the window closes
 
 ## Inviting several people at once
 
-Invitations are sent in bulk, and the result is **partial by design**. Users whose window would overlap an existing profile are skipped rather than failing the whole request, and the response reports both lists: who was invited, and who was not.
+Invitations are sent in bulk, and the result is **partial by design**. Users whose window would overlap an existing
+profile are skipped rather than failing the whole request, and the response reports both lists: who was invited, and who
+was not.
 
 ```gherkin
 Scenario: Inviting a mixed batch
@@ -85,11 +98,13 @@ Scenario: Inviting a mixed batch
   And the response names the user who was skipped
 ```
 
-Searching for users to invite returns a **capped** list of visible accounts matched by fuzzy text — it is a picker, not a directory export.
+Searching for users to invite returns a **capped** list of visible accounts matched by fuzzy text — it is a picker, not
+a directory export.
 
 ## Answering an invitation
 
-An invitation is yours to answer, and yours alone. Only a profile in `INVITED` state can be answered, and only with `ACCEPTED` or `REJECTED` — no other status can be set this way.
+An invitation is yours to answer, and yours alone. Only a profile in `INVITED` state can be answered, and only with
+`ACCEPTED` or `REJECTED` — no other status can be set this way.
 
 ```gherkin
 Scenario: Accepting an invitation
@@ -111,9 +126,12 @@ Scenario: Refusing to answer twice
 
 ## Blocking, removing, and the protected administrator
 
-Blocking hides a profile and cuts its rights while keeping it on the list — the reversible way to suspend someone. Removing deletes it.
+Blocking hides a profile and cuts its rights while keeping it on the list — the reversible way to suspend someone.
+Removing deletes it.
 
-One rule guards both, plus editing: **a project's last administrator cannot be blocked, edited out of the role, or removed.** Registry refuses to leave a project without an owner, naming the project in the error so you know which one is blocking you.
+One rule guards both, plus editing: **a project's last administrator cannot be blocked, edited out of the role, or
+removed.** Registry refuses to leave a project without an owner, naming the project in the error so you know which one
+is blocking you.
 
 ```gherkin
 Scenario: Blocking a profile
@@ -134,7 +152,8 @@ Scenario: Refusing to demote the last administrator
 
 ## Support profiles
 
-A global `USER_ADMINISTRATOR` can grant themselves a profile on **any** project without being invited. It is not a back door — it is a real profile:
+A global `USER_ADMINISTRATOR` can grant themselves a profile on **any** project without being invited. It is not a back
+door — it is a real profile:
 
 - administrator-level, `ACCEPTED` immediately;
 - valid for exactly **one hour** from creation;
@@ -143,7 +162,8 @@ A global `USER_ADMINISTRATOR` can grant themselves a profile on **any** project 
 - it becomes their selected profile if they had none, dropping them straight into the project.
 
 ::: tip There is no invisible super-user
-If a platform administrator looked inside a project, there is a profile in that project saying so, with a one-hour window attached.
+If a platform administrator looked inside a project, there is a profile in that
+project saying so, with a one-hour window attached.
 :::
 
 ```gherkin

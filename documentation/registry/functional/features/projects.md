@@ -1,30 +1,35 @@
 # Feature: Projects
 
-> A project is the whole world. Every participant, group, movement, vehicle, activity, communication and alert in Registry belongs to exactly one, and can never be seen from another.
+> A project is the whole world. Every participant, group, movement, vehicle, activity, communication and alert in
+> Registry belongs to exactly one, and can never be seen from another.
 
-Creating a project is also the only way into the platform: any signed-in user can create one, and doing so makes them its administrator on the spot. There is no waiting for an invitation, no request queue.
+Creating a project is also the only way into the platform: any signed-in user can create one, and doing so makes them
+its administrator on the spot. There is no waiting for an invitation, no request queue.
 
 **Who this is for:** anyone who organises an event and needs to know who is on site.
 
 ## Who can do what
 
-| Role | May do | Limits |
-| ---- | ------ | ------ |
-| Global `USER` | **Create** a project; read the options available at creation | Becomes `PROJECT_ADMINISTRATOR` of what they create |
+| Role                        | May do                                                               | Limits                                               |
+|-----------------------------|----------------------------------------------------------------------|------------------------------------------------------|
+| Global `USER`               | **Create** a project; read the options available at creation         | Becomes `PROJECT_ADMINISTRATOR` of what they create  |
 | Global `USER_ADMINISTRATOR` | Create; **read any project**, including ones they hold no profile on | Reading is the only cross-project power — no writing |
-| `PROJECT_ADMINISTRATOR` | Read · Update · Disable · Enable · **Delete** | This project only |
-| `PROJECT_COORDINATOR` | Read | This project only |
-| `PROJECT_PARTICIPANT` | Read | This project only |
+| `PROJECT_ADMINISTRATOR`     | Read · Update · Disable · Enable · **Delete**                        | This project only                                    |
+| `PROJECT_COORDINATOR`       | Read                                                                 | This project only                                    |
+| `PROJECT_PARTICIPANT`       | Read                                                                 | This project only                                    |
 
-Listing projects returns what *you* can see: your own projects through your profiles, plus — for a global administrator who asks for them — projects they hold no profile on.
+Listing projects returns what *you* can see: your own projects through your profiles, plus — for a global administrator
+who asks for them — projects they hold no profile on.
 
 ## Three things fixed at creation
 
-A project carries a name, a date range, and a set of options. The name is required and capped at 150 characters; the rest is where the design lives.
+A project carries a name, a date range, and a set of options. The name is required and capped at 150 characters; the
+rest is where the design lives.
 
 ### The date range constrains everything
 
-Every availability window, every movement, every communication and every alert must fall **inside the project's dates**. That makes the range the project's spine — and it is why narrowing it later is a guarded operation.
+Every availability window, every movement, every communication and every alert must fall **inside the project's dates**.
+That makes the range the project's spine — and it is why narrowing it later is a guarded operation.
 
 ```gherkin
 Scenario: Refusing an end date before the begin date
@@ -41,14 +46,15 @@ Widening the range is always allowed — nothing can fall outside a bigger box.
 
 ### Options are the project's feature switches
 
-| Option | Unlocks | Requires |
-| ------ | ------- | -------- |
-| `VEHICLE` | Vehicles, vehicle presence, drivers on movements | — |
-| `ACTIVITY` | Activities, activities as movement reasons | — |
-| `COMMUNICATION` | Communications on movements | `ACTIVITY` |
-| `ALERT` | Alerts and their communications | `ACTIVITY` and `COMMUNICATION` |
+| Option          | Unlocks                                          | Requires                       |
+|-----------------|--------------------------------------------------|--------------------------------|
+| `VEHICLE`       | Vehicles, vehicle presence, drivers on movements | —                              |
+| `ACTIVITY`      | Activities, activities as movement reasons       | —                              |
+| `COMMUNICATION` | Communications on movements                      | `ACTIVITY`                     |
+| `ALERT`         | Alerts and their communications                  | `ACTIVITY` and `COMMUNICATION` |
 
-An option that is off makes its feature unreachable **for everyone on the project, including its administrator**. Options are checked *before* permissions, so no role can talk its way past one.
+An option that is off makes its feature unreachable **for everyone on the project, including its administrator**.
+Options are checked *before* permissions, so no role can talk its way past one.
 
 ```gherkin
 Scenario: Refusing an option whose prerequisites are missing
@@ -63,7 +69,8 @@ Scenario: Denying a feature whose option is off
 
 ### The creator becomes the administrator
 
-Creating a project also creates a profile: `PROJECT_ADMINISTRATOR`, already `ACCEPTED`, for the creator. If they had no selected profile, this one becomes it, so they land straight inside the project they just made.
+Creating a project also creates a profile: `PROJECT_ADMINISTRATOR`, already `ACCEPTED`, for the creator. If they had no
+selected profile, this one becomes it, so they land straight inside the project they just made.
 
 ```gherkin
 Scenario: Creating a project
@@ -78,12 +85,14 @@ Scenario: Creating a project
 
 Disabling a project is a **graceful shutdown**, not a deletion — and its effect on access is unusually sharp:
 
-| Role on a disabled project | What is left |
-| -------------------------- | ------------ |
-| `PROJECT_ADMINISTRATOR` | Read, update and delete **the project itself** — nothing inside it, and its options no longer apply |
-| Everyone else | Nothing. The project vanishes from their world |
+| Role on a disabled project | What is left                                                                                        |
+|----------------------------|-----------------------------------------------------------------------------------------------------|
+| `PROJECT_ADMINISTRATOR`    | Read, update and delete **the project itself** — nothing inside it, and its options no longer apply |
+| Everyone else              | Nothing. The project vanishes from their world                                                      |
 
-That is exactly enough to re-open the project or delete it for good, and nothing more. Deleting removes the project and everything that hangs off it in one cascade — participants, groups, movements, vehicles, activities, communications, alerts and profiles.
+That is exactly enough to re-open the project or delete it for good, and nothing more. Deleting removes the project and
+everything that hangs off it in one cascade — participants, groups, movements, vehicles, activities, communications,
+alerts and profiles.
 
 ```gherkin
 Scenario: Disabling a project
