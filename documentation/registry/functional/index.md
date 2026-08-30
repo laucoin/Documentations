@@ -46,6 +46,28 @@ Holding a global role grants **nothing** inside a project, and holding a project
 | Scheduled retention purges of stale data | Long-term archival or export of purged data |
 | French and English interfaces | Per-project custom terminology or translations |
 
-## Where to go next
+## Documentation map
 
-The functional documentation is completed in the following pages: personas, the roles and permissions baseline, the domain model, the end-to-end workflows, and one page per feature. They are listed in the sidebar as they are published.
+| Page | Purpose |
+| ---- | ------- |
+| [Personas](/registry/functional/personas) | The postures people adopt — organiser, coordinator, gatekeeper, platform administrator — and what each needs |
+| [Roles & Permissions](/registry/functional/roles-and-permissions) | The security baseline: authentication boundary, both permission planes, the full permission matrix, option gating |
+| [Domain Model](/registry/functional/domain-model) | Entities, relationships, lifecycles, and the two ideas — visibility and availability windows — that recur everywhere |
+| [Workflows](/registry/functional/workflows) | End-to-end journeys, from first sign-in to the nightly retention pass |
+
+### Features
+
+| Feature | What it covers |
+| ------- | -------------- |
+| [Projects](/registry/functional/features/projects) | The tenant: dates, options, and the three ways a project can end |
+| [Project Profiles](/registry/functional/features/project-profiles) | Granting access: invitations, roles, access windows, support profiles |
+| [Participants](/registry/functional/features/participants) | The people the project is responsible for, registered and guest |
+| [Groups](/registry/functional/features/groups) | Organising participants, and how group availability flows to members |
+| [Movements](/registry/functional/features/movements) | The core: check-ins, check-outs, reasons, guests, and how presence is derived |
+| [Vehicles](/registry/functional/features/vehicles) | Optional — vehicles, drivers and vehicle presence |
+| [Activities](/registry/functional/features/activities) | Optional — the programme, and activities as movement reasons |
+| [Communications](/registry/functional/features/communications) | Optional — timestamped notes pinned to a movement or an alert |
+| [Alerts](/registry/functional/features/alerts) | Optional — incidents, their lifecycle, and their thread |
+| [Users](/registry/functional/features/users) | The global plane: roles, blocking, anonymisation, deletion |
+| [Preferences](/registry/functional/features/preferences) | Theme, language, and the selected profile that sets your project context |
+| [Data Retention](/registry/functional/features/data-retention) | The nightly sweeps, their order, and dry runs |
