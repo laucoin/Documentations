@@ -41,6 +41,7 @@ This file documents conventions for AI agents (Claude Code, Copilot, etc.) worki
 1. Run `pnpm build` after any change that touches content, links, or file paths — and always before closing out a task.
 2. The build fails on dead links and broken pages. A failing build means the task is **not** done, regardless of how complete the content looks.
 3. Fix every reported error and re-run the build until it passes cleanly. Do not hand off, commit, or report completion on a red build.
+4. Before closing out a task, check whether `README.md` needs updating (new commands, changed structure, new projects/sections) and update it if so.
 
 ---
 
