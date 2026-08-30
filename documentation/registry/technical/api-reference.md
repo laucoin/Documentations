@@ -1,298 +1,194 @@
 # API Reference
 
-`/api/v1` — the only version. Every endpoint below is listed with the **exact authorisation rule** the backend applies,
-because that rule is the contract as much as the URL is.
-
-::: tip The live contract
-When `registry.feature.documentation.enabled` is on, springdoc publishes the generated OpenAPI
-at `/api-docs` and Swagger UI at `/swagger-ui.html`. This page is the readable companion; the generated document is
-authoritative on payload shapes.
-:::
-
-## Conventions
-
-| Aspect           | Rule                                                                                      |
-|------------------|-------------------------------------------------------------------------------------------|
-| Base path        | `/api/v1`, plural nouns, nested for ownership: `/projects/{projectId}/activities`         |
-| Authentication   | `Authorization: Bearer <token>` on everything except the four public endpoints            |
-| Language         | `Accept-Language` selects `en` or `fr` for error messages                                 |
-| Pagination       | `pageNumber` (≥ 0, default 0) and `pageSize` (1–200, default 20), returning a `PageModel` |
-| Search endpoints | `/search/**` return a **capped list**, not a page — they feed pickers                     |
-| Text search      | `textSearched`, trigram similarity, typo-tolerant                                         |
-| Dates            | ISO-8601 date-time on `*DateTimeSearched` parameters                                      |
-| Verbs            | `GET` read · `POST` create · `PATCH` partial update · `DELETE` remove                     |
-| State changes    | `PATCH /{id}/disable`, `/{id}/enable`, `/{id}/block`, `/{id}/unblock`                     |
-| Errors           | i18n message keys, shaped by `RegistryControllerAdvice`; never stack traces               |
-
-Notation below: `hasAuthority(X)` is a global permission; `hasPermission(id, X)` is scoped to that project.
-
-## Authentication
-
-`/api/v1/authentication` — the only public surface.
-
-| Method | Path                       | Authorisation                                |
-|--------|----------------------------|----------------------------------------------|
-| `GET`  | `/login/uri?redirectUri=`  | **Public**                                   |
-| `GET`  | `/logout/uri?redirectUri=` | **Public**                                   |
-| `POST` | `/token`                   | **Public** — exchanges an authorization code |
-| `POST` | `/token/refresh`           | **Public** — exchanges a refresh token       |
-| `GET`  | `/user/current`            | Authenticated                                |
-
-The backend holds the OIDC client secret and performs both exchanges server-side; the browser never calls the provider's
-token endpoint.
-
-## Projects
-
-`/api/v1/projects`
-
-| Method   | Path            | Authorisation                                                                                                 |
-|----------|-----------------|---------------------------------------------------------------------------------------------------------------|
-| `GET`    | `/`             | Authenticated — returns the caller's projects. `withProfile=false` is honoured only with `REGISTRY_PROJECT_R` |
-| `GET`    | `/options`      | `hasAuthority(REGISTRY_PROJECT_METADATA_R)`                                                                   |
-| `GET`    | `/{id}`         | `hasAuthority(REGISTRY_PROJECT_R)` **or** `hasPermission(#id, REGISTRY_PROJECT_R)`                            |
-| `POST`   | `/`             | `hasAuthority(REGISTRY_PROJECT_C)`                                                                            |
-| `PATCH`  | `/{id}`         | `hasPermission(#id, REGISTRY_PROJECT_U)`                                                                      |
-| `PATCH`  | `/{id}/disable` | `hasPermission(#id, REGISTRY_PROJECT_U)`                                                                      |
-| `PATCH`  | `/{id}/enable`  | `hasPermission(#id, REGISTRY_PROJECT_U)`                                                                      |
-| `DELETE` | `/{id}`         | `hasPermission(#id, REGISTRY_PROJECT_D)`                                                                      |
-
-Filters on the list: `textSearched`, `visibilitySearched`, `withProfile`, `dateTimeSearched`.
-
-`GET /{id}` is the one place where the global and project planes are combined with an **or** — a platform administrator
-may read any project, but still cannot write to one.
-
-## Project profiles
-
-`/api/v1/projects/{projectId}/profiles`
-
-| Method   | Path            | Authorisation                                                    |
-|----------|-----------------|------------------------------------------------------------------|
-| `GET`    | `/`             | `hasPermission(#projectId, REGISTRY_PROJECT_PROFILE_R)`          |
-| `GET`    | `/{id}`         | `hasPermission(#projectId, REGISTRY_PROJECT_PROFILE_R)`          |
-| `GET`    | `/search/users` | `hasPermission(#projectId, REGISTRY_PROJECT_PROFILE_METADATA_R)` |
-| `GET`    | `/roles`        | `hasPermission(#projectId, REGISTRY_PROJECT_PROFILE_METADATA_R)` |
-| `POST`   | `/`             | `hasPermission(#projectId, REGISTRY_PROJECT_PROFILE_C)`          |
-| `PATCH`  | `/{id}`         | `hasPermission(#projectId, REGISTRY_PROJECT_PROFILE_U)`          |
-| `PATCH`  | `/{id}/block`   | `hasPermission(#projectId, REGISTRY_PROJECT_PROFILE_U)`          |
-| `PATCH`  | `/{id}/unblock` | `hasPermission(#projectId, REGISTRY_PROJECT_PROFILE_U)`          |
-| `DELETE` | `/{id}`         | `hasPermission(#projectId, REGISTRY_PROJECT_PROFILE_D)`          |
-
-Filters: `textSearched`, `availabilitySearched`, `statusSearched`, `dateTimeSearched`.
-
-`POST /` invites **several users at once** and returns `CreatedProjectProfilesReaderDto` — who was created, and who was
-skipped for an overlapping profile.
-
-## The caller's own profiles
-
-`/api/v1/users/profiles` — no permission annotation; every operation is scoped to the caller.
-
-| Method   | Path                      | Authorisation                                                                   |
-|----------|---------------------------|---------------------------------------------------------------------------------|
-| `GET`    | `/`                       | Authenticated — the caller's own profiles                                       |
-| `POST`   | `/{id}/accept/{accepted}` | Authenticated — answer an invitation. Only an `INVITED` profile can be answered |
-| `POST`   | `/{projectId}/support`    | `hasAuthority(REGISTRY_PROFILE_C)` — a one-hour administrator profile           |
-| `DELETE` | `/{id}`                   | Authenticated — remove one's own profile                                        |
-
-## Participants
-
-`/api/v1/projects/{projectId}/participants`
-
-| Method   | Path              | Authorisation                                                        |
-|----------|-------------------|----------------------------------------------------------------------|
-| `GET`    | `/`               | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_R)`          |
-| `GET`    | `/birthday`       | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_R)`          |
-| `GET`    | `/{id}`           | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_R)`          |
-| `GET`    | `/{id}/movements` | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_HISTORY_R)`  |
-| `GET`    | `/search/users`   | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_METADATA_R)` |
-| `GET`    | `/search/groups`  | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_METADATA_R)` |
-| `POST`   | `/`               | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_C)`          |
-| `PATCH`  | `/{id}`           | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_U)`          |
-| `PATCH`  | `/{id}/disable`   | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_U)`          |
-| `PATCH`  | `/{id}/enable`    | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_U)`          |
-| `DELETE` | `/{id}`           | `hasPermission(#projectId, REGISTRY_PROJECT_PARTICIPANT_D)`          |
-
-Filters: `textSearched`, `isMajor`, `typeSearched`, `visibilitySearched`, `statusSearched`, `dateTimeSearched`.
-
-Note the separate **`_HISTORY_R`** permission on `/{id}/movements` — that is the line the `PROJECT_PARTICIPANT` role
-does not cross.
-
-## Groups
-
-`/api/v1/projects/{projectId}/groups`
-
-| Method   | Path                       | Authorisation                                                  |
-|----------|----------------------------|----------------------------------------------------------------|
-| `GET`    | `/`                        | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_R)`          |
-| `GET`    | `/{id}`                    | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_R)`          |
-| `GET`    | `/{id}/members`            | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_R)`          |
-| `GET`    | `/search/participants`     | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_METADATA_R)` |
-| `POST`   | `/`                        | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_C)`          |
-| `PATCH`  | `/{id}`                    | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_U)`          |
-| `PATCH`  | `/{id}/members`            | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_U)`          |
-| `PATCH`  | `/{id}/disable`            | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_U)`          |
-| `PATCH`  | `/{id}/enable`             | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_U)`          |
-| `DELETE` | `/{id}/members/{memberId}` | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_U)`          |
-| `DELETE` | `/{id}`                    | `hasPermission(#projectId, REGISTRY_PROJECT_GROUP_D)`          |
-
-`/{id}/members` accepts the full participant filter set, so "who from this group is currently out?" is one request.
-
-## Movements
-
-`/api/v1/projects/{projectId}/movements`
-
-| Method   | Path                              | Authorisation                                                              |
-|----------|-----------------------------------|----------------------------------------------------------------------------|
-| `GET`    | `/`                               | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_R)`                   |
-| `GET`    | `/contents?movementIds=`          | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_R)`                   |
-| `GET`    | `/{id}`                           | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_R)`                   |
-| `GET`    | `/participants/status`            | `hasPermission(#projectId, REGISTRY_PROJECT_R)`                            |
-| `GET`    | `/vehicles/status`                | `OPTION_VEHICLE` **and** `hasPermission(#projectId, REGISTRY_PROJECT_R)`   |
-| `GET`    | `/{id}/communications`            | `OPTION_COMMUNICATION` **and** `REGISTRY_PROJECT_MOVEMENT_COMMUNICATION_R` |
-| `GET`    | `/search/reasons`                 | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_METADATA_R)`          |
-| `GET`    | `/search/participants-and-groups` | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_METADATA_R)`          |
-| `GET`    | `/search/vehicles`                | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_METADATA_R)`          |
-| `POST`   | `/`                               | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_C)`                   |
-| `POST`   | `/guests`                         | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_C)`                   |
-| `PATCH`  | `/{id}`                           | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_U)`                   |
-| `PATCH`  | `/guests/{id}`                    | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_U)`                   |
-| `PATCH`  | `/{id}/disable`                   | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_U)`                   |
-| `PATCH`  | `/{id}/enable`                    | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_U)`                   |
-| `DELETE` | `/{id}`                           | `hasPermission(#projectId, REGISTRY_PROJECT_MOVEMENT_D)`                   |
-
-Registered and guest movements have **separate create and update endpoints**, because their payloads differ:
-`ParticipantMovementWriterDto` references existing participants (with optional `vehicleId` and `poolName` per line),
-while `GuestMovementWriterDto` carries guest identities on an entrance and existing guest references on an exit.
-
-Filters: `currentMovements`, `linkedToActivity`, `visibilitySearched`, `typeSearched`, `startDateTimeSearched`,
-`endDateTimeSearched`. `currentMovements=true` means a registered participant still outside, or a guest still inside.
-
-## Vehicles — requires `OPTION_VEHICLE`
-
-`/api/v1/projects/{projectId}/vehicles`. **Every** endpoint carries the option gate *and* its permission.
-
-| Method   | Path                                       | Permission (on top of `OPTION_VEHICLE`) |
-|----------|--------------------------------------------|-----------------------------------------|
-| `GET`    | `/`                                        | `REGISTRY_PROJECT_VEHICLE_R`            |
-| `GET`    | `/{id}`                                    | `REGISTRY_PROJECT_VEHICLE_R`            |
-| `GET`    | `/{id}/movements`                          | `REGISTRY_PROJECT_VEHICLE_HISTORY_R`    |
-| `POST`   | `/`                                        | `REGISTRY_PROJECT_VEHICLE_C`            |
-| `PATCH`  | `/{id}` · `/{id}/disable` · `/{id}/enable` | `REGISTRY_PROJECT_VEHICLE_U`            |
-| `DELETE` | `/{id}`                                    | `REGISTRY_PROJECT_VEHICLE_D`            |
-
-## Activities — requires `OPTION_ACTIVITY`
-
-`/api/v1/projects/{projectId}/activities`
-
-| Method   | Path                                       | Permission (on top of `OPTION_ACTIVITY`) |
-|----------|--------------------------------------------|------------------------------------------|
-| `GET`    | `/`                                        | `REGISTRY_PROJECT_ACTIVITY_R`            |
-| `GET`    | `/{id}`                                    | `REGISTRY_PROJECT_ACTIVITY_R`            |
-| `GET`    | `/{id}/movements`                          | `REGISTRY_PROJECT_ACTIVITY_HISTORY_R`    |
-| `POST`   | `/`                                        | `REGISTRY_PROJECT_ACTIVITY_C`            |
-| `PATCH`  | `/{id}` · `/{id}/disable` · `/{id}/enable` | `REGISTRY_PROJECT_ACTIVITY_U`            |
-| `DELETE` | `/{id}`                                    | `REGISTRY_PROJECT_ACTIVITY_D`            |
-
-## Communications — requires `OPTION_COMMUNICATION`
-
-`/api/v1/projects/{projectId}/communications`
-
-| Method   | Path                                       | Authorisation                                                        |
-|----------|--------------------------------------------|----------------------------------------------------------------------|
-| `GET`    | `/`                                        | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_R`          |
-| `GET`    | `/{id}`                                    | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_R`          |
-| `GET`    | `/search/movements`                        | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
-| `GET`    | `/search/alerts`                           | `OPTION_ALERT` + `REGISTRY_PROJECT_COMMUNICATION_METADATA_R`         |
-| `POST`   | `/`                                        | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_C`          |
-| `PATCH`  | `/{id}` · `/{id}/disable` · `/{id}/enable` | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_U`          |
-| `DELETE` | `/{id}`                                    | `OPTION_COMMUNICATION` + `REGISTRY_PROJECT_COMMUNICATION_D`          |
-
-::: tip The alert picker is gated on `ALERT`, not `COMMUNICATION`
-`/search/alerts` returns alerts, so it carries the `ALERT` option rather than its controller's usual `COMMUNICATION`
-one. Because the option chain makes `ALERT` imply `COMMUNICATION`, that is the stricter of the two — and it matches the
-option the service checks when a communication is actually attached to an alert.
-:::
-
-`/search/movements` returns only movements that can legally receive a communication: `OUT`, of registered participants,
-visible.
-
-## Alerts — requires `OPTION_ALERT`
-
-`/api/v1/projects/{projectId}/alerts`
-
-| Method   | Path                                                                 | Permission (on top of `OPTION_ALERT`)    |
-|----------|----------------------------------------------------------------------|------------------------------------------|
-| `GET`    | `/`                                                                  | `REGISTRY_PROJECT_ALERT_R`               |
-| `GET`    | `/{id}`                                                              | `REGISTRY_PROJECT_ALERT_R`               |
-| `GET`    | `/{id}/communications`                                               | `REGISTRY_PROJECT_ALERT_COMMUNICATION_R` |
-| `POST`   | `/`                                                                  | `REGISTRY_PROJECT_ALERT_C`               |
-| `PATCH`  | `/{id}` · `/{id}/status/{status}` · `/{id}/disable` · `/{id}/enable` | `REGISTRY_PROJECT_ALERT_U`               |
-| `DELETE` | `/{id}`                                                              | `REGISTRY_PROJECT_ALERT_D`               |
-
-`PATCH /{id}` only succeeds while the alert is `IN_PROGRESS`; `PATCH /{id}/status/{status}` is the transition endpoint
-and takes `IN_PROGRESS`, `RESOLVED` or `CANCELED`.
-
-## Users
-
-`/api/v1/users`
-
-| Method   | Path                | Authorisation                            |
-|----------|---------------------|------------------------------------------|
-| `GET`    | `/`                 | `hasAuthority(REGISTRY_USER_R)`          |
-| `GET`    | `/{id}`             | `hasAuthority(REGISTRY_USER_R)`          |
-| `GET`    | `/roles`            | `hasAuthority(REGISTRY_USER_METADATA_R)` |
-| `PATCH`  | `/{id}/role?role=`  | `hasAuthority(REGISTRY_USER_U)`          |
-| `PATCH`  | `/{id}/block`       | `hasAuthority(REGISTRY_USER_U)`          |
-| `PATCH`  | `/{id}/unblock`     | `hasAuthority(REGISTRY_USER_U)`          |
-| `PATCH`  | `/{id}/impersonate` | `hasAuthority(REGISTRY_USER_D)`          |
-| `PATCH`  | `/impersonate`      | Authenticated — acts on the caller       |
-| `DELETE` | `/{id}`             | `hasAuthority(REGISTRY_USER_D)`          |
-
-::: warning `impersonate` anonymises; it does not impersonate
-Both `impersonate` endpoints **anonymise** the target
-account: names and email are replaced with random values, the birthday is cleared, the account is flagged and future
-sign-in is refused. There is no identity-assumption feature in Registry. The name is misleading and the behaviour is the
-one documented in [Users](/registry/functional/features/users).
-:::
-
-## Preferences
-
-`/api/v1/users/preferences` — no permission annotations; every operation acts on the caller's own row.
-
-| Method | Path                                   | Notes                                     |
-|--------|----------------------------------------|-------------------------------------------|
-| `POST` | `/theme?theme=`                        | `SYSTEM`, `LIGHT` or `DARK`               |
-| `POST` | `/language?language=`                  | Matched leniently — `fr-FR` selects `fr`  |
-| `POST` | `/profile/select?profileId=`           | Omit the parameter to clear the selection |
-| `POST` | `/projects/{projectId}/profile/select` | Select by project rather than by profile  |
-
-## Metadata
-
-`/api/v1/metadata` — authenticated, no specific permission. Enum label lists for the UI.
-
-| Method | Path                                                                |
-|--------|---------------------------------------------------------------------|
-| `GET`  | `/presences/status` · `/availabilities/status` · `/profiles/status` |
-| `GET`  | `/movements/types` · `/participants/types` · `/alerts/status`       |
-
-## Retention jobs
-
-`/api/v1/purge` — every endpoint requires `hasAuthority(REGISTRY_JOB_C)`.
-
-| Method | Path                       | Removes                                       |
-|--------|----------------------------|-----------------------------------------------|
-| `POST` | `/users`                   | Accounts with no sign-in since the threshold  |
-| `POST` | `/projects`                | Projects untouched since the threshold        |
-| `POST` | `/projects/contents`       | Movements, communications and alerts          |
-| `POST` | `/projects/configurations` | Vehicles, activities, groups and participants |
-
-Both parameters are optional: `dateThreshold` overrides the configured default, and **`dryRun` defaults to `true`** — a
-call with no parameters reports what would go and deletes nothing.
-
-Content must be purged before configuration: participants, vehicles and activities refuse deletion while a movement
-references them.
-
-## Related
-
-- [Security](/registry/technical/security) — how these authorisation expressions are evaluated
-- [Roles & Permissions](/registry/functional/roles-and-permissions) — which role holds which permission
-- [Backend](/registry/technical/backend) — the controller-interface pattern behind this surface
+The backend exposes a versioned REST API under **`/api/v2`**. All responses are reactive JSON. Every call requires a bearer JWT except the four public authentication endpoints. Project-scoped endpoints live under `/api/v2/projects/{projectId}/…` and are guarded by a project-scoped permission — often combined with an **option gate** when the resource belongs to an optional module.
+
+The v2 contract follows the conventions in [ADR 017](/registry/technical/adr/017-api-v2-conventions): every state transition is its **own `POST` endpoint** (one endpoint, one functional action, no toggle-by-body and no value-in-path), pickers are **named eligibility sub-collections** searched with `?q=`, and lists share one query grammar. **v1 (`/api/v1`) is frozen and deprecated** — its responses carry `Deprecation`/`Sunset` headers and it is removed once this frontend is fully cut over.
+
+> **Notation.** The *Permission* column names the authority required. `hasAuthority('X')` denotes a **global** permission; a bare project permission (e.g. `MOVEMENT_C`) denotes a **project-scoped** check `hasPermission(projectId, 'REGISTRY_PROJECT_MOVEMENT_C')`. *Option* marks endpoints additionally gated by a project option. See [Security](/registry/technical/security) for enforcement and [Roles & Permissions](/registry/functional/roles-and-permissions) for who holds each.
+
+> **List query grammar.** Every collection accepts `page` (0-based) + `size` (bounded 1–200), `sort=field,-otherField` (leading `-` = descending), flat filter params (`?status=ACCEPTED`), and free-text `?q=` (trigram-backed). JSON bodies and query params are `camelCase`.
+
+When the backend runs with API docs enabled, an interactive OpenAPI/Swagger UI is served with the same security scheme (OAuth2) and grouped by the domains below.
+
+## Authentication — `/api/v2/authentication`
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/login/uri?redirectUri=` | Build the provider login URL | **public** |
+| GET | `/logout/uri?redirectUri=` | Build the provider logout URL | **public** |
+| POST | `/token` | Exchange an authorization code for tokens | **public** |
+| POST | `/token/refresh` | Refresh tokens | **public** |
+| GET | `/user/current` | Current user, authorities and preferences | authenticated |
+
+## Users — `/api/v2/users` *(global)*
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/?q=&page=&size=&sort=` | Search / list users | `REGISTRY_USER_R` |
+| GET | `/{id}` | Get a user | `REGISTRY_USER_R` |
+| GET | `/roles` | Assignable user roles | `REGISTRY_USER_METADATA_R` |
+| PATCH | `/{id}/role` | Change a user's global role (body: `role`) | `REGISTRY_USER_U` |
+| POST | `/{id}/block` · `/{id}/unblock` | Block / unblock an account | `REGISTRY_USER_U` |
+| POST | `/{id}/anonymize` | Anonymize (GDPR purge) another user | `REGISTRY_USER_D` |
+| POST | `/anonymize` | Anonymize the caller's own account | authenticated |
+| DELETE | `/{id}` | Delete a user | `REGISTRY_USER_D` |
+
+> **v1 → v2:** `PATCH …/block` → `POST …/block`; `PATCH …/unblock` → `POST …/unblock`; `PATCH …/impersonate` → `POST …/anonymize` (renamed for accuracy — it never was impersonation); `PATCH /impersonate` → `POST /anonymize`.
+
+## Preferences — `/api/v2/users/preferences` *(self)*
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| POST | `/theme` | Set theme (body: `theme` ∈ `SYSTEM`/`LIGHT`/`DARK`) | authenticated |
+| POST | `/language` | Set language (body: `language` ∈ `en`/`fr`) | authenticated |
+| POST | `/select-profile` | Select the active profile (body: exactly one of `profileId` \| `projectId`) | authenticated |
+
+> **v1 → v2:** the two selectors (`/profile/select` by id and `/projects/{projectId}/profile/select` by project) collapse into one action — `select the active profile` — whose body carries either identifier.
+
+## My profiles — `/api/v2/users/profiles` *(self)*
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/?page=&size=` | List the caller's project profiles | authenticated |
+| POST | `/{id}/accept` · `/{id}/reject` | Accept / reject an invitation (from `INVITED`) | authenticated |
+| POST | `/{projectId}/support` | Create a 1-hour support administrator profile | `REGISTRY_PROFILE_C` |
+| DELETE | `/{id}` | Leave a project (blocked if last permanent administrator) | authenticated |
+
+> **v1 → v2:** `POST /{id}/accept/{accepted}` (boolean in path) splits into two explicit actions — `POST /{id}/accept` and `POST /{id}/reject`.
+
+## Projects — `/api/v2/projects`
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/?q=&page=&size=&sort=` | List projects visible to the caller | authenticated |
+| GET | `/{id}` | Get a project | `REGISTRY_PROJECT_R` (global or scoped) |
+| GET | `/options` | Available option modules | `REGISTRY_PROJECT_METADATA_R` |
+| POST | `/` | Create a project (creator becomes admin) | `REGISTRY_PROJECT_C` |
+| PATCH | `/{id}` | Update a project | `PROJECT_U` |
+| POST | `/{id}/disable` · `/{id}/enable` | Disable / enable (soft) | `PROJECT_U` |
+| DELETE | `/{id}` | Delete a project | `PROJECT_D` |
+
+## Project profiles (membership) — `/api/v2/projects/{projectId}/profiles`
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/` · `/{id}` | List / get members | `PROFILE_R` |
+| GET | `/assignable-users?q=` | Search users assignable to this project | `PROFILE_METADATA_R` |
+| GET | `/roles` | Assignable project roles | `PROFILE_METADATA_R` |
+| POST | `/` | Invite one or more users | `PROFILE_C` |
+| PATCH | `/{id}` | Update role / access window | `PROFILE_U` |
+| POST | `/{id}/block` · `/{id}/unblock` | Block / unblock a member | `PROFILE_U` |
+| DELETE | `/{id}` | Remove a member | `PROFILE_D` |
+
+> **v1 → v2:** `GET …/search/users` → `GET …/assignable-users?q=`; `PATCH …/block`·`/unblock` → `POST …/block`·`/unblock`.
+
+## Participants — `/api/v2/projects/{projectId}/participants`
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/` · `/{id}` | List / get participants | `PARTICIPANT_R` |
+| GET | `/birthdays` | Today's birthdays | `PARTICIPANT_R` |
+| GET | `/linkable-users?q=` · `/linkable-groups?q=` | Search users / groups linkable to a participant | `PARTICIPANT_METADATA_R` |
+| GET | `/{id}/movements` | A participant's movement history | `PARTICIPANT_HISTORY_R` |
+| POST | `/` | Create a participant | `PARTICIPANT_C` |
+| PATCH | `/{id}` | Update | `PARTICIPANT_U` |
+| POST | `/{id}/disable` · `/{id}/enable` | Disable / enable | `PARTICIPANT_U` |
+| DELETE | `/{id}` | Delete a participant | `PARTICIPANT_D` |
+
+> **v1 → v2:** `GET …/search/users`·`/search/groups` → `linkable-users`·`linkable-groups`; `/birthday` → `/birthdays`; `PATCH …/disable`·`/enable` → `POST` verbs.
+
+## Groups — `/api/v2/projects/{projectId}/groups`
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/` · `/{id}` · `/{id}/members` | List / get / list members | `GROUP_R` |
+| GET | `/assignable-participants?q=` | Search participants addable to a group | `GROUP_METADATA_R` |
+| POST | `/` | Create a group | `GROUP_C` |
+| PATCH | `/{id}` | Update | `GROUP_U` |
+| POST | `/{id}/members` | Add members (body: `participantIds`) | `GROUP_U` |
+| DELETE | `/{id}/members/{memberId}` | Remove a member | `GROUP_U` |
+| POST | `/{id}/disable` · `/{id}/enable` | Disable / enable | `GROUP_U` |
+| DELETE | `/{id}` | Delete a group | `GROUP_D` |
+
+> **v1 → v2:** `GET …/search/participants` → `/assignable-participants?q=`; adding members becomes `POST …/members` (was `PATCH …/members`); `PATCH …/disable`·`/enable` → `POST` verbs.
+
+## Movements — `/api/v2/projects/{projectId}/movements`
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/` · `/contents` · `/{id}` | List / list with content / get | `MOVEMENT_R` |
+| GET | `/reasons?q=` · `/eligible-participants-and-groups?q=` · `/eligible-vehicles?q=` | Pickers for the movement form | `MOVEMENT_METADATA_R` |
+| GET | `/participants/status` | Live participant headcount | `REGISTRY_PROJECT_R` |
+| GET | `/vehicles/status` | Live vehicle presence | `REGISTRY_PROJECT_R` · *option `VEHICLE`* |
+| GET | `/{id}/communications` | Movement discussion thread | `MOVEMENT_COMMUNICATION_R` · *option `COMMUNICATION`* |
+| POST | `/` · `/guests` | Record a movement / a guest movement | `MOVEMENT_C` |
+| PATCH | `/{id}` · `/guests/{id}` | Update / update guest movement | `MOVEMENT_U` |
+| POST | `/{id}/disable` · `/{id}/enable` | Disable / enable | `MOVEMENT_U` |
+| DELETE | `/{id}` | Delete a movement | `MOVEMENT_D` |
+
+> **v1 → v2:** `GET …/search/reasons`·`/search/participants-and-groups`·`/search/vehicles` → `/reasons`·`/eligible-participants-and-groups`·`/eligible-vehicles` (each `?q=`); `PATCH …/disable`·`/enable` → `POST` verbs.
+
+## Vehicles — `/api/v2/projects/{projectId}/vehicles` · *option `VEHICLE`*
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/` · `/{id}` | List / get vehicles | `VEHICLE_R` |
+| GET | `/{id}/movements` | A vehicle's movement history | `VEHICLE_HISTORY_R` |
+| POST | `/` | Create a vehicle | `VEHICLE_C` |
+| PATCH | `/{id}` | Update | `VEHICLE_U` |
+| POST | `/{id}/disable` · `/{id}/enable` | Disable / enable | `VEHICLE_U` |
+| DELETE | `/{id}` | Delete a vehicle | `VEHICLE_D` |
+
+## Activities — `/api/v2/projects/{projectId}/activities` · *option `ACTIVITY`*
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/` · `/{id}` | List / get activities | `ACTIVITY_R` |
+| GET | `/{id}/movements` | An activity's movement history | `ACTIVITY_HISTORY_R` |
+| POST | `/` | Create an activity | `ACTIVITY_C` |
+| PATCH | `/{id}` | Update | `ACTIVITY_U` |
+| POST | `/{id}/disable` · `/{id}/enable` | Disable / enable | `ACTIVITY_U` |
+| DELETE | `/{id}` | Delete an activity | `ACTIVITY_D` |
+
+## Communications — `/api/v2/projects/{projectId}/communications` · *option `COMMUNICATION`*
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/` · `/{id}` | List / get communications | `COMMUNICATION_R` |
+| GET | `/attachable-movements?q=` · `/attachable-alerts?q=` | Pickers to attach a message | `COMMUNICATION_METADATA_R` |
+| POST | `/` | Post a message | `COMMUNICATION_C` |
+| PATCH | `/{id}` | Update | `COMMUNICATION_U` |
+| POST | `/{id}/disable` · `/{id}/enable` | Disable / enable | `COMMUNICATION_U` |
+| DELETE | `/{id}` | Delete a message | `COMMUNICATION_D` |
+
+> **v1 → v2:** `GET …/search/movements`·`/search/alerts` → `/attachable-movements`·`/attachable-alerts` (each `?q=`); `PATCH …/disable`·`/enable` → `POST` verbs.
+
+## Alerts — `/api/v2/projects/{projectId}/alerts` · *option `ALERT`*
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| GET | `/` · `/{id}` | List / get alerts | `ALERT_R` |
+| GET | `/{id}/communications` | Alert discussion thread | `ALERT_COMMUNICATION_R` |
+| POST | `/` | Raise an alert | `ALERT_C` |
+| PATCH | `/{id}` | Update | `ALERT_U` |
+| POST | `/{id}/resolve` · `/{id}/cancel` · `/{id}/reopen` | Status transitions (`IN_PROGRESS` ⇄ `RESOLVED`/`CANCELED`) | `ALERT_U` |
+| POST | `/{id}/disable` · `/{id}/enable` | Disable / enable | `ALERT_U` |
+| DELETE | `/{id}` | Delete an alert | `ALERT_D` |
+
+> **v1 → v2:** `PATCH …/status/{status}` (enum in path) splits into one verb per transition — `POST …/resolve`, `POST …/cancel`, `POST …/reopen`; `PATCH …/disable`·`/enable` → `POST` verbs.
+
+## Metadata — `/api/v2/metadata`
+
+Localized label lookups for the frontend (`presences/status`, `availabilities/status`, `profiles/status`, `movements/types`, `participants/types`, `alerts/status`). Authenticated; no special permission.
+
+## Purge (scheduled jobs) — `/api/v2/purge`
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| POST | `/users` · `/projects` · `/projects/contents` · `/projects/configurations` | Data-retention purges | `REGISTRY_JOB_C` |
+
+These are invoked by the system's `SERVICE_ACCOUNT` on a cron schedule; a platform administrator also holds `REGISTRY_JOB_C`.
+
+## Deprecated — `/api/v1`
+
+The v1 contract remains available, **frozen**, during the migration. Every v1 response carries `Deprecation: true`, a `Sunset` date, and a `Link` to this reference ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594)). v1 is removed once the Nuxt frontend is fully cut over in production and v1 traffic reaches zero — see [ADR 017](/registry/technical/adr/017-api-v2-conventions).

@@ -1,165 +1,121 @@
 # Data Model
 
-PostgreSQL, reached over R2DBC at runtime and over JDBC once at boot for migrations. Three extensions are required:
-`uuid-ossp` for identifier generation, `unaccent`, and `pg_trgm` for fuzzy search.
+Registry stores everything in a single PostgreSQL database. The schema is owned by **Flyway migrations** (`V1_0_0` through `V1_11_0`), applied on boot; runtime access is reactive **R2DBC**. This page is the physical-schema companion to the business-facing [Domain Model](/registry/functional/domain-model).
 
-## Conventions
-
-Every table follows the same shape, which is why the schema reads consistently:
-
-| Convention      | Detail                                                                                                                                       |
-|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| Naming          | `tb_<entity>`, snake_case columns                                                                                                            |
-| Primary key     | `uuid`, defaulted to `uuid_generate_v4()`                                                                                                    |
-| Audit columns   | `created_date`, `created_by`, `last_modified_date`, `last_modified_by` — the two `_by` columns reference `tb_user` with `ON DELETE SET NULL` |
-| Soft delete     | `visible boolean NOT NULL DEFAULT TRUE`                                                                                                      |
-| Tenancy         | `project_id` on every project-owned table, `ON DELETE CASCADE`                                                                               |
-| Enums           | Stored as `VARCHAR`, not PostgreSQL enum types — adding a value needs no migration                                                           |
-| Dates and times | Split into a `_date` and a `_time with time zone` column, both nullable                                                                      |
-
-::: tip Why dates and times are separate columns
-An availability window can be a **date without a time** — "available
-from the 3rd" — which a single timestamp cannot express without inventing a time. The split lets the queries default a
-missing time to `00:00` on the start side and `23:59:59.999999` on the end side, which is exactly the intended
-semantics. The cost is that every range comparison is a two-part expression.
-:::
-
-## The schema
-
-### Access control
-
-Six tables, and they hold **data that behaves like code**:
+## Entity-relationship overview
 
 ```mermaid
 erDiagram
-    tb_user_permission ||--o{ tb_user_role_permission: ""
-    tb_user_role ||--o{ tb_user_role_permission: ""
-    tb_project_permission ||--o{ tb_project_role_permission: ""
-    tb_project_role ||--o{ tb_project_role_permission: ""
-    tb_user_role ||--o{ tb_user: "role"
-    tb_project_role ||--o{ tb_project_profile: "role"
+    tb_user ||--|| tb_preferences : has
+    tb_user ||--o{ tb_project_profile : "member via"
+    tb_project ||--o{ tb_project_profile : grants
+    tb_user_role ||--o{ tb_user : "typed by"
+    tb_project_role ||--o{ tb_project_profile : "typed by"
+    tb_project ||--o{ tb_participant : registers
+    tb_project ||--o{ tb_group : organizes
+    tb_project ||--o{ tb_movement : records
+    tb_project ||--o{ tb_vehicle : tracks
+    tb_project ||--o{ tb_activity : plans
+    tb_project ||--o{ tb_alert : manages
+    tb_user |o--o| tb_participant : "may link"
+    tb_group ||--o{ tb_group_content : contains
+    tb_participant ||--o{ tb_group_content : "member of"
+    tb_movement ||--o{ tb_movement_content : moves
+    tb_participant ||--o{ tb_movement_content : "moved in"
+    tb_vehicle |o--o{ tb_movement_content : "carries"
+    tb_activity |o--o{ tb_movement : justifies
+    tb_movement ||--o{ tb_communication : "thread on"
+    tb_alert ||--o{ tb_communication : "thread on"
 ```
 
-`tb_user_role` and `tb_project_role` each carry a `level`, with a **partial unique index** enforcing that at most one
-row per plane has `level = 0`:
+Every table except `tb_user`, `tb_preferences` and the RBAC tables carries a `project_id` foreign key — **the project is the tenant boundary**, and most foreign keys to a project cascade on delete.
 
-```sql
-CREATE UNIQUE INDEX tb_user_role_level0 ON tb_user_role (level) WHERE level = 0;
-```
+## Conventions
 
-That single index is what makes "the one most powerful role" a schema guarantee rather than a convention.
+- **Primary keys** are UUIDs.
+- **Auditing.** Every domain table has `created_date`, `created_by`, `last_modified_date`, `last_modified_by` (the `*_by` columns reference `tb_user`), populated by R2DBC auditing.
+- **Soft delete / disable.** A `visible BOOLEAN` column implements the reversible "disable/enable" seen across the product. Disabling never deletes a row; it flips `visible`, which the authority model reads for [visibility gating](/registry/technical/security#visibility-gating).
+- **Split date/time.** Windows and event times are stored as separate `_date DATE` and `_time TIME WITH TIME ZONE` columns (the domain models them as `CustomDateTime`), so a value can be date-only.
+- **Trigram search.** Searchable tables carry a `STORED GENERATED search_text` column with a GIN `gin_trgm_ops` index — see [below](#search).
 
-### Identity
+## Tables
 
-| Table                | Notes                                                                                                                                                                                                           |
-|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `tb_user`            | `oidc_id` and `email` are **uniquely indexed**; `type` is `USER` or `SERVICE_ACCOUNT`, with a partial unique index allowing exactly one service account; `purged` marks anonymisation; `visible` marks blocking |
-| `tb_preferences`     | One row per user (unique index on `user_id`), holding `theme`, `language` and `selected_profile_id`                                                                                                             |
-| `tb_project_profile` | The access unit: `user_id`, `project_id`, `role`, `status`, and the access window                                                                                                                               |
+### Identity & preferences
 
-### The project's world
+| Table | Key columns | Notes |
+| ----- | ----------- | ----- |
+| `tb_user` | `oidc_id` (unique), `type` (`USER`/`SERVICE_ACCOUNT`), `first_name`, `last_name`, `email` (unique), `role` → `tb_user_role`, `birthday`, `last_login`, `purged`, `visible` | Global identity. `purged` marks anonymized accounts; `visible=false` means blocked. A partial unique index enforces a single `SERVICE_ACCOUNT`. `search_text` = name + email. |
+| `tb_preferences` | `user_id` (unique) → `tb_user` (cascade), `selected_profile_id` → `tb_project_profile` (set null), `theme`, `language` | One row per user; holds the active profile selection and UI preferences. |
 
-| Table                           | Notes                                                                                                  |
-|---------------------------------|--------------------------------------------------------------------------------------------------------|
-| `tb_project`                    | `options TEXT[] NOT NULL DEFAULT '{}'` — the enabled options as a Postgres array                       |
-| `tb_participant`                | `type` is `REGISTERED` or `GUEST`; `user_id` is nullable and `ON DELETE SET NULL`; availability window |
-| `tb_group` + `tb_group_content` | Membership is a composite primary key on `(group_id, participant_id)`                                  |
-| `tb_vehicle`                    | Plate, brand, model, availability window                                                               |
-| `tb_activity`                   | Description up to 2000 chars, `duration`, `min_allowed_participants`, `max_allowed_participants`       |
+### Project & membership
 
-### The record
+| Table | Key columns | Notes |
+| ----- | ----------- | ----- |
+| `tb_project` | `name`, `begin_date`/`begin_time`, `end_date`/`end_time`, `options TEXT[]` | The tenant root. `options` lists enabled modules (`VEHICLE`, `ACTIVITY`, `COMMUNICATION`, `ALERT`). |
+| `tb_project_profile` | `user_id` → `tb_user` (cascade), `project_id` → `tb_project` (cascade), `role` → `tb_project_role` (cascade), `status`, `start_access_*`/`end_access_*` | A user's membership: role, invitation `status` (`INVITED`/`ACCEPTED`/`REJECTED`/`BLOCKED`), and access window. |
 
-| Table                 | Notes                                                                                                                |
-|-----------------------|----------------------------------------------------------------------------------------------------------------------|
-| `tb_movement`         | `date_time`, `type`, an optional `reason`, an optional `activity_id`                                                 |
-| `tb_movement_content` | Composite primary key `(movement_id, participant_id)`, plus `vehicle_id` and `pool_name`                             |
-| `tb_communication`    | `movement_id` **and** `alert_id`, both nullable since V1_8_0 — at least one is required, enforced in the application |
-| `tb_alert`            | `title`, `status`, `date_time`                                                                                       |
+### Participants & groups
 
-::: warning `pool_name` is a copied group name, not a reference
-`tb_movement_content.pool_name` is free text with no foreign key. The frontend writes the **group's name** onto every
-line when a group is selected, so the movement snapshots the group as it was. Nothing in the database ties it back to
-`tb_group`, and nothing validates that the participant is a member — deliberately, so that later membership changes
-cannot rewrite history. See [Movements](/registry/functional/features/movements#moving-a-whole-group-at-once).
-:::
+| Table | Key columns | Notes |
+| ----- | ----------- | ----- |
+| `tb_participant` | `first_name`, `last_name`, `birthday` (not null), `type` (`REGISTERED`/`GUEST`), `user_id` → `tb_user` (set null), `project_id` (cascade), `start/end_availability_*`, `purged` | A person in the event, optionally linked to a user. `search_text` = name. Presence status is derived from movements, not stored. |
+| `tb_group` | `name`, `project_id` (cascade), `start/end_availability_*` | A named set of participants. |
+| `tb_group_content` | PK (`group_id`, `participant_id`), both cascade | Group ↔ participant many-to-many. |
+
+### Movements (core)
+
+| Table | Key columns | Notes |
+| ----- | ----------- | ----- |
+| `tb_movement` | `date_time`, `type` (`IN`/`OUT`), `project_id` (cascade), `activity_id` → `tb_activity`, `reason` | A check-in/out event, justified by either a `reason` or an `activity_id` (never both). |
+| `tb_movement_content` | PK (`movement_id`, `participant_id`), `pool_name`, `vehicle_id` → `tb_vehicle` | The people moved. `pool_name` snapshots the name of the group (in full or in part) expanded to produce this entry, independent of `vehicle_id`. |
+
+### Optional modules
+
+| Table | Key columns | Notes |
+| ----- | ----------- | ----- |
+| `tb_vehicle` | `license_plate`, `brand`, `model`, `project_id` (cascade), `start/end_availability_*` | `search_text` = plate + brand + model. Presence derived from movements. |
+| `tb_activity` | `name`, `description`, `duration`, `min_allowed_participants`, `max_allowed_participants`, `project_id` (cascade), `start/end_availability_*` | Usable as a movement reason. `search_text` = name + description. |
+| `tb_communication` | `date_time`, `message`, `movement_id` → `tb_movement` (cascade, nullable), `alert_id` → `tb_alert` (set null), `project_id` (cascade) | A message attached to a movement and/or an alert (at least one). |
+| `tb_alert` | `date_time`, `title`, `status` (`IN_PROGRESS`/`RESOLVED`/`CANCELED`), `project_id` (cascade) | An incident with its own communication thread. |
+
+### RBAC (roles & permissions as data)
+
+Two parallel sets of three tables encode the [two permission planes](/registry/functional/roles-and-permissions#two-permission-planes):
+
+| Global plane | Project plane | Purpose |
+| ------------ | ------------- | ------- |
+| `tb_user_permission (name)` | `tb_project_permission (name)` | The catalog of permission names. |
+| `tb_user_role (name, level)` | `tb_project_role (name, level)` | Roles, with a numeric `level` (lower = more powerful). A partial unique index forces exactly one level-0 role. |
+| `tb_user_role_permission (role, permission)` | `tb_project_role_permission (role, permission)` | The role → permission mapping. |
+
+These rows are seeded by the `_roles` migrations and loaded into memory at startup; changing them is a data operation (and a restart) rather than a code change ([ADR 005](/registry/technical/adr/005-db-driven-project-rbac)).
 
 ## Search
 
-`V1_4_0` added a **generated, stored `search_text` column** to the four searchable tables, each with a GIN trigram
-index:
+`V1_4_0` adds fuzzy search without a separate search engine ([ADR 006](/registry/technical/adr/006-flyway-trigram-search)):
 
-| Table            | Concatenates                   |
-|------------------|--------------------------------|
-| `tb_user`        | first name · last name · email |
-| `tb_participant` | first name · last name         |
-| `tb_vehicle`     | licence plate · brand · model  |
-| `tb_activity`    | name · description             |
+- the `pg_trgm` extension is enabled;
+- `tb_user`, `tb_participant`, `tb_vehicle` and `tb_activity` each gain a `STORED GENERATED` `search_text` column concatenating their human-identifying fields;
+- each `search_text` gets a **GIN `gin_trgm_ops`** index for fast substring/fuzzy matching.
 
-Queries then filter on `similarity(search_text, :textSearched) > 0` and sort by that score, which gives typo-tolerant
-search without a separate index server. Because the column is `GENERATED ALWAYS … STORED`, it can never drift from its
-source fields.
+Result-set sizes are bounded by configuration to keep search cheap.
 
-## Derived reads
+## Migration history
 
-Two computations are pushed entirely into SQL rather than assembled in the application.
+| Migration | Adds |
+| --------- | ---- |
+| `V1_0_0` / `V1_0_1` | Initial structure; base user roles |
+| `V1_1_0` / `V1_1_1` | Groups; group roles |
+| `V1_2_0` / `V1_2_1` | Vehicles; vehicle roles |
+| `V1_3_0` / `V1_3_1` | Activities; activity roles |
+| `V1_4_0` | Trigram search columns and indexes |
+| `V1_5_0` | Movement reason |
+| `V1_6_0` | Guest participant type |
+| `V1_7_0` / `V1_7_1` | Communication structure; communication roles |
+| `V1_8_0` / `V1_8_1` | Alert structure; alert roles |
+| `V1_9_0` | Scheduled-job (purge) role |
+| `V1_10_0` | Preferences improvements |
+| `V1_11_0` | Remove service-account email |
+| `V1_12_0` | Fix activity indexes (moved from `tb_vehicle` to `tb_activity`) |
 
-**Presence** comes from a `last_movement` CTE — the most recent **visible** movement per participant — and reduces to:
-
-```sql
-last_movement
-.
-type
-IS NULL OR last_movement.type = 'OUT'   -- → absent
-```
-
-**Availability** is a two-part range comparison per side, with a twist: a participant's own dates fall back to the
-aggregate of their visible groups before falling back to a sentinel.
-
-```sql
-COALESCE(t.start_availability_date, fg.min_start_availability::DATE, '+infinity'::DATE) < CURRENT_DATE
-```
-
-The sentinel choice is the rule: `+infinity` on the start side and `-infinity` on the end side mean an element with **no
-dates and no group** is treated as **unavailable**. Availability is opt-in.
-
-## Indexing
-
-Every foreign key is indexed — `project_id` for tenant filtering, `created_by` and `last_modified_by` so the audit
-`SET NULL` cascades stay cheap — plus the four GIN trigram indexes and the uniqueness constraints noted above.
-
-## Migrations
-
-Flyway, `src/main/resources/db/migrations`, versioned `V<major>_<minor>_<patch>__<description>.sql`, applied at boot
-over JDBC. They are **forward-only**: an applied migration is never edited.
-
-| Migration | Brings                                                                                             |
-|-----------|----------------------------------------------------------------------------------------------------|
-| `V1_0_0`  | Users, preferences, projects, profiles, participants, movements, and the six access-control tables |
-| `V1_0_1`  | The seed: global and project permissions, the five roles, and their mappings                       |
-| `V1_1_x`  | Groups, group content, `pool_name` on movement content, group permissions                          |
-| `V1_2_x`  | Vehicles, `vehicle_id` on movement content, vehicle permissions                                    |
-| `V1_3_x`  | Activities, `activity_id` on movements, activity permissions                                       |
-| `V1_4_0`  | `pg_trgm` and the four generated `search_text` columns                                             |
-| `V1_5_0`  | `reason` on movements                                                                              |
-| `V1_6_0`  | `type` on participants — guests                                                                    |
-| `V1_7_x`  | Communications and their permissions                                                               |
-| `V1_8_x`  | Alerts; `alert_id` on communications; `movement_id` made nullable                                  |
-| `V1_9_0`  | The `REGISTRY_JOB_C` permission for the retention jobs                                             |
-| `V1_10_0` | `theme` and `language` on preferences                                                              |
-| `V1_11_0` | Clears the service account's email                                                                 |
-| `V1_12_0` | Corrects `tb_activity`'s indexes, which `V1_3_0` created on `tb_vehicle` by mistake                |
-
-::: tip `V1_12_0` is the pattern to copy
-`V1_3_0` created the activity indexes on the wrong table. Because migrations are forward-only, the fix drops the
-misplaced indexes and creates the intended ones **in a new migration**, with a comment explaining why — rather than
-editing history and desynchronising every environment that already ran it.
-:::
-
-The feature migrations show the house style: a `_0` migration for the structure, a `_1` migration seeding the
-permissions that structure needs. New features follow the same pairing.
-
-## Related
-
-- [Backend](/registry/technical/backend) — the R2DBC and repository layer above this schema
-- [Security](/registry/technical/security) — how the access-control tables become authorities
-- [ADR 006](/registry/technical/adr/006-flyway-trigram-search) · [ADR 005](/registry/technical/adr/005-db-driven-project-rbac)
+> Migrations are forward-only. New schema changes are added as a new `V…` file, never by editing an applied migration.

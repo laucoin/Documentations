@@ -1,95 +1,57 @@
 # Personas
 
-Registry has one unusual property for a multi-tenant product: **most of its users wear different hats on different
-projects.** The same person can be the administrator of the camp they organise, a coordinator on a friend's event, and
-nothing at all on a third. So these personas describe *postures*, not accounts — the same human moves between them,
-sometimes within the same afternoon.
+Registry serves two very different kinds of people: the small number who **administer the platform and run events**, and the much larger number who are merely **the subjects of the record** — the participants and guests being counted. Only the first group signs in. This page describes the human roles; the exact permissions attached to each are in [Roles & Permissions](/registry/functional/roles-and-permissions).
 
-## Camille — the Organiser
+## Platform Administrator
 
-**Holds:** `PROJECT_ADMINISTRATOR` on the project she created.
+The person who looks after user accounts for the whole deployment, across every event.
 
-Camille runs the summer camp. She created the project two months before it starts, decided which optional capabilities
-it needs, registered the eighty participants from her spreadsheets, arranged them into teams, and invited her staff.
-During the camp she barely touches the screen; her work happened before anyone arrived.
+- **Maps to**: the global role `USER_ADMINISTRATOR`.
+- **Goals**: keep the directory of users clean; grant or revoke access; block a compromised or departed account; honour data-deletion requests.
+- **What they do**: search users, change a user's global role, block/unblock accounts, anonymize (purge) a user on request, and mint a temporary **assistance profile** (a one-hour, expiring administrator profile) on any project to help out without permanently joining it. They do **not** run events day-to-day unless they also hold a project role.
+- **What Registry owes them**: a single directory of everyone who can sign in, and safe, reversible controls that never let them lock out the last administrator.
 
-**What she needs:** to set the project up once and correctly. Options she cannot easily change later, dates that
-constrain everything else, and a staff list where nobody has more power than they should.
+## Event Organizer (Project Administrator)
 
-**What she fears:** discovering on day two that the option she left off is the one she needed, or that a coordinator can
-delete something irreplaceable.
+The person who owns a specific event and is fully responsible for it.
 
-::: tip Why she is the only one who can delete
-Deletion is an administrator act almost everywhere in Registry precisely
-because Camille is the person who will still be answering questions about this camp in six months.
-:::
+- **Maps to**: the project role `PROJECT_ADMINISTRATOR` on that project (the creator of a project gets it automatically).
+- **Goals**: set the event up, decide which optional modules it needs, invite the right staff, and retain final say over everything inside it.
+- **What they do**: create and configure the project, invite and manage other members (assign roles, set access windows, block or remove them), and manage every resource in the event — participants, groups, movements, vehicles, activities, communications and alerts.
+- **What Registry owes them**: complete control of their own event, isolated from every other event, with guard rails that prevent them from accidentally removing the event's last permanent administrator.
 
-## Théo — the Coordinator
+## Coordinator
 
-**Holds:** `PROJECT_COORDINATOR`, granted by Camille for the duration of the camp.
+An experienced staff member who runs the event's operations but does not manage who else has access.
 
-Théo runs the day. He adds the participant who turned up unannounced, fixes the birthday someone mistyped, sets up the
-afternoon's activities, checks the minibus out and back in, and pulls up a participant's movement history when a parent
-calls.
+- **Maps to**: the project role `PROJECT_COORDINATOR`.
+- **Goals**: keep the day-to-day record accurate — register people, organize groups, record movements, manage vehicles, activities, communications and alerts.
+- **What they do**: full operational management of participants, groups, movements and the optional modules. They **cannot** invite or manage members, cannot modify the project itself (name, dates, options, enable/disable), and cannot delete it — read-only on project settings.
+- **What Registry owes them**: everything they need to keep the live record correct, without the responsibility (or the risk) of membership administration.
 
-**What he needs:** speed and reach. He can create and correct nearly everything, and he can read history — the one
-privilege that separates him from the people below him on the ladder.
+## Staff Member (Project Participant-role)
 
-**What he cannot do:** invite anyone, change anyone's access, or delete the project's configuration. He can, however,
-delete a **movement** — because fixing a check-in typed at 07:00 is operational work, not governance.
+A helper on the ground whose job is mostly to record who comes and goes.
 
-## Inès — the Gatekeeper
+- **Maps to**: the project role `PROJECT_PARTICIPANT`.
+- **Goals**: check people in and out quickly and reliably; see who is present.
+- **What they do**: a limited operational subset — create and read participants, groups, movements, communications and alerts, and read the project. They cannot edit or delete most resources, nor manage vehicles or activities beyond what their permissions allow.
+- **What Registry owes them**: a fast, forgiving check-in/check-out flow and a clear view of the current headcount.
 
-**Holds:** `PROJECT_PARTICIPANT`.
+## Invited User
 
-Inès is on the gate. Six kids are leaving for the supermarket: she records the exit. A supplier's van arrives: she
-records the entrance and captures the driver's name. That is essentially her whole relationship with the product,
-repeated forty times a day, often on a phone, often in a hurry.
+Anyone who has been sent an invitation to join an event but has not yet accepted.
 
-**What she needs:** the movement screen, and nothing between her and it.
+- **Maps to**: a project profile in status `INVITED`, held by any signed-in user.
+- **Goals**: understand what they have been invited to and accept or decline it.
+- **What they do**: view their pending invitations and accept or reject each one. On acceptance they take on whichever project role the invitation carried.
+- **What Registry owes them**: a clear list of pending invitations and a one-click accept/decline.
 
-**What she deliberately cannot see:** movement history, the project's vehicles and activities configuration, and the
-list of who else has access. She is trusted to record what is happening now, not to audit what happened before or to see
-the project's staffing.
+## The subjects of the record — not users
 
-## Marc — the Platform Administrator
+These people appear **in** the system but do not sign in to it.
 
-**Holds:** `USER_ADMINISTRATOR` globally, and often no project profile at all.
+- **Registered participant** — a person enrolled in the event, normally present. Their availability window is optional and need not cover the whole event — a registered participant is not required to attend from start to finish. They may optionally be linked to a real user account, but that is not required.
+- **Guest** — a visitor who comes on site temporarily (a parent, a partner organization, a supplier). Guests are created on arrival and counted separately from registered participants.
 
-Marc looks after the platform, not the events. He blocks the account of someone who left the organisation, promotes a
-colleague, and honours an erasure request by anonymising an account.
-
-**The counter-intuitive part:** Marc's global powers stop dead at every project boundary. He cannot read Camille's
-participants. If he genuinely needs to help, he creates a **support profile** — a real, one-hour, administrator-level
-profile on that project that is as visible in the profile list as anyone else's.
-
-::: warning Support access is never invisible
-Registry has no silent super-user. If Marc looked inside a project, there
-is a profile saying so.
-:::
-
-## The scheduled job
-
-**Holds:** the `REGISTRY_JOB_C` permission through a service account.
-
-Not a person. Every night it asks Registry the same four questions: any accounts dormant too long? any projects? any
-project content? any leftover configuration? Whatever crosses the retention threshold is deleted. It can be run in
-**dry-run mode** first, which reports what *would* go without touching anything — which is how anyone sane uses it the
-first time.
-
-## How the postures compare
-
-|                                     | Camille | Théo | Inès | Marc |
-|-------------------------------------|:-------:|:----:|:----:|:----:|
-| Set up the project and its options  |   ✅    |  ❌  |  ❌  |  ❌  |
-| Invite people and manage access     |   ✅    |  ❌  |  ❌  |  ❌  |
-| Register participants and groups    |   ✅    |  ✅  |  ✅  |  ❌  |
-| Record movements                    |   ✅    |  ✅  |  ✅  |  ❌  |
-| Read movement history               |   ✅    |  ✅  |  ❌  |  ❌  |
-| Configure vehicles and activities   |   ✅    |  ✅  |  ❌  |  ❌  |
-| Delete a movement                   |   ✅    |  ✅  |  ❌  |  ❌  |
-| Delete anything else in the project |   ✅    |  ❌  |  ❌  |  ❌  |
-| Administer accounts platform-wide   |   ❌    |  ❌  |  ❌  |  ✅  |
-
-Marc's empty column is the point, not an omission. The exact permissions behind each row are
-in [Roles & Permissions](/registry/functional/roles-and-permissions).
+Registry exists to answer, at any moment, *"who is here right now?"* for exactly these people — while only trusted staff ever hold an account.

@@ -1,85 +1,40 @@
 # Functional Documentation
 
-Registry is described here from the point of view of the people who use it — what the platform does, who may do what,
-and the rules that govern each behaviour. The engineering behind it lives in
-the [Technical Documentation](/registry/technical/).
+Registry is a web application for **managing the people present at an event**. An organizer creates an event, invites staff to help run it, registers the people who take part, optionally organizes them into groups, and then keeps a live record of who is physically on site and who has left. Everything here is described from a user's point of view — what the product does, who uses it, and the rules that govern each feature. The engineering behind it lives in the [Technical Documentation](/registry/technical/).
 
 ## What Registry is, in one paragraph
 
-Registry is a **multi-tenant presence platform**. A user creates a **project** — an event, a camp, a gathering — and
-becomes its administrator. Inside that project they register **participants**, arrange them into **groups**, and invite
-other users through **profiles** that carry a project role and an access window. Day to day, the project team records
-**movements**: a check-out when registered participants leave the site, a check-in when they come back, and the mirror
-case for **guests** who arrive from outside. From those movements Registry derives, at any instant, who is present, who
-is out, and who is not yet available — for people and, optionally, for **vehicles**. Four capabilities are **optional
-per project** and switched on individually: vehicles, activities, communications and alerts. Everything is behind SSO,
-and every single action is gated by a permission attached to the user's role *in that specific project*.
+Registry replaces the paper attendance sheet ("who is here right now?") with a shared, real-time system. A user signs in once through a central identity provider and lands on the list of events they can access. Inside an event they manage **participants**, arrange them into **groups**, and record **movements** — the check-in and check-out events that move a participant *in* or *out* of the site. A dashboard turns those movements into a live headcount: how many participants are present, how many are out, how many guests are on site, and which vehicles are here. Four optional modules — **vehicles**, **activities**, **communications** and **alerts** — extend an event only when the organizer enables them. Access is governed end to end by a fine-grained, per-event permission model.
 
 ## Core concepts
 
-| Concept                 | What it means to the user                                                                                                                                              |
-|-------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Project**             | The tenant. Everything — participants, groups, movements, vehicles, activities, communications, alerts — belongs to exactly one project and is invisible outside it.   |
-| **Project option**      | A capability enabled per project: `VEHICLE`, `ACTIVITY`, `COMMUNICATION`, `ALERT`. A disabled option makes its whole feature unreachable, whatever the user's role.    |
-| **Profile**             | The link between a user and a project. It carries a **project role**, a **status** (invited, accepted, rejected, blocked) and an optional **access window**.           |
-| **Selected profile**    | The profile a user is currently working through. It decides which project the application operates on.                                                                 |
-| **Participant**         | A person tracked inside a project. **Registered** participants belong to the project; **guests** are outsiders recorded only through the movement that brings them in. |
-| **Group**               | A named set of participants inside a project, used to move several people in one gesture.                                                                              |
-| **Movement**            | A dated `IN` or `OUT` event covering participants — optionally with a vehicle, a reason, or an activity. Movements are the only source of presence.                    |
-| **Presence status**     | Derived per participant and per vehicle: `IN` (present), `OUT` (away), `UNAVAILABLE` (outside its availability window).                                                |
-| **Activity**            | An optional named occupation with a duration and a participant range, usable as the reason of a movement.                                                              |
-| **Communication**       | An optional timestamped message attached to a movement or to an alert.                                                                                                 |
-| **Alert**               | An optional incident opened on a project, tracked through `IN_PROGRESS` → `RESOLVED` / `CANCELED`, with communications attached.                                       |
-| **Availability window** | The date/time range during which a participant, group, vehicle or activity exists for the project. Outside it, the element is `UNAVAILABLE`.                           |
-| **Visibility**          | The soft-disable flag carried by nearly every record. Disabled records stay in history but drop out of day-to-day lists.                                               |
-
-## Two permission planes
-
-Registry has **two distinct role systems**, and the difference matters throughout this documentation:
-
-- **User roles** are global and platform-wide (`USER_ADMINISTRATOR`, `USER`). They govern account administration and the
-  right to create a project.
-- **Project roles** are per-project (`PROJECT_ADMINISTRATOR`, `PROJECT_COORDINATOR`, `PROJECT_PARTICIPANT`) and are
-  carried by a profile. They govern everything inside a project.
-
-Holding a global role grants **nothing** inside a project, and holding a project role grants nothing in another project.
-The full model is the security baseline for every feature page.
+| Concept | What it means to a user |
+| ------- | ----------------------- |
+| **Project** | An event to manage — a camp, a trip, a gathering. It optionally has a start and an end, and a set of optional modules the organizer turns on. Without dates, it is permanent. Everything else lives inside a project. |
+| **Profile** | A person's membership of a project: which event they can access, in which role, and during which optional access window. A profile with no window is permanent — and a registered profile doesn't necessarily cover the whole event. |
+| **Participant** | Someone taking part in the event. Either *registered* (enrolled, normally present) or a *guest* (a visitor, normally off-site). Their own availability window is optional and independent of the project's. |
+| **Group** | A named set of participants — a team, a unit, a tent — used to move and count people together. |
+| **Movement** | The core record: a check-in (`IN`) or check-out (`OUT`) event that changes who is present. |
+| **Presence** | The live status derived from movements: each participant and vehicle is *in*, *out*, or *unavailable*. |
+| **Availability** | The theoretical window during which an element (participant, group, activity, vehicle) may generate movements at all — effectively its "registration" period. It differs from presence: an element can be *available* yet currently *out*, or *unavailable* regardless of its last recorded movement. |
 
 ## Scope and non-goals
 
-| In scope                                                | Out of scope                                              |
-|---------------------------------------------------------|-----------------------------------------------------------|
-| Multi-tenant projects with strict per-project isolation | Cross-project reporting or a global participant directory |
-| Presence derived from recorded movements                | Automatic presence capture (badges, GPS, RFID)            |
-| Registered participants and one-off guests              | Public self-registration by participants themselves       |
-| Per-project roles with an access window                 | Delegated per-record ownership or attribute-based rules   |
-| Optional capabilities enabled per project               | A per-user feature-flag system                            |
-| Federated sign-in through an external identity provider | Local accounts, passwords or self-service password reset  |
-| Scheduled retention purges of stale data                | Long-term archival or export of purged data               |
-| French and English interfaces                           | Per-project custom terminology or translations            |
+| In scope | Out of scope |
+| -------- | ------------ |
+| Real-time presence tracking of participants at an event | Payroll, invoicing, or payment processing |
+| Multi-event, multi-tenant use — many independent projects on one deployment | A single hard-coded event |
+| Fine-grained, per-project roles and permissions | Anonymous or public write access |
+| Optional modules (vehicles, activities, communications, alerts) enabled per project | Modules that cannot be turned off |
+| Delegated authentication through an external identity provider (OIDC) | A built-in username/password store |
+| GDPR-minded data retention and anonymization | Long-term archival or analytics warehousing |
 
 ## Documentation map
 
-| Page                                                              | Purpose                                                                                                              |
-|-------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| [Personas](/registry/functional/personas)                         | The postures people adopt — organiser, coordinator, gatekeeper, platform administrator — and what each needs         |
-| [Roles & Permissions](/registry/functional/roles-and-permissions) | The security baseline: authentication boundary, both permission planes, the full permission matrix, option gating    |
-| [Domain Model](/registry/functional/domain-model)                 | Entities, relationships, lifecycles, and the two ideas — visibility and availability windows — that recur everywhere |
-| [Workflows](/registry/functional/workflows)                       | End-to-end journeys, from first sign-in to the nightly retention pass                                                |
-
-### Features
-
-| Feature                                                            | What it covers                                                                |
-|--------------------------------------------------------------------|-------------------------------------------------------------------------------|
-| [Projects](/registry/functional/features/projects)                 | The tenant: dates, options, and the three ways a project can end              |
-| [Project Profiles](/registry/functional/features/project-profiles) | Granting access: invitations, roles, access windows, support profiles         |
-| [Participants](/registry/functional/features/participants)         | The people the project is responsible for, registered and guest               |
-| [Groups](/registry/functional/features/groups)                     | Organising participants, and how group availability flows to members          |
-| [Movements](/registry/functional/features/movements)               | The core: check-ins, check-outs, reasons, guests, and how presence is derived |
-| [Vehicles](/registry/functional/features/vehicles)                 | Optional — vehicles, drivers and vehicle presence                             |
-| [Activities](/registry/functional/features/activities)             | Optional — the programme, and activities as movement reasons                  |
-| [Communications](/registry/functional/features/communications)     | Optional — timestamped notes pinned to a movement or an alert                 |
-| [Alerts](/registry/functional/features/alerts)                     | Optional — incidents, their lifecycle, and their thread                       |
-| [Users](/registry/functional/features/users)                       | The global plane: roles, blocking, anonymisation, deletion                    |
-| [Preferences](/registry/functional/features/preferences)           | Theme, language, and the selected profile that sets your project context      |
-| [Data Retention](/registry/functional/features/data-retention)     | The nightly sweeps, their order, and dry runs                                 |
+| Page | Purpose |
+| ---- | ------- |
+| [Personas](/registry/functional/personas) | Who uses Registry and what each one needs from it |
+| [Roles & Permissions](/registry/functional/roles-and-permissions) | The security baseline: authentication, the two permission planes, roles, and the full access matrix |
+| [Domain Model](/registry/functional/domain-model) | The business vocabulary — every entity, its relationships, and the status values that drive presence |
+| [Workflows](/registry/functional/workflows) | End-to-end journeys, from signing in to recording a movement and handling an alert |
+| [Features](/registry/functional/features/projects) | One page per feature, each with its access matrix and BDD scenarios |

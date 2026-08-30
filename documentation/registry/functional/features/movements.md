@@ -1,273 +1,205 @@
 # Feature: Movements
 
-> Eight o'clock. A minibus pulls out of the camp with six teenagers and a driver, heading for the supermarket. Twenty
-> minutes later a supplier's van arrives at the gate. By nine, someone will ask the only question that matters: **who is
-on site right now?**
+## 1. Overview
 
-Movements are how Registry answers it. Every entry and every exit is recorded as a dated event, and **presence is never
-stored — it is derived**. The dashboard, the counters, the vehicle board: all of it is read back out of the movement
-log. Delete the log and you delete the truth; that is why so many of the rules below are about protecting it.
+- **Goal:** A movement is the core record of Registry — a **check-in (`IN`)** or **check-out (`OUT`)** event that changes who is physically present. Recording movements is how the paper attendance sheet becomes a live headcount: each movement moves a set of participants in or out, optionally records the vehicle they travelled in, and captures *why* — either a free **reason** or a linked **activity**, except when the movement simply returns someone to their normal state. The [live presence dashboard](#5-api-surface) reads those movements to answer, at any moment, "who is here right now?".
+- **Who uses it:** Front-line check-in staff (`PROJECT_PARTICIPANT`) record and read movements at the gate; `PROJECT_COORDINATOR` and `PROJECT_ADMINISTRATOR` additionally correct and remove them. The dashboard is read by all three roles.
+- **Option required:** None — movements are part of the always-present core. Two enrichments are gated, though: attaching a **vehicle** needs the `VEHICLE` option, and justifying a movement with an **activity** needs the `ACTIVITY` option.
 
-**Who this is for:** everyone holding a profile on the project. Recording movements is the platform's daily gesture, not
-an administrator's chore.
+## 2. Roles & Permissions
 
-## Who can do what
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Movement](/registry/functional/domain-model#movement-the-core-record) for the entity.
 
-| Role                                                               | May do                                                                      | Limits                                           |
-|--------------------------------------------------------------------|-----------------------------------------------------------------------------|--------------------------------------------------|
-| `PROJECT_ADMINISTRATOR`                                            | Create · Read · Update · **Delete** · search · read attached communications | This project only                                |
-| `PROJECT_COORDINATOR`                                              | Create · Read · Update · **Delete** · search · read attached communications | This project only                                |
-| `PROJECT_PARTICIPANT`                                              | Create · Read · Update · search · read attached communications              | This project only — **no deletion**              |
-| Global `USER_ADMINISTRATOR` with no profile here                   | Nothing                                                                     | The global plane grants nothing inside a project |
-| Anyone whose profile is not accepted, or outside its access window | Nothing                                                                     | Rights are recomputed on every request           |
+| Role | Permitted actions | Conditions / Scope |
+| ---- | ----------------- | ------------------ |
+| `PROJECT_ADMINISTRATOR` | **C R U D** | Full control of movements in the project (`REGISTRY_PROJECT_MOVEMENT_C/R/U/D`). Only administrators and coordinators may edit, disable/enable or delete. |
+| `PROJECT_COORDINATOR` | **C R U D** | Same operational rights as the administrator (`REGISTRY_PROJECT_MOVEMENT_C/R/U/D`). |
+| `PROJECT_PARTICIPANT` | **C R** | Records and reads movements (`REGISTRY_PROJECT_MOVEMENT_C/R`), but cannot edit, disable or delete them. |
+| All project roles | **R** dashboard | The live presence dashboard (`REGISTRY_PROJECT_R`) is readable by every role. The vehicles-status card additionally requires the `VEHICLE` option. |
 
-Deleting a movement is the one place where a coordinator is trusted as much as an administrator — correcting a mistyped
-check-in at seven in the morning is routine work, not governance.
+## 3. Business rules
 
-Two reads carry an extra gate on top of the permission: a movement's **communications** require the project's
-`COMMUNICATION` option, and **vehicle presence** requires `VEHICLE`. Full model
-in [Roles & Permissions](/registry/functional/roles-and-permissions).
+All rules below are **enforced by validators** at write time; a request that breaks one is rejected and no movement is recorded.
 
-```gherkin
-Scenario: Denying deletion to a project participant
-  Given I hold the PROJECT_PARTICIPANT role on the project
-  When I try to delete a movement
-  Then the request is denied
+- **Reason ⊻ activity are mutually exclusive** (`@BothCannotBeDefined`). A registered movement is justified by a free **reason** *or* a linked **activity**, never both, and — outside the assumed-direction cases below — never neither.
+- **Reason / direction / type coherence** (`@MovementReason`):
+  - A **guest** with **no reason** must be `OUT` (leaving).
+  - A **registered** participant with **no reason and no activity** must be `IN` (returning).
+  - Otherwise, either an **activity** is present, or the chosen **reason's own direction and participant-type must match** the movement. The pairings are fixed: `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` are `OUT` for registered participants; `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT` are `IN` for guests. See [Domain Model → How reasons pair with direction and type](/registry/functional/domain-model#how-reasons-pair-with-direction-and-type).
+- **Guest movement content** (`@MovementGuestContent`). For a guest movement:
+  - if direction is `IN`, a **non-empty list of new guests** (first name, last name, birthday) is provided and the existing-participant list is empty — guests are **created on arrival**;
+  - if direction is `OUT`, it references **existing guest participants** and the new-guest list is empty.
+- **A time cannot be given without a date** (`@DateDefinedForTime`). The timestamp defaults to "now"; if a time is supplied, its date must be supplied too.
+- **Direction and content type are locked on edit.** A movement's direction (`IN`/`OUT`) and content type (`REGISTERED`/`GUEST`) cannot be changed after creation — only its other fields may be corrected.
+- **Definitive departure is terminal.** The `DEFINITIVE_DEPARTURE` reason (an `OUT` for a registered participant) marks that participant as **gone for good** — the state a guest reaches automatically on every `OUT`, without needing a dedicated reason.
+- **Vehicles require the `VEHICLE` option and registered content.** A vehicle may be attached only when the project has the `VEHICLE` option enabled **and** the movement content is `REGISTERED`; drivers are chosen among the selected adult / major participants.
+- **Pool label snapshots the originating group.** When a movement is recorded by expanding a group, each resulting participant entry carries a **pool label** — the group's name (in full or in part) as it stood at that moment. It is independent of the `VEHICLE` option and of any vehicle assignment: it exists purely so later changes to the group's membership never need to be reconciled against past movements.
+- **Movements can be reversed.** A mistaken check-in or check-out is undone from the dashboard by recording the **opposite movement**, restoring the previous presence state.
 
-Scenario: Denying access once an access window has closed
-  Given my profile on the project had an access window that has now closed
-  When I try to list the project's movements
-  Then the request is denied
-```
-
-## Insiders and outsiders are mirror images
-
-A movement's **content type** is either `REGISTERED` or `GUEST`, and that single choice flips the meaning of everything
-else.
-
-|                           | Registered participants          | Guests                                                                 |
-|---------------------------|----------------------------------|------------------------------------------------------------------------|
-| Who                       | People registered in the project | Outsiders — emergency services, suppliers, visitors, partner animators |
-| Where they are by default | On site                          | Elsewhere                                                              |
-| `IN` means                | They came back                   | They arrived                                                           |
-| `OUT` means               | They left                        | They went home                                                         |
-| How they enter the system | Registered beforehand            | Captured on the entrance itself                                        |
-
-Read the table diagonally and the design falls out: the interesting direction is **registered people leaving** and
-**guests arriving**. Those are the two moments that need an explanation — and, as the next section shows, the only two
-that Registry insists on justifying.
-
-Guests are created by the entrance that brings them in. They leave by being named, not re-described:
+## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: Recording the arrival of visitors
-  Given the project has visitors arriving from outside
-  When I record an IN movement with the reason VISIT and the visitors' identities
-  Then guest records are created for them
-  And they are counted among the guests present
-
-Scenario: Refusing to invent guests on their way out
-  When I record an OUT movement of guests and supply new identities instead of existing ones
-  Then the movement is rejected, because a guest who leaves must first have arrived
+Scenario: A registered participant returns to site (assumed IN)
+  Given I am signed in with movement create permission on the project
+  And a registered participant "Alex" is currently OUT
+  When I record a movement for "Alex" with direction IN, no reason and no activity
+  Then the movement is accepted by the @MovementReason validator
+  And "Alex" is now counted as present on the dashboard
 ```
-
-## Moving a whole group at once
-
-Picking a **group** when recording a movement is the single most common gesture at a busy gate: one selection instead of
-fifteen. What Registry stores, though, is not a link to the group — it is a **snapshot of it**.
-
-Choosing a group expands it into one content line per member, and stamps each line with the **group's name**.
-Participants picked individually carry no name. When the movement is read back, lines sharing a name are re-grouped for
-display, so the movement shows *"the red team (8) plus Léa and Marc"* rather than ten anonymous rows. Removing the group
-from a movement removes every line that carries its name.
-
-The consequence is the point:
-
-|                                              | A stored link to the group               | The name, copied onto each line      |
-|----------------------------------------------|------------------------------------------|--------------------------------------|
-| Members change afterwards                    | The movement silently rewrites itself    | The movement keeps who actually went |
-| A member leaves the group                    | They vanish from a movement they were on | They stay, correctly                 |
-| The group is deleted                         | The movement loses its shape             | The movement is unaffected           |
-| Membership must be re-checked when recording | Yes                                      | No                                   |
-
-So a movement records **who moved, and under which banner, at that moment** — not who is in that group today. It is a
-deliberate denormalisation: history stays true, and recording a movement never has to re-validate that everyone selected
-is still a member.
-
-::: tip Nothing enforces the name
-The field is free text, and Registry does not verify that a line's participants really
-belong to a group of that name. The name is a label the interface writes, not a reference it resolves — which is exactly
-what makes the snapshot immune to later edits.
-:::
 
 ```gherkin
-Scenario: Recording a movement for a whole group
-  Given the red team has eight members
-  When I select the red team while recording an OUT movement
-  Then the movement carries eight lines, each labelled with the team's name
-
-Scenario: The snapshot surviving a membership change
-  Given a movement was recorded for the red team
-  When a member is later removed from the red team
-  Then the movement still shows them as having gone
-
-Scenario: Mixing a group and individuals
-  When I select the red team and two other participants
-  Then the movement groups the team's lines together and shows the other two on their own
+Scenario: A registered participant leaves to go shopping
+  Given a registered participant "Alex" is currently IN
+  When I record an OUT movement for "Alex" with reason SHOPPING
+  Then the movement is accepted
+  And "Alex" is counted as absent on the dashboard
 ```
-
-## Why are they leaving?
-
-A movement may carry a **reason** or an **activity** — never both, never neither where one is required. Each reason is
-bound to one direction and one content type, so the vocabulary can never contradict the event:
-
-| Reason                 | Direction | Applies to |
-|------------------------|:---------:|------------|
-| `EMERGENCY`            |   `IN`    | Guests     |
-| `LOGISTICS`            |   `IN`    | Guests     |
-| `PARTNER_ANIMATION`    |   `IN`    | Guests     |
-| `VISIT`                |   `IN`    | Guests     |
-| `SHOPPING`             |   `OUT`   | Registered |
-| `MEDICAL`              |   `OUT`   | Registered |
-| `DEFINITIVE_DEPARTURE` |   `OUT`   | Registered |
-| `OTHER`                |   `OUT`   | Registered |
-
-::: tip Coming home needs no excuse
-A registered `OUT` must be justified; a registered `IN` must not. A guest `IN` must
-be justified; a guest `OUT` must not. Registry only ever asks *why* about the direction that changes someone's expected
-place.
-:::
-
-When the project has the `ACTIVITY` option, an activity can stand in for a reason — *"they're out because they're at the
-climbing session"* — which additionally files the movement into that activity's history.
 
 ```gherkin
-Scenario: Recording a group leaving to go shopping
-  Given I hold an accepted profile on the project
-  And the participants are visible members of that project
-  When I record an OUT movement with the reason SHOPPING for those participants
-  Then the movement is created
-  And each of those participants reads as OUT
-
-Scenario: Recording the same participants coming back
-  Given those participants are currently OUT
-  When I record an IN movement for them with no reason
-  Then the movement is created
-  And each of those participants reads as IN
-
-Scenario: Refusing an exit with no justification
-  Given I am recording an OUT movement for registered participants
-  When I submit it with neither a reason nor an activity
-  Then the movement is rejected
-
-Scenario: Refusing a reason that contradicts the direction
-  Given I am recording an IN movement for registered participants
-  When I submit it with the reason SHOPPING
-  Then the movement is rejected as an incompatible type and reason
-
-Scenario: Refusing both a reason and an activity
-  Given the project has the ACTIVITY option
-  When I submit a movement carrying both the reason MEDICAL and an activity
-  Then the movement is rejected
+Scenario: A reason and an activity cannot both justify a movement
+  Given the project has the ACTIVITY option enabled
+  When I record a registered movement that carries both reason SHOPPING and an activity "Hike"
+  Then the request is rejected by the @BothCannotBeDefined validator
+  And no movement is recorded
 ```
-
-## Wheels and drivers
-
-With the `VEHICLE` option on, any line of a movement can be attached to a vehicle. The person on that line is its
-**driver** for this trip, and vehicles gain a presence status of their own, derived exactly like a person's.
-
-One rule is absolute:
 
 ```gherkin
-Scenario: Refusing a minor as a driver
-  Given the project has the VEHICLE option
-  When I record a movement attaching a participant under eighteen to a vehicle
-  Then the movement is rejected because drivers must be adults
+Scenario: A reason whose direction contradicts the movement is rejected
+  Given a registered participant "Alex"
+  When I record an IN movement for "Alex" with reason SHOPPING
+  Then the request is rejected by the @MovementReason validator
+  Because SHOPPING is an OUT reason for registered participants
 ```
-
-## When it happened
-
-A movement must sit **inside the project's own date range** — nothing before the project opens, nothing after it closes.
-Everyone and everything it references must belong to the same project and be visible; a movement can never reach across
-tenants.
 
 ```gherkin
-Scenario: Refusing a movement outside the project's dates
-  When I record a movement dated after the project's end date
-  Then the movement is rejected
-
-Scenario: Refusing to strand an attached communication
-  Given a communication is attached to a movement
-  When I move that movement to a time that leaves the communication outside it
-  Then the edit is rejected
+Scenario: A guest arrives and is created on arrival
+  Given the guest content type
+  When I record a guest movement with direction IN
+  And I supply a new guest "Sam Doe" born 1990-05-02
+  And I leave the existing-participant list empty
+  Then the movement is accepted by the @MovementGuestContent validator
+  And guest "Sam Doe" is created and counted as present
 ```
-
-## What is written, stays written
-
-A movement is a record of something that happened, so editing it is deliberately narrow. Its date, reason, activity and
-content lines can be corrected. Two things cannot:
-
-- **The direction never changes.** An entrance can never become an exit. Recorded backwards? Hide it or delete it, and
-  record it again the right way round.
-- **The content type never changes.** A movement of registered participants can never become a movement of guests.
-
-And two movements are **terminal** — they close a story, so they are frozen against update, hiding, re-enabling and
-deletion:
-
-| Terminal movement             | Why it is frozen                                                                                                                                  |
-|-------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| Reason `DEFINITIVE_DEPARTURE` | The person has gone for good; the departure also **shortens their availability window** to that exact moment, so they stop being expected on site |
-| Any guest `OUT`               | The visit is over and the guest has left the project's world                                                                                      |
-
-Guests already recorded on an entrance cannot be dropped by a later edit either. If they were let in, they must be let
-out.
 
 ```gherkin
-Scenario: Refusing to reverse the direction of a movement
-  Given an IN movement has been recorded
-  When I edit it to become an OUT movement
-  Then the edit is rejected
-
-Scenario: Freezing a definitive departure
-  Given a movement was recorded with the reason DEFINITIVE_DEPARTURE
-  When I try to update, hide or delete it
-  Then the operation is rejected
-  And the participants' availability ends at that movement's date and time
-
-Scenario: Refusing to remove a guest from a recorded entrance
-  Given a guest entrance has already been recorded
-  When I edit it to drop one of its guests
-  Then the edit is rejected
+Scenario: A guest leaving must reference existing guests, not new ones
+  Given guest "Sam Doe" is currently on site
+  When I record a guest movement with direction OUT referencing "Sam Doe"
+  And the new-guest list is empty
+  Then the movement is accepted
+  And "Sam Doe" is counted as off-site
 ```
-
-## Hiding is not deleting
-
-Disabling a movement hides it from day-to-day lists **and takes it out of the presence computation** — the movement
-before it becomes the current one again. That makes hiding the safe way to undo a mistake: reversible, and it leaves the
-history intact. Deleting is permanent, and reserved to administrators and coordinators.
 
 ```gherkin
-Scenario: Hiding a movement restores the previous presence
-  Given a participant's latest movement is an OUT movement
-  When I disable that movement
-  Then the participant's status is derived from their previous movement again
+Scenario: A guest IN with an empty new-guest list is rejected
+  When I record a guest movement with direction IN and no new guests
+  Then the request is rejected by the @MovementGuestContent validator
 ```
 
-## How presence is derived
+```gherkin
+Scenario: Selecting a group expands to its members
+  Given a group "Team Blue" has 6 registered members currently OUT
+  When I record an IN movement selecting the group "Team Blue"
+  Then all 6 members are moved IN
+  And the dashboard headcount increases by 6
+```
 
-For any person or vehicle, Registry looks at the **latest visible movement** that mentions them:
+```gherkin
+Scenario: A vehicle is attached to a registered movement
+  Given the project has the VEHICLE option enabled
+  And a registered participant "Alex" who is a major
+  When I record an OUT movement for "Alex" assigned to vehicle "AA-123-BB"
+  Then the movement is accepted
+  And the vehicle "AA-123-BB" is counted as OUT on the dashboard
+```
 
-| Latest visible movement | Status                     |
-|-------------------------|----------------------------|
-| An `IN` movement        | `IN` — on site             |
-| An `OUT` movement       | `OUT` — away               |
-| None at all             | `OUT` — not yet checked in |
+```gherkin
+Scenario: A movement recorded from a group snapshots the group's name as a pool label
+  Given the group "Tent 1" currently has members "Ana", "Ben" and "Cora"
+  When I record an OUT movement by selecting the group "Tent 1"
+  Then each of Ana, Ben and Cora's movement entries carries the pool label "Tent 1"
+  And later changes to Tent 1's membership do not alter this recorded movement
+```
 
-Availability then has the last word: anyone outside their availability window reads as `UNAVAILABLE`, whatever their
-movement history says. Someone who has not arrived yet, or who has definitively departed, is neither present nor
-absent — they are simply not part of today's count.
+```gherkin
+Scenario: A vehicle cannot be attached to a guest movement
+  Given the project has the VEHICLE option enabled
+  When I record a guest movement that assigns a vehicle
+  Then the request is rejected
+  Because vehicles may only be attached to REGISTERED content
+```
 
-The project dashboard rolls this up into five live counters — registered adults present, registered adults away,
-registered minors present, registered minors away, and guests currently on site — plus, with the `VEHICLE` option,
-vehicles present and away. Adulthood is computed from the birthday against today's date, the same way the driver rule
-computes it.
+```gherkin
+Scenario: A vehicle cannot be attached when the option is off
+  Given the project does not have the VEHICLE option enabled
+  When I record a registered movement that assigns a vehicle
+  Then the request is rejected
+```
+
+```gherkin
+Scenario: A time without a date is rejected
+  When I record a movement with a time of 14:30 but no date
+  Then the request is rejected by the @DateDefinedForTime validator
+```
+
+```gherkin
+Scenario: Direction and content type are locked on edit
+  Given an existing OUT movement with REGISTERED content
+  When I edit it and try to change its direction to IN
+  Then the change to direction and content type is ignored or rejected
+  And only the other fields are updated
+```
+
+```gherkin
+Scenario: A definitive departure marks a registered participant as gone for good
+  Given a registered participant "Alex" is currently IN
+  When I record an OUT movement for "Alex" with reason DEFINITIVE_DEPARTURE
+  Then "Alex" is marked as definitively departed
+  And is no longer expected back on site
+```
+
+```gherkin
+Scenario: A mistaken check-in is reversed from the dashboard
+  Given I accidentally recorded an IN movement for "Alex"
+  When I reverse it from the dashboard
+  Then an opposite OUT movement is recorded
+  And "Alex" returns to the presence state before the mistake
+```
+
+```gherkin
+Scenario: A participant may only create and read, not delete
+  Given I hold the PROJECT_PARTICIPANT role
+  When I attempt to delete an existing movement
+  Then the request is refused for lack of REGISTRY_PROJECT_MOVEMENT_D
+```
+
+```gherkin
+Scenario: The live headcount reflects recorded movements
+  Given movements have been recorded during the day
+  When I open the participants-status card
+  Then I see the count of present minors, present majors, absent participants and guests on site
+```
+
+## 5. API surface
+
+REST endpoints backing this feature. All project-scoped endpoints live under `/api/v2/projects/{projectId}/...`. See [Technical → API Reference](/registry/technical/api-reference).
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| `GET` | `/movements` | List movements | `REGISTRY_PROJECT_MOVEMENT_R` |
+| `GET` | `/movements/contents` | List movement contents | `REGISTRY_PROJECT_MOVEMENT_R` |
+| `GET` | `/movements/{id}` | Read a single movement | `REGISTRY_PROJECT_MOVEMENT_R` |
+| `GET` | `/movements/reasons?q=` | Search selectable reasons (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
+| `GET` | `/movements/eligible-participants-and-groups?q=` | Search participants and groups to move (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
+| `GET` | `/movements/eligible-vehicles?q=` | Search assignable vehicles (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
+| `GET` | `/movements/eligible-activities?q=` | Search selectable activities to justify a movement (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
+| `GET` | `/movements/{id}/communications` | Read the movement's discussion thread | `COMMUNICATION` option + `REGISTRY_PROJECT_MOVEMENT_COMMUNICATION_R` |
+| `GET` | `/movements/participants/status` | Live headcount: present minors / majors, absent, guests on site | `REGISTRY_PROJECT_R` |
+| `GET` | `/movements/vehicles/status` | Live vehicle presence (present / absent) | `VEHICLE` option + `REGISTRY_PROJECT_R` |
+| `POST` | `/movements` | Record a registered movement | `REGISTRY_PROJECT_MOVEMENT_C` |
+| `POST` | `/movements/guests` | Record a guest movement (creating guests on arrival) | `REGISTRY_PROJECT_MOVEMENT_C` |
+| `PATCH` | `/movements/{id}` | Correct a registered movement | `REGISTRY_PROJECT_MOVEMENT_U` |
+| `PATCH` | `/movements/guests/{id}` | Correct a guest movement | `REGISTRY_PROJECT_MOVEMENT_U` |
+| `POST` | `/movements/{id}/disable` | Soft-disable a movement | `REGISTRY_PROJECT_MOVEMENT_U` |
+| `POST` | `/movements/{id}/enable` | Re-enable a disabled movement | `REGISTRY_PROJECT_MOVEMENT_U` |
+| `DELETE` | `/movements/{id}` | Permanently delete a movement | `REGISTRY_PROJECT_MOVEMENT_D` |

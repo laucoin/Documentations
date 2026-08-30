@@ -1,186 +1,135 @@
-# Feature: Project Profiles
+# Feature: Project Profiles (Membership)
 
-> A profile is the **unit of access**. Not the account, not the role — the profile. It says: *this user, on this
-project, with this role, between these dates, in this state.* Everything a person can do inside a project flows from
-> one.
+## 1. Overview
 
-**Who this is for:** administrators granting access, and every user answering an invitation.
+- **Goal:** A profile is a user's membership of one project — the link that says *this person may access this event, in this role, during this window*. The feature has two sides that share one entity: administrators build and maintain their event's staff list, and every user manages their own invitations and memberships. Because only an `ACCEPTED` profile inside its access window grants permissions, profiles are also the switch that turns project-scoped access on and off over time.
+- **Who uses it:** `PROJECT_ADMINISTRATOR` manages the member list; `PROJECT_COORDINATOR` can view it; every signed-in user manages their own profiles; a platform `USER_ADMINISTRATOR` (holding `REGISTRY_PROFILE_C`) can mint temporary support access.
+- **Option required:** None — always available. Membership is part of the core.
 
-## Who can do what
+## 2. Roles & Permissions
 
-| Role                        | May do                                                                                            | Limits                                       |
-|-----------------------------|---------------------------------------------------------------------------------------------------|----------------------------------------------|
-| `PROJECT_ADMINISTRATOR`     | Create (invite) · Read · Update · Block · Unblock · Delete · search users · list assignable roles | This project only                            |
-| `PROJECT_COORDINATOR`       | Read the project's profiles                                                                       | Cannot invite, edit or remove anyone         |
-| `PROJECT_PARTICIPANT`       | Nothing                                                                                           | Cannot even see who else has access          |
-| Global `USER_ADMINISTRATOR` | Create a **support profile** for themselves on any project                                        | One hour, administrator-level, fully visible |
-| Any authenticated user      | List **their own** profiles and invitations, accept, reject, remove their own                     | Acting on themselves only                    |
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) and [Domain Model → Profile](/registry/functional/domain-model#profile).
 
-Managing access is deliberately concentrated: only the administrator invites, edits and removes. The coordinator can see
-the team; the participant cannot.
+### Admin side — managing a project's members (`/projects/{projectId}/profiles`)
 
-## The life of a profile
+| Role | Permitted actions | Conditions / Scope |
+| ---- | ----------------- | ------------------ |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + block/unblock | Full membership control (`REGISTRY_PROJECT_PROFILE_C/R/U/D`); searches users and assignable roles via `REGISTRY_PROJECT_PROFILE_METADATA_R`. |
+| `PROJECT_COORDINATOR` | **R** | Read-only (`REGISTRY_PROJECT_PROFILE_R`): can see who is in the event, cannot invite, edit, block or remove. |
+| `PROJECT_PARTICIPANT` | — | No access to the member list. |
 
-```mermaid
-stateDiagram-v2
-    [*] --> INVITED: administrator invites
-    INVITED --> ACCEPTED: user accepts
-    INVITED --> REJECTED: user declines
-    ACCEPTED --> BLOCKED: administrator blocks
-    BLOCKED --> ACCEPTED: administrator unblocks
-    ACCEPTED --> [*]: deleted
-    REJECTED --> [*]: deleted
-```
+### Self side — managing my own memberships (`/users/profiles`)
 
-Only `ACCEPTED` grants rights — and only while the access window is open. `INVITED`, `REJECTED` and `BLOCKED` grant
-nothing at all.
+| Role | Permitted actions | Conditions / Scope |
+| ---- | ----------------- | ------------------ |
+| Any authenticated `USER` | **R** own · accept/reject · leave (**D** own) | List my profiles; accept or reject an invitation (only from `INVITED`); delete my own profile to leave a project. |
+| `USER_ADMINISTRATOR` (global) | **C** support | May create a temporary **1-hour** "support" administrator profile on any project (`REGISTRY_PROFILE_C`). |
 
-Two profiles skip the invitation entirely and start `ACCEPTED`, because there is nobody to ask: the one created by
-**creating a project**, and the **support profile**.
+## 3. Business rules
 
-## You cannot grant what you do not have
+- **Inviting is a batch action.** Choose one or more users, **one** role, and an optional access window → the system creates an `INVITED` profile for each selected user.
+- **Editing a member** changes their **role** and/or their **access window**.
+- **Access window is optional.** A profile with no window is **permanent**. When both `start` and `end` are set, `start` must be **before** `end` (`@StartBeforeEnd`).
+- **Role ceiling.** A user may only assign roles **at or below their own level** — administrator (0) > coordinator (10) > participant (20). A coordinator can never mint an administrator.
+- **Last-permanent-administrator safety.** The system refuses to remove or demote the **last permanent** `PROJECT_ADMINISTRATOR` — the last level-0 profile with **no end date**. A temporary administrator (one with an end date, e.g. a support profile) does not count toward this safeguard. A project can never be left with only expiring administrators.
+- **Accept/reject is constrained.** A user may only accept or reject a profile while it is `INVITED`, and the new value must be `ACCEPTED` or `REJECTED` (`@ProfileAcceptOrReject`).
+- **Permissions require an accepted, in-window profile.** Only an `ACCEPTED` profile whose current moment sits inside its access window grants any project permission. `INVITED`, `REJECTED` and `BLOCKED` profiles grant nothing.
+- **Support access is temporary.** A support profile is a full administrator profile that expires after one hour, letting platform staff intervene without permanently joining the event.
 
-Roles are ranked by level, and the rule is uniform: **you may assign your own role or a weaker one, never a stronger
-one.** A coordinator inviting people could only ever create coordinators and participants — except coordinators cannot
-invite at all, so in practice this bites when an administrator edits a profile.
-
-The rule is checked twice on an edit: against the profile's **current** role, and against the **new** one. You cannot
-edit a profile that already outranks you, and you cannot promote anyone past yourself.
+## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: Refusing to assign a role stronger than my own
-  Given my role on the project is weaker than PROJECT_ADMINISTRATOR
-  When I try to grant someone the PROJECT_ADMINISTRATOR role
-  Then the request is denied
-
-Scenario: Refusing to edit a profile that outranks me
-  Given a profile holds a role stronger than mine
-  When I try to change it
-  Then the request is denied
-
-Scenario: Listing the roles I may assign
-  When I ask for the assignable roles on this project
-  Then I get my own role and every weaker one
+Scenario: An administrator invites several users in one action
+  Given I am the PROJECT_ADMINISTRATOR of a project
+  When I invite users "alice" and "bob" as PROJECT_PARTICIPANT for the window 2026-07-10 to 2026-07-24
+  Then a profile is created for each user with status INVITED
+  And neither user yet holds any permission on the project
 ```
-
-## Access windows, and why two profiles cannot overlap
-
-A profile may carry a start and an end. Outside that window it grants nothing — enforced continuously, not merely at
-sign-in, so access granted "for the weekend" ends by itself on Monday.
-
-Because of that, **one user may not hold two profiles on the same project whose windows overlap**. Two live profiles
-would make "your role here" ambiguous. Non-overlapping profiles are fine: a coordinator in June, an administrator in
-July.
 
 ```gherkin
-Scenario: Refusing an overlapping profile
-  Given a user already holds a profile on this project for next week
-  When I invite them again for an overlapping period
-  Then that user is skipped
-
-Scenario: Losing access when the window closes
-  Given my profile's access window has closed
-  When I try to read the project
-  Then the request is denied
+Scenario: A coordinator cannot manage membership
+  Given I am a PROJECT_COORDINATOR of a project
+  When I list the project's members
+  Then I can read the member list
+  But I cannot invite, edit, block or remove any member
 ```
-
-## Inviting several people at once
-
-Invitations are sent in bulk, and the result is **partial by design**. Users whose window would overlap an existing
-profile are skipped rather than failing the whole request, and the response reports both lists: who was invited, and who
-was not.
 
 ```gherkin
-Scenario: Inviting a mixed batch
-  Given one of the five users I selected already has an overlapping profile
-  When I send the invitations
-  Then four profiles are created
-  And the response names the user who was skipped
+Scenario: A user accepts an invitation and gains access
+  Given I have an INVITED profile on a project, valid from 2026-07-10 to 2026-07-24
+  When I accept the invitation
+  Then my profile status becomes ACCEPTED
+  And I hold my role's permissions while the current date is within the access window
 ```
-
-Searching for users to invite returns a **capped** list of visible accounts matched by fuzzy text — it is a picker, not
-a directory export.
-
-## Answering an invitation
-
-An invitation is yours to answer, and yours alone. Only a profile in `INVITED` state can be answered, and only with
-`ACCEPTED` or `REJECTED` — no other status can be set this way.
 
 ```gherkin
-Scenario: Accepting an invitation
-  Given I hold an INVITED profile on a project
-  When I accept it
-  Then the profile becomes ACCEPTED
-  And I gain that project's permissions for my role
-
-Scenario: Rejecting an invitation
-  Given I hold an INVITED profile
-  When I reject it
-  Then the profile becomes REJECTED and grants nothing
-
-Scenario: Refusing to answer twice
-  Given I already accepted an invitation
-  When I try to answer it again
-  Then the request is rejected
+Scenario: Accepting is only allowed from the INVITED status
+  Given my profile on a project is already ACCEPTED
+  When I try to accept it again
+  Then the request is rejected by the @ProfileAcceptOrReject validator
 ```
-
-## Blocking, removing, and the protected administrator
-
-Blocking hides a profile and cuts its rights while keeping it on the list — the reversible way to suspend someone.
-Removing deletes it.
-
-One rule guards both, plus editing: **a project's last administrator cannot be blocked, edited out of the role, or
-removed.** Registry refuses to leave a project without an owner, naming the project in the error so you know which one
-is blocking you.
 
 ```gherkin
-Scenario: Blocking a profile
-  Given a member of the project
-  When its administrator blocks their profile
-  Then they lose all access while the profile stays listed
-
-Scenario: Refusing to block the last administrator
-  Given a project with a single administrator
-  When I try to block that profile
-  Then the request is rejected and the project is named
-
-Scenario: Refusing to demote the last administrator
-  Given a project with a single administrator
-  When I try to change that profile's role
-  Then the request is rejected
+Scenario: A coordinator cannot promote someone above their own level
+  Given I am a PROJECT_COORDINATOR (level 10)
+  When I try to assign the PROJECT_ADMINISTRATOR (level 0) role to a member
+  Then the request is refused because the target role is above my level
 ```
-
-## Support profiles
-
-A global `USER_ADMINISTRATOR` can grant themselves a profile on **any** project without being invited. It is not a back
-door — it is a real profile:
-
-- administrator-level, `ACCEPTED` immediately;
-- valid for exactly **one hour** from creation;
-- listed among the project's profiles like anyone else's;
-- subject to the same overlap rule, so it is refused if the administrator already has a live profile there;
-- it becomes their selected profile if they had none, dropping them straight into the project.
-
-::: tip There is no invisible super-user
-If a platform administrator looked inside a project, there is a profile in that
-project saying so, with a one-hour window attached.
-:::
 
 ```gherkin
-Scenario: Creating a support profile
-  Given I am a global USER_ADMINISTRATOR with no profile on this project
-  When I create a support profile on it
-  Then I hold an accepted administrator profile valid for one hour
-  And it is listed among the project's profiles
-
-Scenario: Support access expiring
-  Given my support profile was created more than an hour ago
-  When I try to read the project
-  Then the request is denied
+Scenario: The last permanent administrator cannot be removed
+  Given I am the only PROJECT_ADMINISTRATOR of a project, with no end date on my profile
+  When I try to remove my own profile or demote it to PROJECT_COORDINATOR
+  Then the request is refused to avoid orphaning the project
 ```
 
-## Related
+```gherkin
+Scenario: A temporary support administrator does not block demoting the permanent one
+  Given a project has one permanent PROJECT_ADMINISTRATOR and a temporary support PROJECT_ADMINISTRATOR (with an end date)
+  When the permanent administrator tries to demote their own profile to PROJECT_COORDINATOR
+  Then the request is still refused
+  Because the temporary support profile does not count as a permanent administrator
+```
 
-- [Roles & Permissions](/registry/functional/roles-and-permissions) — the level model and how rights are computed
-- [Preferences](/registry/functional/features/preferences) — selecting which profile you are working through
-- [Users](/registry/functional/features/users) — the global plane
+```gherkin
+Scenario: A blocked member loses access without losing the profile
+  Given a member holds an ACCEPTED profile on my project
+  When I block that profile
+  Then its status becomes BLOCKED
+  And the member retains no permission on the project until I unblock it
+```
+
+```gherkin
+Scenario: Platform staff mints temporary support access
+  Given I am a global USER_ADMINISTRATOR with no profile on project C
+  When I create a support profile on project C
+  Then I receive a PROJECT_ADMINISTRATOR profile that expires after one hour
+```
+
+## 5. API surface
+
+Project-scoped endpoints live under `/api/v2/projects/{projectId}/...`; self-service endpoints under `/api/v2/users/profiles/...`. See [Technical → API Reference](/registry/technical/api-reference).
+
+### Admin side
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| `GET` | `/projects/{projectId}/profiles` | List the project's members | scoped `REGISTRY_PROJECT_PROFILE_R` |
+| `GET` | `/projects/{projectId}/profiles/{id}` | Read one member's profile | scoped `REGISTRY_PROJECT_PROFILE_R` |
+| `GET` | `/projects/{projectId}/profiles/assignable-users?q=` | Search users to invite | scoped `REGISTRY_PROJECT_PROFILE_METADATA_R` |
+| `GET` | `/projects/{projectId}/profiles/roles` | List assignable roles | scoped `REGISTRY_PROJECT_PROFILE_METADATA_R` |
+| `POST` | `/projects/{projectId}/profiles/invite` | Batch-invite users to the project | scoped `REGISTRY_PROJECT_PROFILE_C` |
+| `PATCH` | `/projects/{projectId}/profiles/{id}` | Change a member's role / access window | scoped `REGISTRY_PROJECT_PROFILE_U` |
+| `POST` | `/projects/{projectId}/profiles/{id}/block` | Block a member | scoped `REGISTRY_PROJECT_PROFILE_U` |
+| `POST` | `/projects/{projectId}/profiles/{id}/unblock` | Unblock a member | scoped `REGISTRY_PROJECT_PROFILE_U` |
+| `DELETE` | `/projects/{projectId}/profiles/{id}` | Remove a member | scoped `REGISTRY_PROJECT_PROFILE_D` |
+
+### Self side
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| `GET` | `/users/profiles` | List my own profiles | Authenticated |
+| `POST` | `/users/profiles/{id}/accept` | Accept an invitation | Authenticated (own `INVITED` profile) |
+| `POST` | `/users/profiles/{id}/reject` | Reject an invitation | Authenticated (own `INVITED` profile) |
+| `POST` | `/users/profiles/{projectId}/support` | Mint a 1-hour support administrator profile | `REGISTRY_PROFILE_C` (global) |
+| `DELETE` | `/users/profiles/{id}` | Leave a project (delete my profile) | Authenticated (own profile) |

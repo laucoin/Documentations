@@ -1,261 +1,120 @@
 # Roles & Permissions
 
-This page is the **security baseline** for the whole platform. Every feature page states its access matrix in the terms
-defined here, and no feature may grant an action that this page does not describe.
+This is the security baseline for Registry. Every feature page references it, and no feature may be defined without stating what each role can do with it. It describes the authentication boundary, the two independent permission planes, the roles on each plane, and the rules that shape access over time.
 
-## 1. Authentication boundary
+> **Source of truth.** Roles and their permissions are stored as **data** in the database and loaded into memory when the backend starts. The seed migrations (`V1_0_1`, `V1_1_1`, `V1_2_1`, …) are authoritative; the matrices below reflect that seed data in business terms.
 
-Registry is **fully protected**. There is no anonymous surface: every operation requires a signed-in user, with exactly
-four exceptions that exist only to make signing in possible.
+## Authentication model
 
-| Surface                                   | Authentication                                      |
-|-------------------------------------------|-----------------------------------------------------|
-| Build the provider login URL              | Public                                              |
-| Build the provider logout URL             | Public                                              |
-| Exchange an authorization code for tokens | Public                                              |
-| Exchange a refresh token for new tokens   | Public                                              |
-| Everything else                           | Authenticated — and additionally permission-checked |
+Registry is **protected / private**. Authentication is delegated to an external **OIDC identity provider** — there is no built-in password store. Practically:
 
-Identity is **federated**: Registry never stores passwords and never authenticates anyone itself. An external OpenID
-Connect provider does that, and Registry consumes the resulting token.
+- Every screen and every API call requires a signed-in user, **except** the handful of authentication endpoints themselves (obtaining a login/logout URL, exchanging an authorization code for tokens, and refreshing tokens). API documentation and health endpoints are public only when explicitly enabled for an environment.
+- A user's identity comes from the provider. On first sign-in, Registry **provisions the account automatically** with the default global role and links it to the provider identity.
+- A **blocked** account (globally disabled) is refused at sign-in, and an **anonymized** account can never sign in again (see [Users](/registry/functional/features/users)).
 
-### Account provisioning
+## Two permission planes
 
-Accounts are created by signing in, not by an administrator:
+Authorization is split into two planes that combine on every request.
 
-- On first sign-in, Registry looks the user up by the provider's subject identifier. If no account exists, it looks for
-  one with the same **email address**. If none exists either, an account is created automatically and given the
-  **default global role** (`USER`).
-- If an account already exists, its first name, last name and email are refreshed from the token on every sign-in — the
-  identity provider is the source of truth for personal data.
-- If more than one account already carries that email, sign-in is refused rather than guessing.
+| Plane | Question it answers | Examples |
+| ----- | ------------------- | -------- |
+| **Global** | What may this user do across the whole platform, independent of any event? | Manage user accounts; create a project. |
+| **Project-scoped** | What may this user do *inside this specific event*? | Record a movement in project X; delete a group in project X. |
 
-### Sign-in refusals
+A project-scoped permission is always bound to **one** project. Holding a permission in one event grants nothing in another — this is what makes Registry multi-tenant. Under the hood, a project permission is the pair *(project, permission)*; the [technical documentation](/registry/technical/security) explains how that is enforced.
 
-| Situation                                      | Outcome                                                 |
-|------------------------------------------------|---------------------------------------------------------|
-| The token carries no subject or no email claim | Sign-in refused                                         |
-| The account is **blocked** (made invisible)    | Sign-in refused — the account exists but cannot be used |
-| The account has been **anonymised**            | Sign-in refused — the identity was deliberately severed |
-| Several accounts share the token's email       | Sign-in refused                                         |
+## Global roles
 
-## 2. Two permission planes
+| Role | Level | Who holds it | Purpose |
+| ---- | ----- | ------------ | ------- |
+| **`USER_ADMINISTRATOR`** | 0 | Platform staff | Administer every user account; also allowed to read/create projects and grant support access. |
+| **`USER`** | 9000 | Everyone, by default | The role each new account receives. Can create projects and read project metadata. Nothing else at the global level. |
+| **`SERVICE_ACCOUNT`** | — | The system itself | A non-human account that runs the scheduled data-retention jobs. Not assignable to people. |
 
-Registry carries **two independent role systems**. This is the single most important thing to understand about its
-authorisation model.
+Lower level means more powerful. Exactly **one** level-0 global role exists.
 
-|            | Global plane                                                          | Project plane                                                         |
-|------------|-----------------------------------------------------------------------|-----------------------------------------------------------------------|
-| Carried by | The user account (`role` column)                                      | A **profile** — one per user per project                              |
-| Scope      | The whole platform                                                    | Exactly one project                                                   |
-| Roles      | `USER_ADMINISTRATOR`, `USER`                                          | `PROJECT_ADMINISTRATOR`, `PROJECT_COORDINATOR`, `PROJECT_PARTICIPANT` |
-| Governs    | Account administration, the right to create a project, retention jobs | Everything inside a project                                           |
+### Global access matrix
 
-**A global role grants nothing inside a project.** A `USER_ADMINISTRATOR` who holds no profile on a project cannot read
-that project's participants, groups or movements. Conversely, a `PROJECT_ADMINISTRATOR` has no authority whatsoever over
-any other project. Project isolation is the platform's core guarantee, and neither plane can override the other.
+| Capability | `USER_ADMINISTRATOR` | `USER` |
+| ---------- | :---: | :---: |
+| View the user directory & user metadata (roles) | ✓ | — |
+| Change a user's global role | ✓ | — |
+| Block / unblock a user | ✓ | — |
+| Anonymize (purge) another user | ✓ | — |
+| **Create a project** | ✓ | ✓ |
+| Read *any* project globally | ✓ | — |
+| Read project metadata (available options) | ✓ | ✓ |
+| Grant "support" access to a project | ✓ | — |
+| Run data-retention purge jobs | ✓ | *service account only* |
+| Anonymize **their own** account | ✓ | ✓ |
 
-The only bridge between the planes is deliberate and narrow: a global `USER_ADMINISTRATOR` may create a **support
-profile** for themselves on any project — a real, auditable, one-hour-long project profile. Support access is therefore
-always visible as a profile, never as an invisible super-user.
+The important onboarding consequence: **any signed-in user can create a project**, and the creator automatically becomes its `PROJECT_ADMINISTRATOR`. That is how ordinary users get project-scoped power without a platform administrator being involved.
 
-### Role levels
+## Project roles
 
-Both planes rank roles by a numeric **level**, where **lower means more powerful** and level `0` is the most powerful
-role of its plane. Exactly one level-`0` role may exist per plane.
+Assigned per project when a user is invited (or when they create the project). Every project-scoped resource is governed by these three roles.
 
-| Plane   | Role                    | Level |
-|---------|-------------------------|-------|
-| Global  | `USER_ADMINISTRATOR`    | 0     |
-| Global  | `USER`                  | 9000  |
-| Project | `PROJECT_ADMINISTRATOR` | 0     |
-| Project | `PROJECT_COORDINATOR`   | 10    |
-| Project | `PROJECT_PARTICIPANT`   | 20    |
+| Role | Level | What it is for |
+| ---- | ----- | -------------- |
+| **`PROJECT_ADMINISTRATOR`** | 0 | Full control of one event, including its membership. The creator gets this automatically. |
+| **`PROJECT_COORDINATOR`** | 10 | Runs the event's operations end to end, but cannot manage membership or delete the event. |
+| **`PROJECT_PARTICIPANT`** | 20 | Ground-level staff: register people and record movements, with limited edit rights. |
 
-The level drives one rule used everywhere: **you may only assign your own role or a weaker one.** A coordinator can
-invite a participant or another coordinator, never an administrator. The same rule governs editing an existing profile
-or an existing user's global role.
+### Project access matrix
 
-## 3. Global roles and permissions
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. A dash means no access. Rows marked *(option)* only apply when the project has that module enabled (see [Project options](#project-options-gating)).
 
-| Permission                    | What it allows                                       | `USER_ADMINISTRATOR` | `USER` |
-|-------------------------------|------------------------------------------------------|:--------------------:|:------:|
-| `REGISTRY_USER_R`             | Read the user directory                              |          ✅          |   ❌   |
-| `REGISTRY_USER_METADATA_R`    | Read the roles assignable to others                  |          ✅          |   ❌   |
-| `REGISTRY_USER_U`             | Change a user's global role, block, unblock          |          ✅          |   ❌   |
-| `REGISTRY_USER_D`             | Anonymise or delete a user account                   |          ✅          |   ❌   |
-| `REGISTRY_PROJECT_C`          | Create a project                                     |          ✅          |   ✅   |
-| `REGISTRY_PROJECT_R`          | Read **any** project, including ones with no profile |          ✅          |   ❌   |
-| `REGISTRY_PROJECT_METADATA_R` | Read the project options available at creation       |          ✅          |   ✅   |
-| `REGISTRY_PROFILE_C`          | Create a support profile on any project              |          ✅          |   ❌   |
-| `REGISTRY_JOB_C`              | Trigger the retention purge jobs                     |          ✅          |   ❌   |
+| Resource | `PROJECT_ADMINISTRATOR` | `PROJECT_COORDINATOR` | `PROJECT_PARTICIPANT` |
+| -------- | :---: | :---: | :---: |
+| Project settings (name, dates, options, enable/disable) | R U D | R | R |
+| Members / profiles (invite, edit, block, remove) | C R U D | R | — |
+| Participants | C R U D | C R U D | C R |
+| Groups | C R U D | C R U D | C R |
+| Movements (check-in / check-out) | C R U D | C R U D | C R |
+| Vehicles *(option)* | C R U D | C R U D | — ¹ |
+| Activities *(option)* | C R U D | C R U D | — ¹ |
+| Communications *(option)* | C R U D | C R U D | C R |
+| Alerts *(option)* | C R U D | C R U D | C R |
+| Live presence dashboard | R | R | R |
 
-Every authenticated user is at least a `USER`, so **anyone can create a project** — and becomes its administrator by
-doing so. That is the intended entry path into the platform.
+*History* is a separate capability — the ability to view a resource's own movement history — and is listed on its own row below rather than folded into a resource's CRUD, for readability. It is **always read-only**: history is a derived view of movements already recorded, not an editable resource in its own right, so there is no create/update/delete operation on it for any role.
 
-Two operations are available to **every** authenticated user regardless of global role, because they act only on the
-caller's own account: listing and answering their own project invitations, and anonymising themselves.
+| History of | `PROJECT_ADMINISTRATOR` | `PROJECT_COORDINATOR` | `PROJECT_PARTICIPANT` |
+| ---------- | :---: | :---: | :---: |
+| Participant movements | R | R | — |
+| Vehicle movements *(option)* | R | R | — |
+| Activity movements *(option)* | R | R | — |
 
-## 4. Project roles and permissions
+¹ A participant has no direct read access to the vehicle or activity registries, but may still select an *eligible* vehicle or activity while recording a movement, via the movement's own scoped search — see [Movements → API surface](/registry/functional/features/movements#5-api-surface).
 
-The three project roles form a ladder. Read the matrix as: *"holding this role on this project grants this permission on
-that project, and on no other."*
+Reading between the lines:
 
-Legend: **A** = `PROJECT_ADMINISTRATOR`, **C** = `PROJECT_COORDINATOR`, **P** = `PROJECT_PARTICIPANT`.
+- **Only the administrator manages membership.** Coordinators can see who is in the event but cannot invite, edit, block or remove members. Participants cannot see the member list at all.
+- **Only the administrator changes the project itself.** Coordinators are read-only on project settings — they cannot rename it, change its dates or options, enable/disable it, or delete it.
+- **Coordinators run everything else.** Their operational rights match the administrator's for participants, groups, movements and the optional modules.
+- **Participants are check-in staff.** They create and read the operational resources they need (people, groups, movements, communications, alerts) but do not edit or delete them, do not see movement history, and have no standing access to vehicles or activities beyond selecting one inside a movement.
 
-### Project itself
+## Project options (gating)
 
-| Permission           | What it allows                          | A  | C  | P  |
-|----------------------|-----------------------------------------|:--:|:--:|:--:|
-| `REGISTRY_PROJECT_R` | Read the project                        | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_U` | Edit the project, disable it, enable it | ✅ | ❌ | ❌ |
-| `REGISTRY_PROJECT_D` | Delete the project and everything in it | ✅ | ❌ | ❌ |
+Four **optional modules** are enabled per project. A module that is off is invisible and its API is closed — regardless of a user's role. Modules also have dependencies:
 
-### Profiles
+| Option | Adds | Requires |
+| ------ | ---- | -------- |
+| **`VEHICLE`** | Track vehicles and their presence; assign them in movements | — |
+| **`ACTIVITY`** | Plan activities with capacity limits; use them as a movement reason | — |
+| **`COMMUNICATION`** | Attach messages to movements and alerts | `ACTIVITY` |
+| **`ALERT`** | Raise and manage incidents | `ACTIVITY` + `COMMUNICATION` |
 
-| Permission                            | What it allows                                | A  | C  | P  |
-|---------------------------------------|-----------------------------------------------|:--:|:--:|:--:|
-| `REGISTRY_PROJECT_PROFILE_C`          | Invite users to the project                   | ✅ | ❌ | ❌ |
-| `REGISTRY_PROJECT_PROFILE_R`          | List the project's profiles                   | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_PROFILE_U`          | Edit a profile, block it, unblock it          | ✅ | ❌ | ❌ |
-| `REGISTRY_PROJECT_PROFILE_D`          | Remove a profile                              | ✅ | ❌ | ❌ |
-| `REGISTRY_PROJECT_PROFILE_METADATA_R` | Search users to invite, list assignable roles | ✅ | ❌ | ❌ |
+So enabling alerts implies enabling communications and activities. The core — projects, profiles, participants, groups, movements and the dashboard — is always present.
 
-### Participants
+## Rules that shape access over time
 
-| Permission                                | What it allows                              | A  | C  | P  |
-|-------------------------------------------|---------------------------------------------|:--:|:--:|:--:|
-| `REGISTRY_PROJECT_PARTICIPANT_C`          | Register a participant                      | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_PARTICIPANT_R`          | List and read participants, read birthdays  | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_PARTICIPANT_HISTORY_R`  | Read a participant's movement history       | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_PARTICIPANT_U`          | Edit a participant, disable, enable         | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_PARTICIPANT_D`          | Delete a participant                        | ✅ | ❌ | ❌ |
-| `REGISTRY_PROJECT_PARTICIPANT_METADATA_R` | Search users to link, search groups to join | ✅ | ✅ | ✅ |
+- **Profile lifecycle.** A membership (profile) moves through `INVITED` → `ACCEPTED` or `REJECTED`, and can be `BLOCKED`. Only an `ACCEPTED` profile grants any project permission.
+- **Access window is optional.** Each profile *may* carry a start/end access window. Outside that window the profile is *unavailable* and grants nothing, even if accepted. A profile with **no window is permanent** — it never expires on its own.
+- **Visibility gating (disabled events).** When a project is disabled (made invisible), non-administrators lose **all** authority on it. The administrator keeps only the ability to read, re-enable or delete the project — everything inside stays locked until it is re-enabled.
+- **Role-level safety.** A user may only assign roles at or below their own level, and the system refuses to remove or demote the **last permanent** level-0 administrator — the last one with **no end date** — of a project *or* of the platform. A temporary administrator (one with an end date, e.g. a support profile) never counts toward this safeguard, so it can never be used to strand an event with only expiring administrators. You can never orphan an event or lock everyone out of it for good.
+- **Support access.** A platform administrator can mint a temporary, one-hour administrator profile on any project ("support" / assistance profile) to intervene without permanently joining it. Being temporary, it never blocks — and is never protected by — the last-permanent-administrator safeguard above.
 
-### Groups
+## Adding a new role (reciprocity rule)
 
-| Permission                          | What it allows                                       | A  | C  | P  |
-|-------------------------------------|------------------------------------------------------|:--:|:--:|:--:|
-| `REGISTRY_PROJECT_GROUP_C`          | Create a group                                       | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_GROUP_R`          | List and read groups and their members               | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_GROUP_U`          | Edit a group, add or remove members, disable, enable | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_GROUP_D`          | Delete a group                                       | ✅ | ❌ | ❌ |
-| `REGISTRY_PROJECT_GROUP_METADATA_R` | Search participants to add to a group                | ✅ | ✅ | ✅ |
-
-### Movements
-
-| Permission                                  | What it allows                                                   | A  | C  | P  |
-|---------------------------------------------|------------------------------------------------------------------|:--:|:--:|:--:|
-| `REGISTRY_PROJECT_MOVEMENT_C`               | Record a movement, including guest movements                     | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_MOVEMENT_R`               | List and read movements and their content, read presence status  | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_MOVEMENT_U`               | Edit a movement, disable, enable                                 | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_MOVEMENT_D`               | Delete a movement                                                | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_MOVEMENT_METADATA_R`      | Search reasons, participants, groups and vehicles for a movement | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_MOVEMENT_COMMUNICATION_R` | Read the communications attached to a movement                   | ✅ | ✅ | ✅ |
-
-### Vehicles — requires the `VEHICLE` option
-
-| Permission                           | What it allows                                       | A  | C  | P  |
-|--------------------------------------|------------------------------------------------------|:--:|:--:|:--:|
-| `REGISTRY_PROJECT_VEHICLE_C`         | Add a vehicle                                        | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_VEHICLE_R`         | List and read vehicles, read vehicle presence status | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_VEHICLE_HISTORY_R` | Read a vehicle's movement history                    | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_VEHICLE_U`         | Edit a vehicle, disable, enable                      | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_VEHICLE_D`         | Delete a vehicle                                     | ✅ | ❌ | ❌ |
-
-### Activities — requires the `ACTIVITY` option
-
-| Permission                            | What it allows                      | A  | C  | P  |
-|---------------------------------------|-------------------------------------|:--:|:--:|:--:|
-| `REGISTRY_PROJECT_ACTIVITY_C`         | Create an activity                  | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_ACTIVITY_R`         | List and read activities            | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_ACTIVITY_HISTORY_R` | Read an activity's movement history | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_ACTIVITY_U`         | Edit an activity, disable, enable   | ✅ | ✅ | ❌ |
-| `REGISTRY_PROJECT_ACTIVITY_D`         | Delete an activity                  | ✅ | ❌ | ❌ |
-
-### Communications — requires the `COMMUNICATION` option
-
-| Permission                                  | What it allows                                           | A  | C  | P  |
-|---------------------------------------------|----------------------------------------------------------|:--:|:--:|:--:|
-| `REGISTRY_PROJECT_COMMUNICATION_C`          | Post a communication                                     | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_COMMUNICATION_R`          | List and read communications                             | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_COMMUNICATION_U`          | Edit a communication, disable, enable                    | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_COMMUNICATION_D`          | Delete a communication                                   | ✅ | ❌ | ❌ |
-| `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` | Search movements and alerts to attach a communication to | ✅ | ✅ | ✅ |
-
-### Alerts — requires the `ALERT` option
-
-| Permission                               | What it allows                                    | A  | C  | P  |
-|------------------------------------------|---------------------------------------------------|:--:|:--:|:--:|
-| `REGISTRY_PROJECT_ALERT_C`               | Open an alert                                     | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_ALERT_R`               | List and read alerts                              | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_ALERT_U`               | Edit an alert, change its status, disable, enable | ✅ | ✅ | ✅ |
-| `REGISTRY_PROJECT_ALERT_D`               | Delete an alert                                   | ✅ | ❌ | ❌ |
-| `REGISTRY_PROJECT_ALERT_COMMUNICATION_R` | Read the communications attached to an alert      | ✅ | ✅ | ✅ |
-
-### Reading the ladder
-
-Two patterns run through the whole matrix and are worth naming:
-
-- **Deletion is an administrator act.** Across every feature, `_D` belongs to the administrator alone — with one
-  deliberate exception: a coordinator may delete a *movement*, because correcting a mistyped check-in is routine
-  operational work.
-- **The participant role is an operator, not a curator.** It can register people, group them and record their comings
-  and goings, but it cannot see history, cannot touch the project's configuration of vehicles or activities, and cannot
-  see who else has access.
-
-## 5. Project options gating
-
-Four capabilities are enabled **per project**: `VEHICLE`, `ACTIVITY`, `COMMUNICATION` and `ALERT`. An option is a gate
-placed *in front of* the permission check, not a permission itself.
-
-Consequences:
-
-- If the option is off, the feature is unreachable **for everyone on that project**, including its administrator.
-- Options have **dependencies**, and enabling an option without its prerequisites is rejected:
-
-| Option          | Requires                       |
-|-----------------|--------------------------------|
-| `VEHICLE`       | —                              |
-| `ACTIVITY`      | —                              |
-| `COMMUNICATION` | `ACTIVITY`                     |
-| `ALERT`         | `ACTIVITY` and `COMMUNICATION` |
-
-- A handful of endpoints are gated by an option *without* being part of that option's own feature — reading a movement's
-  communications needs `COMMUNICATION`, and reading vehicle presence status needs `VEHICLE`.
-
-## 6. How access is actually computed
-
-A user's effective rights are recomputed **on every request**, from the token, not from anything the client sends. The
-chain is:
-
-1. The token is validated against the identity provider.
-2. The matching account is loaded; blocked and anonymised accounts are rejected outright.
-3. The account's **global role** contributes its global permissions.
-4. Each of the user's **profiles** contributes its project permissions, *scoped to that project's identifier* — but only
-   profiles that are **`ACCEPTED`** and **currently inside their access window** are considered at all.
-5. Each visible project contributes its **enabled options**, also scoped to that project.
-
-This produces two consequences worth stating explicitly:
-
-- **An invitation grants nothing until it is accepted.** A profile in `INVITED`, `REJECTED` or `BLOCKED` status
-  contributes no rights.
-- **An access window is enforced continuously, not just at sign-in.** A profile whose window has not opened yet, or has
-  already closed, contributes no rights — a user granted access "for the weekend" silently loses it on Monday.
-
-### Disabled projects
-
-Disabling a project is a graceful shutdown, not a deletion:
-
-| Role on a disabled project | What remains                                                                                                                                 |
-|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| `PROJECT_ADMINISTRATOR`    | Only read, update and delete **of the project itself** — everything inside it becomes unreachable, and the project's options no longer apply |
-| Any other project role     | Nothing at all — the project disappears from the user's world                                                                                |
-
-This lets an administrator re-enable or delete a wound-down project without leaving its data reachable in the meantime.
-
-## 7. Reciprocity rule
-
-Adding a role to either plane is not a local change. A new role must have its permissions defined **across every
-existing feature** before it is introduced, and every feature page's access matrix must be updated in the same change. A
-feature with an undefined column for a role is a specification defect, not an implicit "no".
+If a new role is ever introduced — on either plane — it must be defined against **every existing feature** before it ships. Concretely: add a column to the [global](#global-access-matrix) or [project](#project-access-matrix) matrix here, and add a row for the new role to the *Roles & Permissions* table on **each** page under [Features](/registry/functional/features/projects). A role with an undefined permission for any feature is not a valid role.

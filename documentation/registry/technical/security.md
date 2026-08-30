@@ -1,212 +1,104 @@
 # Security
 
-Registry's security model rests on one idea: **a permission is a string, and a project-scoped permission is that string
-with the project's identifier glued to the front.** Everything else — the filter chain, the annotations, the
-multi-tenant isolation — follows from it.
+Registry delegates *authentication* to an external OIDC identity provider and enforces *authorization* itself, with a two-plane RBAC model that is stored as data and checked on every request. This page explains both halves and how they meet in the JWT-to-user conversion. The business-level roles and matrix live in [Functional → Roles & Permissions](/registry/functional/roles-and-permissions); this page is the enforcement view.
 
-## The filter chain
+## Authentication
 
-Composed in `SecurityConfig`, in order:
+There is **no local password store**. The backend plays two OAuth2 roles at once:
 
-| Step                                | What it does                                                                                                                                                                              |
-|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| CSRF **disabled**                   | The API is stateless and token-based. There is no cookie to forge, so there is nothing for CSRF to attack — and no session or form login may ever be reintroduced without revisiting this |
-| Locale filter, registered **first** | Resolves the request locale so error messages come back translated                                                                                                                        |
-| Authorisation rules                 | An explicit public allow-list; `anyExchange().authenticated()` for everything else                                                                                                        |
-| Form login **disabled**             | Identity comes from the provider only                                                                                                                                                     |
-| OAuth2 resource server              | Validates the JWT against the provider's JWKS, then converts it                                                                                                                           |
-| Exception handling                  | 401 and 403 shaped by `AuthorizationErrorHandler`                                                                                                                                         |
+- a **confidential client** — it brokers the authorization-code and refresh-token exchanges server-side, so the client secret never reaches the browser;
+- a **resource server** — it validates the JWT on every protected call against the provider's JWKS endpoint.
 
-### The public allow-list
+Only four endpoints are public: `GET /authentication/login/uri`, `GET /authentication/logout/uri`, `POST /authentication/token`, and `POST /authentication/token/refresh`. API docs and health endpoints are public only when explicitly feature-flagged for the environment. Everything else requires a valid JWT. CORS is restricted to a configured origin allowlist.
 
-Four endpoints, and only four:
+### Login sequence
 
+```mermaid
+sequenceDiagram
+    participant B as Browser (SPA)
+    participant A as Backend
+    participant I as OIDC Provider
+
+    B->>A: GET /authentication/login/uri?redirectUri=…
+    A-->>B: provider authorize URL
+    B->>I: redirect, user authenticates
+    I-->>B: redirect /auth/callback?code=…
+    B->>A: POST /authentication/token {authorizationCode, redirectUri}
+    A->>I: grant_type=authorization_code (client_id + secret)
+    I-->>A: access + refresh tokens
+    A-->>B: TokenModel
+    Note over B,A: subsequent calls carry Authorization: Bearer <access>
+    B->>A: POST /authentication/token/refresh {refreshToken}
+    A->>I: grant_type=refresh_token
+    I-->>A: new tokens
 ```
-GET  /api/*/authentication/login/uri
-GET  /api/*/authentication/logout/uri
-POST /api/*/authentication/token
-POST /api/*/authentication/token/refresh
-```
 
-Two more groups are public **only when their feature flag is on**, and neither should be on in production: the springdoc
-UI and `/api-docs/**` under `registry.feature.documentation.enabled`, and `/actuator/**` under
-`registry.feature.observability.enabled`.
+Provider errors are normalized: a 4xx from the provider becomes `401` (code outdated), a 5xx becomes `424 FAILED_DEPENDENCY` (`AUTH_PROVIDER_FAILED`).
 
-::: warning Actuator is unauthenticated when observability is on
-`GET /actuator/**` is `permitAll` under the observability flag, so `/actuator/prometheus` is reachable by anyone who can
-reach the container. The backend is expected to sit on a network where only the scraper can — that assumption is doing
-real work.
-:::
+## JWT → application user
 
-## From token to authorities
-
-`TokenConverterService` turns a validated JWT into the principal. This is where the entire authorisation model is built,
-on **every request**:
+The custom `TokenConverterService` (registered as the JWT authentication converter) turns a validated token into the application principal, `CurrentUserModel`. It reads configurable claims (`sub` → OIDC id, plus `email`, `given_name`, `family_name`) and then:
 
 ```mermaid
 flowchart TD
-    A["Validated JWT"] --> B{"Has subject and email claims?"}
-    B -->|no| R1["401"]
-    B -->|yes| C["Load the account by OIDC subject"]
-    C --> D{"Account state"}
-    D -->|blocked| R2["423 Locked"]
-    D -->|anonymised| R3["409 Conflict"]
-    D -->|not found| E["Look up by email"]
-    E -->|several matches| R4["409 Conflict"]
-    E -->|none| F["Create the account with the default role"]
-    D -->|healthy| G["Refresh names and email from the token"]
-    F --> H
-    G --> H["Build authorities"]
-    H --> I["Global role permissions<br/>REGISTRY_USER_R, …"]
-    H --> J["Per-project permissions<br/>&lt;projectId&gt;_REGISTRY_PROJECT_MOVEMENT_R"]
-    H --> K["Per-project options<br/>&lt;projectId&gt;_REGISTRY_PROJECT_OPTION_VEHICLE"]
+    A["Validated JWT"] --> B{"User with this OIDC id?"}
+    B -- yes --> C{"Account state?"}
+    C -- "blocked (invisible)" --> X["423 LOCKED · AUTH_BLOCKED_ACCOUNT"]
+    C -- "anonymized (purged)" --> Y["409 · AUTH_IMPERSONATED_ACCOUNT"]
+    C -- ok --> D["Sync changed name/email"]
+    B -- no --> E{"Email already used?"}
+    E -- "yes" --> Z["409 · AUTH_EMAIL_ALREADY_USED"]
+    E -- "no" --> F["Auto-provision user (default role USER)"]
+    D --> G["Build authorities"]
+    F --> G
+    G --> H["UsernamePasswordAuthenticationToken(CurrentUserModel)"]
 ```
 
-Only profiles that are **`ACCEPTED`** and **currently inside their access window** contribute anything — the SQL filters
-on both before the authorities are built. Revoking a profile therefore takes effect on the caller's next request, not at
-the next token refresh.
+The important behaviours: **first-time users are provisioned automatically** with the default `USER` role; **blocked and anonymized accounts are refused** at conversion time; and profile data is kept in sync with the provider on each login.
 
-### Project-prefixed authorities
+## Authorization — two planes, stored as data
 
-The mechanism is deliberately blunt. `RoleService` maps a project role to its permissions and prefixes each with the
-project's UUID:
+Roles and their permissions are **rows in the database** (seeded by migrations, e.g. `V1_0_1`, `V1_1_1`), loaded into an in-memory map when the application context starts. There are two planes ([ADR 005](/registry/technical/adr/005-db-driven-project-rbac)):
 
-```
-9f3c1a2e-…-b7d4_REGISTRY_PROJECT_MOVEMENT_R
-9f3c1a2e-…-b7d4_REGISTRY_PROJECT_OPTION_VEHICLE
-```
+- **Global** authorities — the permission names of the user's global role (e.g. `REGISTRY_PROJECT_C`, `REGISTRY_USER_R`).
+- **Project-scoped** authorities — for each accepted project profile, the role's permissions are granted as **namespaced strings**: `"{projectId}_{PERMISSION}"` (e.g. `a1b2…_REGISTRY_PROJECT_MOVEMENT_C`), plus one option authority per enabled module: `"{projectId}_REGISTRY_PROJECT_OPTION_{VEHICLE|ACTIVITY|COMMUNICATION|ALERT}"`.
 
-`PermissionService`, a Spring `PermissionEvaluator`, then answers `hasPermission(targetId, permission)` by testing
-whether `"${targetId}_$permission"` is in the authority set. A string comparison.
+Because a project permission is a project-prefixed string, holding it in one event grants nothing in another — this **string-namespacing is the multi-tenant isolation mechanism**.
 
-::: tip Why this makes tenant isolation structural
-An authority for project A **cannot** satisfy a check for project B —
-the prefixes differ. Isolation is not a query filter someone might forget to apply; it is a property of the credential
-itself. A missed `WHERE project_id = ?` is a bug, but it cannot be exploited into cross-tenant access without a matching
-authority.
-:::
+### Enforcement
 
-### The disabled-project degradation
+Authorization runs through Spring method security (`@EnableReactiveMethodSecurity`) with `@PreAuthorize` on every controller contract method:
 
-When a project is not visible, `RoleService` deliberately narrows what its profiles grant:
+| Expression | Resolves to |
+| ---------- | ----------- |
+| `hasAuthority('REGISTRY_USER_R')` | a direct global-authority check |
+| `hasPermission(#projectId, 'REGISTRY_PROJECT_MOVEMENT_C')` | a custom `PermissionEvaluator` that checks whether the user holds the string `"{projectId}_REGISTRY_PROJECT_MOVEMENT_C"` |
 
-| Project role                      | Authorities granted                                              |
-|-----------------------------------|------------------------------------------------------------------|
-| Level 0 (`PROJECT_ADMINISTRATOR`) | Only `REGISTRY_PROJECT_R`, `_U` and `_D`, still project-prefixed |
-| Any other level                   | **None at all**                                                  |
-
-Option authorities are only granted for **visible** projects, so every option-gated feature closes too. That is exactly
-enough for an administrator to re-enable or delete a wound-down project, and nothing more.
-
-## Authorisation at the endpoint
-
-Reactive method security is enabled, and **every endpoint carries an explicit `@PreAuthorize`**.
-`anyExchange().authenticated()` is a floor, never the actual rule.
-
-Three shapes appear:
+A typical project-scoped, option-gated endpoint carries both an option check and a permission check, for example:
 
 ```kotlin
-// Global permission
-@PreAuthorize("hasAuthority('$REGISTRY_USER_R')")
-
-// Project-scoped permission — resolved against the projectId path variable
-@PreAuthorize("hasPermission(#projectId, '$REGISTRY_PROJECT_PARTICIPANT_R')")
-
-// Option gate AND operation permission
 @PreAuthorize(
-	"hasPermission(#projectId, '$REGISTRY_PROJECT_OPTION_VEHICLE') && " +
-			"hasPermission(#projectId, '$REGISTRY_PROJECT_VEHICLE_R')"
+  "hasPermission(#projectId, 'REGISTRY_PROJECT_OPTION_VEHICLE') and " +
+  "hasPermission(#projectId, 'REGISTRY_PROJECT_VEHICLE_C')"
 )
 ```
 
-The option gate is itself an authority check, which is why an option that is off closes the feature for every role
-including the project's administrator.
+### Visibility gating
 
-A handful of endpoints intentionally carry **no** `@PreAuthorize`, because they act only on the caller: listing your own
-projects and profiles, answering your own invitation, anonymising yourself, and setting your own preferences. They are
-still authenticated, and they scope every query by the principal's own identifier.
+When a project is disabled (made invisible), the authority builder withholds project authorities: non-administrators get **none**, and even an administrator keeps only `REGISTRY_PROJECT_R/U/D`. Option authorities are only granted while the project is visible. A disabled event is therefore effectively frozen except for the administrator's ability to read, re-enable, or delete it.
 
-::: warning Never add an endpoint without an explicit rule
-The ArchUnit rule forcing every `@RestController` to
-implement a contract interface exists partly for this: the annotation lives on the interface, where it is visible next
-to the OpenAPI documentation and cannot be quietly omitted.
-:::
+### Authorization errors
 
-### Permissions are data
-
-Roles, permissions and their mappings live in six tables and are loaded into memory once, at application start, by a
-`ContextRefreshedEvent` listener. Granting a role a new permission is a **Flyway migration**, not a code change.
-
-The trade-off is worth naming: because the maps are cached at boot, a permission change applied to a running instance is
-not picked up until it restarts.
-
-## Defences at the boundary
-
-### CORS
-
-The frontend is a separate origin, so CORS is load-bearing rather than incidental. Origins come from
-`external.cors.urls` — an explicit list, never `*` — with `allowCredentials = true`, a fixed method list, and a fixed
-header allow-list (`Authorization`, `Cache-Control`, `Content-Type`, `Accept-Language` and the access-control headers).
-
-### Input validation
-
-Every request parameter and body is validated before it reaches the domain: Jakarta Bean Validation on the DTOs, custom
-domain constraints for the cross-field rules, and `@Min` / `@Max` on pagination so an unbounded page can never be
-requested. Text search goes through parameterised R2DBC queries — no string concatenation into SQL.
-
-### Error handling
-
-`AuthorizationErrorHandler` shapes 401 and 403; `RegistryControllerAdvice` shapes everything else. Responses carry an
-i18n message key and nothing more — no stack traces, no internal messages, no entity internals. Tokens, credentials and
-PII are never logged; sign-in refusals log the account identifier, not the token.
-
-### Security headers
-
-| Tier                 | Headers                                                                                                                                                                                   |
-|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Backend**          | Spring Security's reactive defaults — `X-Content-Type-Options`, `X-Frame-Options`, `Cache-Control` on secured responses, HSTS on HTTPS                                                    |
-| **Frontend (nginx)** | `X-Frame-Options: SAMEORIGIN`, HSTS with `preload`, `X-Content-Type-Options: nosniff`, `X-Permitted-Cross-Domain-Policies`, `X-Download-Options`, `X-XSS-Protection`, `server_tokens off` |
-
-::: warning No Content-Security-Policy on either tier
-Neither the backend nor the nginx configuration emits a CSP
-header. For an SPA that renders user-supplied text — participant names, communication messages, alert titles — CSP is
-the most valuable header currently absent.
-:::
-
-## Session handling in the browser
-
-The frontend holds the access and refresh tokens in **session storage**: per-tab, cleared when the tab closes, and not
-sent automatically with any request — the interceptor attaches them deliberately, and only to the configured backend
-origin.
-
-Session storage is readable by any script running on the page, which is the standard trade-off for a token-bearing SPA
-and the reason the missing CSP matters. On a 401 the interceptor refreshes once and replays the request; with no token
-at all it restarts the login flow.
-
-## What the frontend does *not* do
-
-Route guards mirror the backend's rules — is there a session, is a profile selected, does the project carry this
-option — purely so the UI does not offer dead ends. **None of them is a security boundary.** Every condition is
-re-checked server-side, and a user who defeats a guard reaches an endpoint that refuses them.
+`AuthorizationErrorHandler` renders auth failures as a JSON `ErrorDto`: `401 NOT_AUTHENTICATED` (no/invalid credentials), `401 INVALID_TOKEN`, `403 NOT_ENOUGH_PERMISSION` (access denied), and the JWT-conversion errors above. Bodies are localized via the request locale.
 
 ## Data protection
 
-| Mechanism                         | Effect                                                                                                                                                      |
-|-----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Anonymisation**                 | Names and email replaced with random values, birthday cleared, account flagged, future sign-in refused. The row survives so authored history stays coherent |
-| **Blocking**                      | Sign-in refused while the account and its data remain intact                                                                                                |
-| **Retention purges**              | Four nightly sweeps remove dormant accounts, projects, content and configuration; dry run is the default                                                    |
-| **Self-service erasure**          | Any user can anonymise their own account without a permission                                                                                               |
-| **Last-administrator protection** | Guards every destructive path on both planes                                                                                                                |
+- **Anonymization ("impersonate").** Anonymizing a user scrambles their name and email, clears their birthday, and marks the account `purged`; that OIDC identity can never sign in again. A user can anonymize their own account; a platform administrator can anonymize others. This is a soft-delete for data-protection compliance, not an account-switching feature.
+- **Retention purges.** A seeded, non-human `SERVICE_ACCOUNT` (holding `REGISTRY_JOB_C`) runs scheduled jobs that purge stale users, projects, contents and configurations past a configurable age threshold.
+- **Last-administrator safety.** The system refuses to remove or demote the last level-0 administrator of the platform, and the last *permanent* (no end date) level-0 administrator of a project — a temporary/support profile never counts toward this safeguard.
 
-## Supply chain
+## Safe defaults & hardening
 
-Both repositories run **CodeQL** static analysis on pull requests, pushes to `main` and on a schedule, plus **Dependency
-Review** to block a pull request that introduces a vulnerable dependency, with Dependabot keeping dependencies current.
-The backend ships on a **distroless** image running as a non-root user; the frontend on **nginx-unprivileged**.
-
-## Related
-
-- [Roles & Permissions](/registry/functional/roles-and-permissions) — the functional matrix these mechanisms enforce
-- [ADR 004](/registry/technical/adr/004-oidc-resource-server-auth) · [ADR 005](/registry/technical/adr/005-db-driven-project-rbac)
-- [API Reference](/registry/technical/api-reference) — the permission required by each endpoint
+- The backend runs as a **non-root** user in a **distroless** image.
+- The frontend is served by an **unprivileged nginx** with `X-Frame-Options`, HSTS, `X-Content-Type-Options`, and `server_tokens off`.
+- Secrets (database credentials, OIDC client secret) are supplied through environment configuration, never baked into an image.

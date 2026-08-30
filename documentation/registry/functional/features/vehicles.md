@@ -1,101 +1,104 @@
 # Feature: Vehicles
 
-> The minibus left at 08:00 with Sophie driving. Is it back? Registry answers that the same way it answers the question
-> for people — by reading the movement log.
+## 1. Overview
 
-Vehicles are an **optional capability**: the project must have the `VEHICLE` option, or the whole feature is unreachable
-for everyone, administrator included.
+- **Goal:** A vehicle is a car, van or bus available to the event. Registering it lets staff record — inside a [movement](/registry/functional/features/movements) — who travelled in which vehicle, and derives a live **presence status** (`IN` / `OUT`) from the vehicle's latest movement. That status feeds the **vehicle-presence card** on the dashboard, so a coordinator can see at a glance which vehicles are on site and which are out.
+- **Who uses it:** `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` maintain the vehicle fleet and review each vehicle's movement history. `PROJECT_PARTICIPANT` has **no access** to vehicle management (though they may assign an existing vehicle while recording a movement).
+- **Option required:** **`VEHICLE`.** Every vehicle endpoint is gated by this option — if it is off, the whole feature is closed regardless of role.
 
-**Who this is for:** administrators and coordinators. Vehicles are project configuration, not gate work.
+## 2. Roles & Permissions
 
-## Who can do what
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — plus *History* (a vehicle's movement history). See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Vehicle](/registry/functional/domain-model#vehicle-option) for the entity.
 
-| Role                    | May do                                                                    | Limits                             |
-|-------------------------|---------------------------------------------------------------------------|------------------------------------|
-| `PROJECT_ADMINISTRATOR` | Create · Read · Update · Disable · Enable · **Delete** · read **history** | Requires the `VEHICLE` option      |
-| `PROJECT_COORDINATOR`   | Create · Read · Update · Disable · Enable · read **history**              | Requires the option; cannot delete |
-| `PROJECT_PARTICIPANT`   | **Nothing**                                                               | No vehicle permission at all       |
+| Role | Permitted actions | Conditions / Scope |
+| ---- | ----------------- | ------------------ |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Full control of vehicles (`REGISTRY_PROJECT_VEHICLE_C/R/U/D`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
+| `PROJECT_COORDINATOR` | **C R U D** + History | Same rights as the administrator (`REGISTRY_PROJECT_VEHICLE_C/R/U/D`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
+| `PROJECT_PARTICIPANT` | — | No access to vehicle management. May still assign an existing vehicle within a movement. |
 
-::: warning The participant role has no vehicle rights whatsoever
-A gatekeeper can *attach* a vehicle to a movement they
-are recording — that is a movement permission — but cannot list, read, create or edit the vehicles themselves.
-:::
+> **Option gating first.** All rows above assume the project has the `VEHICLE` option enabled. With the option off, the API is closed for every role — see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating).
+
+## 3. Business rules
+
+- **Identity fields.** A vehicle has a **licence plate** (formatted like `aa-999-aa`), a **brand** and a **model**.
+- **Availability window is optional.** With no window of its own, a vehicle inherits the project's window — see [Domain Model → Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution). When both are set, availability **start must be before the end** (`@StartBeforeEnd`).
+- **Presence is derived, not stored.** A vehicle is `IN` or `OUT` depending on its **latest movement**; with no movement it is off-site. This status drives the dashboard vehicle-presence card.
+- **Assigned inside movements.** A vehicle is never "used" on its own — it is assigned to participants **inside a movement**, and only on `REGISTERED` content (see [Movements → Business rules](/registry/functional/features/movements#3-business-rules)). It is unrelated to the movement's **pool label** (a snapshot of the originating group's name), which any participant entry may carry regardless of vehicle assignment.
+- **Disabling is soft and reversible.** A vehicle can be disabled (hidden from selection) and later re-enabled without losing its history.
+
+## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: Denying vehicles when the option is off
-  Given the project does not have the VEHICLE option
-  When its administrator lists the vehicles
-  Then the request is denied
+Scenario: A coordinator registers a vehicle
+  Given the project has the VEHICLE option enabled
+  And I hold the PROJECT_COORDINATOR role
+  When I create a vehicle with plate "AA-123-BB", brand "Renault", model "Trafic"
+  And an availability window from 2026-07-10 to 2026-07-24
+  Then the vehicle is created
+  And it is available for assignment in movements
+```
 
-Scenario: Denying vehicles to a project participant
-  Given the project has the VEHICLE option
+```gherkin
+Scenario: The availability start must be before the end
+  Given the project has the VEHICLE option enabled
+  When I create a vehicle whose availability starts 2026-07-24 and ends 2026-07-10
+  Then the request is rejected by the @StartBeforeEnd validator
+  And no vehicle is created
+```
+
+```gherkin
+Scenario: Vehicle presence is derived from its latest movement
+  Given a registered vehicle "AA-123-BB"
+  When its latest movement is an OUT
+  Then the dashboard shows "AA-123-BB" as OUT
+  When a later IN movement carries it back
+  Then the dashboard shows "AA-123-BB" as IN
+```
+
+```gherkin
+Scenario: The feature is closed when the VEHICLE option is off
+  Given the project does not have the VEHICLE option enabled
+  When I attempt to list vehicles
+  Then the request is refused because the feature is closed
+  Regardless of my role
+```
+
+```gherkin
+Scenario: A participant cannot manage vehicles
+  Given the project has the VEHICLE option enabled
   And I hold the PROJECT_PARTICIPANT role
-  When I list the vehicles
-  Then the request is denied
+  When I attempt to create a vehicle
+  Then the request is refused for lack of REGISTRY_PROJECT_VEHICLE_C
 ```
-
-## What a vehicle carries
-
-A **licence plate** (up to 20 characters), a **brand** and a **model** — all three required — plus an optional
-availability window that must sit inside the project's dates. Searching matches fuzzily across plate, brand and model,
-so "Renault", "AB-123" and "Trafic" all find the same van.
-
-Plates are **not** enforced unique: two projects can hold the same vehicle, and even within one project Registry does
-not object to a duplicate.
 
 ```gherkin
-Scenario: Adding a vehicle
-  Given the project has the VEHICLE option
-  When I add a vehicle with its plate, brand and model
-  Then the vehicle is available to the project
-
-Scenario: Refusing a window outside the project
-  When I give a vehicle an availability window that starts before the project does
-  Then the request is rejected
+Scenario: Disabling a vehicle hides it without losing history
+  Given a registered vehicle "AA-123-BB" with recorded movements
+  When I disable it
+  Then it is no longer offered for assignment in new movements
+  And its movement history remains readable
+  When I enable it again
+  Then it can be assigned once more
 ```
-
-## Presence, drivers and history
-
-A vehicle's presence is derived exactly like a person's: **the latest visible movement it appears in.** An `IN` movement
-means it is on site, an `OUT` movement means it is away, no movement at all means it has not been checked in.
-
-When someone is attached to a vehicle on a movement line, they are its **driver** for that trip — and drivers must be
-**adults**. The dashboard shows vehicles present and away as its own pair of counters, alongside the people.
-
-Each vehicle also has a **history**: every movement it appears in, filterable by direction, dates, visibility and
-whether the movement was tied to an activity.
 
 ```gherkin
-Scenario: Reading a vehicle as away
-  Given the minibus's latest visible movement is an OUT movement
-  Then it reads as away
-
-Scenario: Refusing a minor as a driver
-  When I record a movement attaching a participant under eighteen to a vehicle
-  Then the movement is rejected
+Scenario: A coordinator reviews a vehicle's movement history
+  Given a registered vehicle "AA-123-BB" that has carried participants
+  When I open its movement history
+  Then I see each movement it was assigned to, with direction and timestamp
 ```
 
-## Disabling and deleting
+## 5. API surface
 
-Disabling hides a vehicle from day-to-day lists and stops it being selectable for new movements, without disturbing the
-history it already appears in — the tool for the van that went to the garage mid-event.
+REST endpoints backing this feature. All project-scoped endpoints live under `/api/v2/projects/{projectId}/...` and **require the `VEHICLE` option**. See [Technical → API Reference](/registry/technical/api-reference).
 
-Deleting is permanent, administrator-only, and refused for **any vehicle that appears in a movement**. As with
-participants, the movement log is protected before the thing it references.
-
-```gherkin
-Scenario: Refusing to delete a vehicle with a movement
-  Given a vehicle appears in at least one movement
-  When I try to delete it
-  Then the request is rejected
-
-Scenario: Denying deletion to a coordinator
-  Given I hold the PROJECT_COORDINATOR role
-  When I try to delete a vehicle
-  Then the request is denied
-```
-
-## Related
-
-- [Movements](/registry/functional/features/movements) — attaching vehicles and drivers
-- [Projects](/registry/functional/features/projects) — enabling the `VEHICLE` option
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| `GET` | `/vehicles` | List vehicles | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_R` |
+| `GET` | `/vehicles/{id}` | Read a single vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_R` |
+| `GET` | `/vehicles/{id}/movements` | Read the vehicle's movement history | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_HISTORY_R` |
+| `POST` | `/vehicles` | Register a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_C` |
+| `PATCH` | `/vehicles/{id}` | Update a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_U` |
+| `POST` | `/vehicles/{id}/disable` | Soft-disable a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_U` |
+| `POST` | `/vehicles/{id}/enable` | Re-enable a disabled vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_U` |
+| `DELETE` | `/vehicles/{id}` | Permanently delete a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_D` |

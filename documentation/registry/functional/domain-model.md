@@ -1,163 +1,137 @@
 # Domain Model
 
-Registry's domain has a shape worth understanding before reading any feature page, because two structural decisions
-explain most of its behaviour:
+This is the shared vocabulary of Registry — the entities the product talks about, how they relate, and the status values that make the live headcount work. It is deliberately business-facing; the database schema that backs it is in [Technical → Data Model](/registry/technical/data-model).
 
-1. **Everything hangs off a project.** The project is the tenant. There is no shared reference data, no cross-project
-   participant, no global group. Delete a project and its entire world goes with it.
-2. **Presence is not stored.** No entity carries a "present" flag. Presence is read back from the movement log, every
-   time it is asked for. That is why movements are protected far more carefully than anything else.
-
-## The map
+## The big picture
 
 ```mermaid
 erDiagram
-    USER ||--o| PREFERENCES: "configures"
-    USER ||--o{ PROFILE: "holds"
-    PROJECT ||--o{ PROFILE: "grants access through"
-    PREFERENCES }o--o| PROFILE: "currently selected"
-    PROJECT ||--o{ PARTICIPANT: "registers"
-    PROJECT ||--o{ GROUP: "organises"
-    PROJECT ||--o{ VEHICLE: "owns"
-    PROJECT ||--o{ ACTIVITY: "schedules"
-    PROJECT ||--o{ MOVEMENT: "records"
-    PROJECT ||--o{ COMMUNICATION: "logs"
-    PROJECT ||--o{ ALERT: "opens"
-    USER |o--o{ PARTICIPANT: "may be linked to"
-    GROUP ||--o{ GROUP_CONTENT: ""
-    PARTICIPANT ||--o{ GROUP_CONTENT: "belongs to"
-    MOVEMENT ||--|{ MOVEMENT_CONTENT: "carries"
-    PARTICIPANT ||--o{ MOVEMENT_CONTENT: "moves in"
-    VEHICLE |o--o{ MOVEMENT_CONTENT: "transports in"
-    ACTIVITY |o--o{ MOVEMENT: "justifies"
-    MOVEMENT |o--o{ COMMUNICATION: "is discussed in"
-    ALERT |o--o{ COMMUNICATION: "is discussed in"
+    USER ||--o{ PROFILE : "is member via"
+    PROJECT ||--o{ PROFILE : "grants access via"
+    PROJECT ||--o{ PARTICIPANT : registers
+    PROJECT ||--o{ GROUP : organizes
+    PROJECT ||--o{ MOVEMENT : records
+    PROJECT ||--o{ VEHICLE : "tracks (option)"
+    PROJECT ||--o{ ACTIVITY : "plans (option)"
+    PROJECT ||--o{ ALERT : "manages (option)"
+    PARTICIPANT }o--o{ GROUP : "belongs to"
+    USER |o--o| PARTICIPANT : "may be linked to"
+    MOVEMENT }o--o{ PARTICIPANT : "moves"
+    MOVEMENT }o--o| ACTIVITY : "justified by"
+    MOVEMENT }o--o| VEHICLE : "carried in"
+    MOVEMENT ||--o{ COMMUNICATION : "discussed in (option)"
+    ALERT ||--o{ COMMUNICATION : "discussed in (option)"
 ```
 
-Read the diagram in three bands: **identity** at the top (users, profiles, preferences), **the project's world** in the
-middle (participants, groups, vehicles, activities), and **the record of what happened** at the bottom (movements,
-communications, alerts).
+Everything except users lives **inside a project**. A project is the tenant boundary: two events never share participants, groups, movements or any other resource.
 
 ## Entities
 
-### Identity
+### Project
 
-| Entity          | What it is                                                            | Notable                                                                                            |
-|-----------------|-----------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| **User**        | A platform account, created automatically on first sign-in            | Carries a global role, an OIDC subject, an email, and flags for blocked and anonymised             |
-| **Preferences** | One row per user: theme, language, and the currently selected profile | The selected profile is what tells the application which project you are working in                |
-| **Profile**     | The link between one user and one project                             | Carries the project role, a status, and an optional access window. **This is the unit of access.** |
+An event to manage. It has a **name**, an optional **start** and **end** (each a date with an optional time), and a set of enabled **options**. When both dates are set, a project is *available* while the current moment sits inside that start–end window, and *unavailable* otherwise; with no dates, it is permanently available. Disabling a project hides it and freezes everything inside, independent of its dates.
 
-### The project's world
+### Profile
 
-| Entity          | What it is                                                 | Notable                                                                                     |
-|-----------------|------------------------------------------------------------|---------------------------------------------------------------------------------------------|
-| **Project**     | The tenant: name, date range, and enabled options          | Everything below belongs to exactly one                                                     |
-| **Participant** | A person tracked in the project                            | Either `REGISTERED` or `GUEST`; may be linked to a user account; has an availability window |
-| **Group**       | A named set of participants                                | Has its own availability window, which its members can inherit                              |
-| **Vehicle**     | A vehicle available to the project                         | Plate, brand, model, availability window. Requires the `VEHICLE` option                     |
-| **Activity**    | A named occupation with a duration and a participant range | Requires the `ACTIVITY` option; can justify a movement                                      |
+A user's membership of one project. It carries the user's **project role**, an optional **access window** (start/end), and an **invitation status** (`INVITED`, `ACCEPTED`, `REJECTED`, `BLOCKED`). A profile with no access window is **permanent**; a profile with a window only grants permissions while the current moment sits inside it — a registered member is not required to be available for the whole event. A user picks one of their accepted profiles as the **active** profile; that choice is what puts them "inside" a given event.
 
-### The record
+### User
 
-| Entity               | What it is                                                                                                    | Notable                                                                                                                                   |
-|----------------------|---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| **Movement**         | A dated `IN` or `OUT` event                                                                                   | Carries a content type, and either a reason or an activity                                                                                |
-| **Movement content** | One line of a movement: a participant, optionally a vehicle, optionally the name of the group they moved with | The join that makes a movement multi-person. The group name is **copied**, not linked — a snapshot that survives later membership changes |
-| **Communication**    | A timestamped message attached to a movement or an alert                                                      | Requires the `COMMUNICATION` option                                                                                                       |
-| **Alert**            | An incident opened on the project, with a status                                                              | Requires the `ALERT` option                                                                                                               |
+Someone who can sign in. Users are **global** — the only entity that is not owned by a project. A user has a name, an email, a **global role**, and preferences (theme, language, active profile). A user may be *blocked* (cannot sign in) or *anonymized* (permanently scrubbed for data-protection reasons).
 
-### Access control tables
+### Participant
 
-Roles and permissions are **data, not code**. Four tables — global permissions, global roles, project permissions,
-project roles — plus their two mapping tables define who may do what. Adding a permission to a role is a database
-migration, not a deployment of new logic.
+A person taking part in an event. A participant has a **name**, a **birthday** (used for the "majors vs minors" split and the birthdays panel), an optional **availability window**, and a **type**:
 
-## Two ideas that recur everywhere
+- **`REGISTERED`** — enrolled for the event. Their normal state is *present*; they generate `OUT` movements when they leave and `IN` movements when they return. Leaving is not final — unless the movement is specifically justified as a **definitive departure** (see below).
+- **`GUEST`** — a visitor. Their normal state is *off-site*; they generate `IN` movements when they arrive and `OUT` movements when they leave. A guest's departure is always **final**: once a guest checks `OUT`, they are gone for good — there is no equivalent of the registered participant's temporary absence.
 
-### Visibility — the soft disable
+A participant may optionally be **linked to a user account**, but most participants are not users. A participant's availability window is optional; attending for the whole event is not required — see [Availability windows: priority and date resolution](#availability-windows-priority-and-date-resolution) for what applies when it's unset.
 
-Nearly every entity carries a visibility flag, and nearly every feature exposes *disable* and *enable* alongside
-*delete*. The distinction is deliberate:
+### Group
 
-|                    | Disable                                         | Delete                        |
-|--------------------|-------------------------------------------------|-------------------------------|
-| Reversible         | ✅                                              | ❌                            |
-| Keeps history      | ✅                                              | ❌                            |
-| Who may            | Depends on the feature — often coordinators too | Administrators, almost always |
-| Effect on presence | A hidden movement stops counting                | The movement never existed    |
+A named set of participants — a team, a unit, a tent. A group's own availability window is optional (see [Availability windows](#availability-windows-priority-and-date-resolution)) and it is used to **move and count people together**: selecting a group in a movement expands to its members. Registry tracks how many members are currently inside vs outside.
 
-Disabling is the everyday tool. Deletion is for genuine mistakes and for honouring erasure.
+### Movement — the core record
 
-### Availability windows
+A **check-in or check-out event**. Each movement has:
 
-Participants, groups, vehicles and activities all carry an optional start and end. The window decides whether the
-element is part of *today*:
+- a **timestamp** (defaults to "now");
+- a **direction** — `IN` or `OUT`;
+- a **content type** — `REGISTERED` or `GUEST`;
+- a **set of participants** (chosen directly or by expanding groups), optionally each assigned to a **vehicle**;
+- a **pool label** on each participant entry — a snapshot of the name of the group (in full or in part) that was expanded to produce it, captured at the moment of the movement. It has nothing to do with the vehicle or with car-sharing: it exists so a later change to a group's membership never has to be reconciled against past movements — the movement simply remembers what it recorded at the time;
+- a **justification** — either a free **reason** or a linked **activity** (never both), whenever the movement takes a participant *away* from their normal state. When a movement simply **returns** someone to their normal state (a registered participant coming back `IN`, or a guest going `OUT`), justification isn't merely optional or left blank — **there is no reason/activity field to fill in at all** for that movement.
 
-- Inside the window → the element participates normally, and its presence is derived from its movements.
-- Outside it → the element reads as `UNAVAILABLE`, whatever its movements say.
-- A participant with **no window of its own inherits from its groups** — the earliest start and latest end among the
-  visible groups it belongs to.
-- A participant with no window and no group is treated as unavailable. Availability is opt-in, not assumed.
+Movements are what the dashboard reads to compute presence. A special reason, **definitive departure**, marks a *registered* participant as gone for good — the equivalent state a guest reaches automatically on every `OUT`.
 
-Every window must also sit **inside the project's own date range**, which is why changing a project's dates is refused
-when existing elements would fall outside the new range.
+### Vehicle *(option)*
 
-## Lifecycles
+A vehicle available to the event: **licence plate**, **brand**, **model**, and an optional availability window (see [Availability windows](#availability-windows-priority-and-date-resolution)). Like participants, a vehicle is *in* or *out* depending on its latest movement, feeding the vehicle-presence card on the dashboard.
 
-### A profile
+### Activity *(option)*
 
-```mermaid
-stateDiagram-v2
-    [*] --> INVITED: administrator invites
-    INVITED --> ACCEPTED: user accepts
-    INVITED --> REJECTED: user declines
-    ACCEPTED --> BLOCKED: administrator blocks
-    BLOCKED --> ACCEPTED: administrator unblocks
-    ACCEPTED --> [*]: removed
-    REJECTED --> [*]: removed
-```
+A planned activity or outing: **name**, **description**, a **duration**, an optional availability window (see [Availability windows](#availability-windows-priority-and-date-resolution)), and an **allowed-participants range** (minimum/maximum). An activity can be used as the reason for a movement, tying an outing to the people who went on it.
 
-Only `ACCEPTED` grants rights — and only while the access window is open. A profile created by **creating a project**,
-or as a **support profile**, starts at `ACCEPTED` directly; there is nobody to invite.
+### Communication *(option)*
 
-### An alert
+A timestamped **message** attached to either a movement or an alert (at least one of the two). Communications form the discussion thread around an operational event.
 
-```mermaid
-stateDiagram-v2
-    [*] --> IN_PROGRESS: opened
-    IN_PROGRESS --> RESOLVED: closed successfully
-    IN_PROGRESS --> CANCELED: closed as a false alarm
-```
+### Alert *(option)*
 
-An alert's content can only be edited while it is `IN_PROGRESS`, and only an `IN_PROGRESS` alert can receive new
-communications. Closing one freezes it.
+An **incident**: a **title**, a **timestamp**, and a **status** (`IN_PROGRESS`, `RESOLVED`, `CANCELED`). Alerts are raised from a movement's discussion and then tracked to resolution, with their own communication thread.
 
-### A participant's presence
+## Availability windows: priority and date resolution
 
-```mermaid
-stateDiagram-v2
-    [*] --> UNAVAILABLE: outside the availability window
-    UNAVAILABLE --> OUT: window opens, no movement yet
-    OUT --> IN: an IN movement is recorded
-    IN --> OUT: an OUT movement is recorded
-    IN --> UNAVAILABLE: window closes
-    OUT --> UNAVAILABLE: window closes or definitive departure
-```
+Every availability window in Registry — project, participant, group, vehicle, activity — and every profile's access window share the same shape: an optional **start** and **end**, each a date with an optional time. But they don't all resolve the same way, and dates are important enough in Registry to spell this out explicitly.
 
-Nothing in this diagram is stored. Each transition is a consequence of a movement being recorded, hidden or deleted, or
-of the clock passing an availability boundary.
+### Priority: the most specific element wins
 
-## Referential rules
+When an element has its own window, that window governs, full stop. When it doesn't, availability **falls back to the next level up**:
 
-A handful of constraints keep the graph honest, and they surface as errors across many features:
+- **Vehicle** → falls back to its **project's** window.
+- **Activity** → falls back to its **project's** window.
+- **Group** → falls back to its **project's** window.
+- **Participant** → falls back to the window of the **group(s)** it belongs to → falls back to its **project's** window. A participant who belongs to **more than one** group and has no window of their own is available whenever **any** of those groups covers the current moment — the union, not the intersection (the most permissive reading).
+- **Project** sits at the top of that chain: with no window of its own, it is **permanently available** — there is nothing left to fall back to.
+- **Profile** is the one exception, not part of that chain at all: a profile's access window is **independent of its project's**. This is deliberate — it must be possible to grant access before a project opens or after it closes (setup or wrap-up staff). A profile with no window of its own is simply **permanent**.
 
-- **No cross-project references, ever.** A movement can only reference participants, vehicles and activities of its own
-  project.
-- **Only visible elements can be referenced** by a new movement, group membership or communication.
-- **A user may be linked to at most one participant per project.**
-- **A group can never become empty** — removing or disabling the last member is refused. Delete the group instead.
-- **Things that were used cannot simply vanish**: participants, vehicles and activities that appear in a movement, and
-  alerts that carry communications, refuse deletion.
-- **The last administrator is protected** — on both planes. The last global administrator cannot be demoted, blocked,
-  anonymised or deleted; the last administrator of a project cannot lose that project.
+In short: a window only has to be set once, at whichever level is most convenient, and everything below it inherits it until something more specific overrides it. Only reaching the top of a chain (project, or profile independently) with still no dates means "permanently available."
+
+### Date-without-time defaults
+
+A window's `start` or `end` may be given as a date with no time — but never the other way round: a time supplied without a date is rejected (the same `@DateDefinedForTime` rule already enforced on a movement's own timestamp applies to every availability window).
+
+When a bound is date-only:
+
+- a **start** date defaults to `00:00:00.000`;
+- an **end** date defaults to `23:59:59.999…` (end of day);
+- both are resolved in **the same timezone as the moment they're compared against** — not a fixed timezone — so a project opening on "2026-07-10" means midnight local to whoever's request is being evaluated, not midnight UTC.
+
+## Status vocabulary
+
+These are the enumerations that appear throughout the product.
+
+| Enumeration | Values | Meaning |
+| ----------- | ------ | ------- |
+| **Movement type** | `IN`, `OUT` | Direction of a check-in/out. |
+| **Participant type** | `REGISTERED`, `GUEST` | Enrolled participant vs visitor — they move in opposite directions. |
+| **Presence status** | `IN`, `OUT`, `UNAVAILABLE` | A participant's or vehicle's live state, derived from movements and the availability window. |
+| **Availability status** | `AVAILABLE`, `UNAVAILABLE` | Whether a project, participant, group, vehicle, activity or profile is within its active window — its own if set, otherwise inherited (see [Availability windows: priority and date resolution](#availability-windows-priority-and-date-resolution)). |
+| **Profile status** | `INVITED`, `ACCEPTED`, `REJECTED`, `BLOCKED` | Lifecycle of a project membership. |
+| **Alert status** | `IN_PROGRESS`, `RESOLVED`, `CANCELED` | Lifecycle of an incident. |
+| **Movement reason** | `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT`, `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` | Why a movement happened. Each reason is valid only for a specific direction and participant type. |
+| **Project option** | `VEHICLE`, `ACTIVITY`, `COMMUNICATION`, `ALERT` | The optional modules an event can enable. |
+| **User type** | `USER`, `SERVICE_ACCOUNT` | A human account vs the system's own job-runner. |
+| **Theme** | `SYSTEM`, `LIGHT`, `DARK` | A user's interface preference. |
+
+### How reasons pair with direction and type
+
+A movement's reason must be coherent with its direction and participant type — this is enforced, not merely advised:
+
+| Reason | Applies to | Direction |
+| ------ | ---------- | --------- |
+| `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` | Registered participants leaving | `OUT` |
+| `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT` | Guests arriving | `IN` |
+
+A registered participant with no reason and no activity is assumed to be **returning** (`IN`); a guest with no reason is assumed to be **leaving** (`OUT`). The [Movements feature](/registry/functional/features/movements) covers these rules in full.

@@ -1,158 +1,147 @@
 # Workflows
 
-Feature pages describe rules. This page describes **journeys** — the sequences people actually live through, and the order in which the rules bite.
+These are the end-to-end journeys Registry exists to support, each expressed as a **Gherkin scenario spanning multiple features** — unlike the scenarios under [Features](/registry/functional/features/projects), which each test one rule of one feature in isolation, these trace a full actor journey the way an end-to-end test would. Where a step depends on a permission, the [Roles & Permissions](/registry/functional/roles-and-permissions) matrix governs it.
 
-## 1. Signing in for the first time
+## W1 — Signing in for the first time
 
-Nobody creates your account. You sign in, and it appears.
+*One login screen, no Registry-specific password, and zero manual account creation.*
 
-```mermaid
-sequenceDiagram
-    actor U as New user
-    participant R as Registry
-    participant I as Identity provider
-    U ->> R: Open the application
-    R ->> U: Redirect to the provider
-    U ->> I: Authenticate
-    I ->> R: Authorization code
-    R ->> I: Exchange code for tokens
-    R ->> R: No account for this subject — look up by email
-    R ->> R: None found — create the account with the default role
-    R ->> U: Signed in, with no project yet
+```gherkin
+Scenario: A new user signs in for the first time and lands on an empty project list
+  Given I have never signed in to Registry before
+  When I authenticate through the central identity provider and am redirected back
+  Then my account is created automatically with the default USER role
+  And I land on my project list, which is empty
+  And I am prompted to create a project or check my invitations
 ```
 
-You land with the global `USER` role, which grants exactly one meaningful thing: **you may create a project.**
+## W2 — Creating and configuring an event
 
-Three things can stop you at the door: your account has been blocked, your account has been anonymised, or two accounts already share your email address. In each case sign-in is refused rather than guessed at.
+*Getting from "I need to run an event" to "I'm administering it" takes one form and no approval.*
 
-## 2. Standing up a project
-
-The organiser's journey, done once, well before anyone arrives.
-
-```mermaid
-flowchart TD
-    A["Create the project<br/>name · dates · options"] --> B["Become its PROJECT_ADMINISTRATOR<br/>automatically"]
-    B --> C["Register participants"]
-    C --> D["Arrange them into groups"]
-    D --> E{"Options enabled?"}
-    E -->|VEHICLE| F["Add vehicles"]
-    E -->|ACTIVITY| G["Create activities"]
-    B --> H["Invite the team"]
-    H --> I["Each invitee accepts<br/>and gains access"]
+```gherkin
+Scenario: A signed-in user creates a project and starts administering it
+  Given I am a signed-in user
+  When I create a project named "Summer Gathering 2026" (dates are optional; I set them here)
+  And I enable the ACTIVITY and COMMUNICATION options together, respecting their dependency
+  Then the project is created
+  And I am granted a PROJECT_ADMINISTRATOR profile on it
+  And I land directly inside the event I just created
 ```
 
-Three things are worth knowing before you start:
+## W3 — Inviting staff
 
-- **Creating a project makes you its administrator**, through a real profile that appears in the profile list like any other. There is no implicit ownership.
-- **Options have dependencies.** `COMMUNICATION` needs `ACTIVITY`; `ALERT` needs both. Asking for alerts alone is refused, with the missing options named.
-- **The project's dates constrain everything.** Every participant window, group window, movement, communication and alert must fall inside them — which is why narrowing the dates later is refused if anything would fall outside.
+*The organizer delegates precisely — the right people, the right power, only for the right dates.*
 
-## 3. Getting someone onto a project
-
-Access is always a two-party act: an administrator offers, the user accepts.
-
-```mermaid
-sequenceDiagram
-    actor A as Administrator
-    participant R as Registry
-    actor G as Guest user
-
-    A->>R: Search users, choose a role and an access window
-    R->>R: Refuse any role stronger than the administrator's own
-    R->>R: Refuse users whose window would overlap an existing profile
-    R->>A: Report who was invited, and who was skipped
-    R->>G: Invitation appears in "my invitations"
-    G->>R: Accept
-    R->>G: Rights granted — from now until the window closes
+```gherkin
+Scenario: An administrator invites staff with a role and an optional access window
+  Given I am the PROJECT_ADMINISTRATOR of a project
+  When I invite users "alice" and "bob" as PROJECT_COORDINATOR
+  And I set an access window narrower than the project's own — a profile's dates are independent of the project's
+  Then an INVITED profile is created for each, with no permission yet
+  When "alice" accepts her invitation
+  Then she gains the PROJECT_COORDINATOR role and can select this project as her active one
 ```
 
-Two behaviours regularly surprise people:
+## W4 — Registering participants and organizing groups
 
-- **Inviting several users at once is partial by design.** Users who already have an overlapping profile are silently skipped, and the response reports both lists. The invitation is not rejected wholesale because one person was already there.
-- **An invitation grants nothing until accepted**, and access ends by itself when the window closes. Nobody has to remember to revoke it.
+*The roster is set up once, and groups make every later headcount and movement faster.*
 
-## 4. A day on the gate
-
-The loop that the product exists for.
-
-```mermaid
-flowchart LR
-    S(["Select your profile"]) --> D["Read the dashboard<br/>who is here, who is out"]
-    D --> O["Six leave for the supermarket<br/>OUT · reason SHOPPING"]
-    D --> V["A supplier arrives<br/>IN · reason LOGISTICS · guests captured"]
-    O --> B["They come back<br/>IN · no reason needed"]
-    V --> W["The supplier leaves<br/>OUT · guest exit"]
-    B --> D
-    W --> D
+```gherkin
+Scenario: Participants without their own dates inherit their group's availability
+  Given I am a PROJECT_COORDINATOR on a project
+  When I register participants "Ana", "Ben" and "Cora" with no availability window of their own
+  And I create a group "Tent 1" containing all three, with its own availability window
+  Then each participant's availability falls back to Tent 1's window
+  When I later select the group "Tent 1" in a movement
+  Then it expands to its current members
 ```
 
-The **selected profile** is the pivot of the whole session: it decides which project you are operating on. Without one, the movement and configuration screens refuse to open and tell you to pick a project first.
+## W5 — Recording a movement (the core loop)
 
-Once you are in, the loop is: read the dashboard, record what happens, watch the dashboard change. Presence is recomputed from the movement log on every read, so the counters are never stale and never need reconciling.
+*This is the action the whole product is built around — it must be quick, and it must keep the live count honest.*
 
-::: tip Correcting a mistake
-Recorded a movement in the wrong direction? You cannot flip it — hide it and record it again the right way round. Hiding removes it from the presence computation and is reversible, which makes it the safe correction. Deleting is permanent and reserved to administrators and coordinators.
-:::
-
-## 5. Handling an incident
-
-Available only when the project has the `ALERT` option — which in turn requires `COMMUNICATION` and `ACTIVITY`.
-
-```mermaid
-stateDiagram-v2
-    [*] --> Open : Someone opens an alert
-    Open --> Open : Communications are attached as the situation develops
-    Open --> Resolved : Situation handled
-    Open --> Canceled : False alarm
-    Resolved --> [*]
-    Canceled --> [*]
+```gherkin
+Scenario: A registered participant leaves and must be justified
+  Given I am signed in with movement-create permission on the project
+  And a registered participant "Alex" is currently IN
+  When I record an OUT movement for "Alex"
+  Then I must provide either a reason or a linked activity to justify it
+  And, if the VEHICLE option is enabled, I may attach a vehicle and its driver
+  And on save, the dashboard headcount updates immediately
 ```
 
-While an alert is open, anyone with a profile can add communications to it. Closing it — resolved or cancelled — **freezes it**: its content can no longer be edited and no new communication can be attached. An alert that carries communications cannot be deleted at all; the record of an incident survives the incident.
-
-## 6. Winding a project down
-
-There are three different endings, and they are not interchangeable.
-
-| Ending | What happens | Who can | Reversible |
-| ------ | ------------ | ------- | :--------: |
-| **Disable** | The project drops out of everyone's world. Its administrator keeps only the ability to read, re-enable or delete it — everything inside becomes unreachable, even for them | Administrator | ✅ |
-| **Delete** | The project and everything in it is removed permanently | Administrator | ❌ |
-| **Purge** | The retention job removes projects and content untouched past the threshold | Scheduled job | ❌ |
-
-Disabling is the graceful option: it stops the project being used without destroying anything, and it can be undone.
-
-## 7. Leaving the platform
-
-Two doors, and the difference matters.
-
-```mermaid
-flowchart TD
-    subgraph Self["The user themselves"]
-      A["Anonymise my account"] --> B["Personal data replaced with random values<br/>account marked anonymised"]
-      B --> C["Future sign-in refused"]
-    end
-    subgraph Admin["A platform administrator"]
-      D["Anonymise an account"] --> B
-      E["Delete an account"] --> F["Account removed entirely"]
-    end
+```gherkin
+Scenario: A registered participant returns to their normal state with nothing to justify
+  Given a registered participant "Alex" is currently OUT
+  When I record an IN movement for "Alex"
+  Then there is no reason or activity field to fill in — the movement simply restores their normal presence
+  And on save, "Alex" is counted as present again
 ```
 
-Anonymisation severs the identity but keeps the account row — so the history that references it stays coherent, with nobody's name on it. Deletion removes the account outright.
+## W6 — Checking a guest in and out
 
-Both doors are guarded by the same rule: **the last administrator cannot walk through them.** Neither the last global administrator, nor anyone who is the last administrator of a project, can be anonymised or deleted. Hand the role over first.
+*Visitors are counted without being enrolled as full participants, so the "who is on site" number is always complete.*
 
-## 8. The nightly retention pass
+```gherkin
+Scenario: A guest arrives and later leaves for good
+  Given no guest named "Sam Doe" exists yet
+  When I record an IN movement of content type GUEST, entering "Sam Doe"'s name and birthday, justified by reason VISIT
+  Then "Sam Doe" is created and counted as present
+  When I later record an OUT movement referencing "Sam Doe", with nothing to justify it
+  Then "Sam Doe" is counted as off-site — definitively, since a guest's departure is always final
+```
 
-Four independent sweeps, each with its own schedule and its own threshold, running in a deliberate order.
+## W7 — Watching the live picture
 
-| Sweep | Removes | Default threshold |
-| ----- | ------- | ----------------- |
-| Users | Accounts with no sign-in since the threshold | 12 months |
-| Projects | Projects untouched since the threshold | 12 months |
-| Project content | Movements, communications and alerts | 12 months |
-| Project configuration | Vehicles, activities, groups and participants | 12 months |
+*A single screen answers "who is here right now, and is anything wrong?"*
 
-Content is purged before configuration for a reason: participants and vehicles refuse deletion while a movement still references them, so the movements have to go first.
+```gherkin
+Scenario: Anyone on the project reads the live dashboard
+  Given I hold any of the three project roles
+  When I open the project's home page
+  Then I see present vs absent participants, split registered/guest and majors/minors
+  And, if VEHICLE is enabled, vehicle presence
+  And today's birthdays
+  And, if ALERT is enabled, a banner of alerts currently in progress
+  And I can reverse a mistaken check-in/out in one click from the in-progress movements list
+```
 
-Every sweep accepts a **dry run**, which reports exactly what would be removed and touches nothing. It is the only sensible way to run one for the first time.
+## W8 — Raising and resolving an alert
+
+*Incidents get a visible owner, a clock, and a paper trail instead of being lost in chat.*
+
+```gherkin
+Scenario: An incident is escalated from a discussion and resolved
+  Given the ALERT option is enabled and a movement's discussion thread contains a message about a problem
+  When I escalate that message into an alert titled "Missing participant at checkpoint"
+  Then the alert appears IN_PROGRESS, with a running "since" timer and its own communication thread
+  When the team discusses it there and a PROJECT_COORDINATOR marks it RESOLVED
+  Then the timer stops
+```
+
+## W9 — Administering users (platform)
+
+*Account hygiene and data-protection obligations are handled with safe, auditable, reversible-where-appropriate controls.*
+
+```gherkin
+Scenario: Platform staff manage the account directory
+  Given I am a global USER_ADMINISTRATOR
+  When I change a user's global role, block a departed account, or anonymize one on a data-deletion request
+  Then the action succeeds
+  But an attempt to remove or demote the last platform administrator is refused
+  And a blocked or anonymized user can no longer sign in
+```
+
+## W10 — Personal preferences
+
+*The tool adapts to the person, and their context travels with their account rather than their browser.*
+
+```gherkin
+Scenario: A user adapts Registry to themselves
+  Given I am any signed-in user
+  When I open Settings and switch my language and theme
+  Then the choice is saved to my account and follows me to any device
+  When I switch my active project profile, or leave a project I no longer help with
+  Then that choice takes effect immediately
+```

@@ -1,141 +1,107 @@
 # Feature: Participants
 
-> A participant is a person the project is responsible for. Eighty teenagers at a camp, forty volunteers at a festival,
-> the supplier who came through the gate at 11:04 — all of them are participants, in one of two flavours.
+## 1. Overview
 
-**Who this is for:** everyone with a profile. Registering people is the second-most-common gesture in the product, after
-recording their movements.
+- **Goal:** A participant is a person taking part in the event — the unit Registry counts, moves and displays on the live headcount. Staff register each person once, with a name, a birthday and an availability window, and mark them as *registered* (enrolled) or a *guest* (visitor). From there the dashboard derives who is present, splits majors from minors, and highlights today's birthdays, all without anyone maintaining a status by hand.
+- **Who uses it:** `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` manage participants fully and review their movement history; `PROJECT_PARTICIPANT` (check-in staff) can register and read them.
+- **Option required:** None — always available. Participants are part of the core.
 
-## Who can do what
+## 2. Roles & Permissions
 
-| Role                    | May do                                                                                              | Limits                                 |
-|-------------------------|-----------------------------------------------------------------------------------------------------|----------------------------------------|
-| `PROJECT_ADMINISTRATOR` | Create · Read · Update · Disable · Enable · **Delete** · read **history** · search users and groups | This project only                      |
-| `PROJECT_COORDINATOR`   | Create · Read · Update · Disable · Enable · read **history** · search users and groups              | Cannot delete                          |
-| `PROJECT_PARTICIPANT`   | Create · Read · Update · Disable · Enable · search users and groups                                 | **Cannot read history**, cannot delete |
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — plus *History* (view a participant's movement history). See [Roles & Permissions](/registry/functional/roles-and-permissions) and [Domain Model → Participant](/registry/functional/domain-model#participant).
 
-Movement history is the line between the coordinator and the participant role: the gatekeeper records what is happening
-now, but does not get to review where someone has been.
+| Role | Permitted actions | Conditions / Scope |
+| ---- | ----------------- | ------------------ |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Full control, scoped to the project (`REGISTRY_...PARTICIPANT_C/R/U/D`, `REGISTRY_PROJECT_PARTICIPANT_HISTORY_R`). |
+| `PROJECT_COORDINATOR` | **C R U D** + History | Same operational rights as the administrator for participants. |
+| `PROJECT_PARTICIPANT` | **C R** | Register new people and read them; cannot edit, disable or delete, and cannot view movement history. |
 
-## Registered people and guests
+## 3. Business rules
 
-|                        | `REGISTERED`                                 | `GUEST`                                         |
-|------------------------|----------------------------------------------|-------------------------------------------------|
-| Who                    | Someone the project expects                  | An outsider passing through                     |
-| Created by             | Registering them, before or during the event | The **entrance movement** that brings them in   |
-| Baseline               | On site                                      | Elsewhere                                       |
-| Lives beyond the visit | Yes                                          | Effectively no — their story ends at their exit |
+- **`firstName` and `lastName`** identify the participant.
+- **`birthday` is required** and **cannot be in the future** (`@PastOrPresent`).
+- **Availability window is optional.** With no window of its own, a participant inherits their group's window (union across all groups they belong to, if several), falling back to the project's if that's also unset — see [Domain Model → Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution). When both `start` and `end` are set, `start` must be **before** `end` (`@StartBeforeEnd`).
+- **Type.** Each participant is `REGISTERED` or `GUEST`. A `REGISTERED` participant's normal state is *present* (they generate `OUT` movements when leaving); a `GUEST`'s normal state is *off-site* (they generate `IN` movements when arriving). See [Domain Model → Participant](/registry/functional/domain-model#participant).
+- **Optional user link.** A participant may or may not be linked to a real user account; **most are not**. Linking pre-fills the participant's name from the account and **locks** the name fields.
+- **Disabling is a soft, reversible action.** A disabled participant is hidden but can be re-enabled.
+- **Derived presence.** Presence status (`IN` / `OUT` / `UNAVAILABLE`) is computed from the participant's latest movement and their availability window — it is never set directly.
+- **Derived age split.** Major vs minor is computed from `birthday`, driving the dashboard "majors vs minors" panel and the today's-birthdays panel.
 
-Guests are never created through this feature; they arrive attached to a movement.
-See [Movements](/registry/functional/features/movements).
-
-## What a participant carries
-
-A first name, a last name and a **birthday** — all required. The birthday is not decoration: it drives the adult/minor
-split on the dashboard and the rule that only adults may drive.
+## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: Refusing a birthday in the future
-  When I register a participant with a birthday in the future
-  Then the participant is rejected
-
-Scenario: Registering a participant
-  Given I hold a profile on the project
-  When I register a participant with a first name, last name and birthday
-  Then the participant is created in this project
+Scenario: Check-in staff register a new participant
+  Given I am a PROJECT_PARTICIPANT on a project
+  When I register "Jordan Lee" born 2010-05-04 as a REGISTERED participant
+  Then the participant is created
+  And their normal presence state is present
 ```
-
-### Availability windows
-
-A participant's window says when they are part of the event. Outside it they read as `UNAVAILABLE` — neither present nor
-absent, simply not part of today's count.
-
-Three rules govern it:
-
-- The window must sit **inside the project's date range**.
-- A start without an end, or an end without a start, is fine; a **time without its date** is not.
-- A participant with **no window of their own inherits from their groups** — the earliest start and the latest end among
-  the visible groups they belong to. With no window and no group, they read as unavailable.
 
 ```gherkin
-Scenario: Refusing a window outside the project
-  When I give a participant an availability window that starts before the project does
-  Then the update is rejected
-
-Scenario: Inheriting availability from a group
-  Given a participant has no availability window of their own
-  And they belong to a group available for the whole event
-  Then they read as available for the whole event
+Scenario: A birthday in the future is rejected
+  Given I am registering a participant
+  When I set the birthday to a date after today
+  Then the request is rejected by the @PastOrPresent validator
+  And no participant is created
 ```
-
-### Linking to a user account
-
-A participant may be linked to a platform user — the person is both a registered attendee and someone who signs in. **At
-most one participant per user, per project**; the same person cannot be registered twice.
 
 ```gherkin
-Scenario: Refusing a second participant for the same user
-  Given a participant in this project is already linked to that user
-  When I link a second participant to them
-  Then the request is rejected
+Scenario: A missing birthday is rejected
+  Given I am registering a participant
+  When I submit without a birthday
+  Then the request is rejected because birthday is required
 ```
-
-## Editing someone who already has a history
-
-Names, birthday, groups, linked user and availability can all be corrected — but the availability window is checked
-against the movements already recorded.
-
-You may shorten or move a window **only within the bounds of what already happened**. If a participant has a movement on
-Friday, their window cannot be pulled back to Thursday: the movement would fall outside the period they were supposedly
-present. Registry names the offending movement in the error, and the way out is to delete that movement first.
 
 ```gherkin
-Scenario: Refusing a window that strands an existing movement
-  Given a participant has a movement recorded on the last day of their window
-  When I shorten their window to end before that movement
-  Then the update is rejected and the conflicting movement is named
+Scenario: The availability start must be before its end
+  Given I am registering a participant
+  When I set the availability start after its end
+  Then the request is rejected by the @StartBeforeEnd validator
 ```
-
-## Reading a participant
-
-Beyond the list and the detail, two reads are worth naming:
-
-- **Birthdays** — who is celebrating during the event. A small feature that matters enormously at a summer camp.
-- **Movement history** — every movement the participant appears in, filterable by direction, dates, visibility and
-  whether it was tied to an activity. Administrators and coordinators only.
-
-Lists are searched by fuzzy text on names and can be filtered by presence status, type, adult or minor, and a point in
-time.
-
-## Disabling and deleting
-
-Disabling hides someone from day-to-day lists without touching history — the tool for the person who cancelled at the
-last minute. Deleting is permanent and heavily guarded:
-
-| Guard                                                                             | Why                                                                 |
-|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
-| A participant with **any movement** cannot be deleted                             | Deleting them would rewrite the presence record                     |
-| A participant who is the **last member of a group** cannot be deleted or disabled | Groups are never allowed to become empty — delete the group instead |
 
 ```gherkin
-Scenario: Refusing to delete a participant with a movement
-  Given a participant appears in at least one movement
-  When I try to delete them
-  Then the request is rejected
-
-Scenario: Refusing to disable the last member of a group
-  Given a participant is the only member of a group
-  When I try to disable them
-  Then the request is rejected
-
-Scenario: Denying deletion to a coordinator
-  Given I hold the PROJECT_COORDINATOR role
-  When I try to delete a participant
-  Then the request is denied
+Scenario: Linking a participant to a user locks the name
+  Given I am editing a participant
+  When I link the participant to a user account
+  Then the first and last name are pre-filled from the account
+  And the name fields become read-only
 ```
 
-## Related
+```gherkin
+Scenario: A participant cannot edit or delete participants
+  Given I am a PROJECT_PARTICIPANT on a project
+  When I try to update or delete an existing participant
+  Then the action is refused
+```
 
-- [Movements](/registry/functional/features/movements) — where presence comes from, and where guests are born
-- [Groups](/registry/functional/features/groups) — organising participants, and inherited availability
-- [Data Retention](/registry/functional/features/data-retention) — how unused participants are purged
+```gherkin
+Scenario: A coordinator reviews a participant's movement history
+  Given I am a PROJECT_COORDINATOR on a project
+  When I open a participant's movement history
+  Then I see their past check-in and check-out movements
+```
+
+```gherkin
+Scenario: Today's-birthdays panel lists participants born on this day
+  Given several participants are registered with various birthdays
+  When the dashboard requests today's birthdays
+  Then it returns only the participants whose birthday falls on today's date
+```
+
+## 5. API surface
+
+Project-scoped endpoints live under `/api/v2/projects/{projectId}/participants/...`, secured by the holder's project-scoped permission. See [Technical → API Reference](/registry/technical/api-reference).
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| `GET` | `/participants` | List participants | scoped `REGISTRY_PROJECT_PARTICIPANT_R` |
+| `GET` | `/participants/birthdays` | List participants whose birthday is today | scoped `REGISTRY_PROJECT_PARTICIPANT_R` |
+| `GET` | `/participants/{id}` | Read a single participant | scoped `REGISTRY_PROJECT_PARTICIPANT_R` |
+| `GET` | `/participants/linkable-users?q=` | Search users to link | scoped `REGISTRY_PROJECT_PARTICIPANT_METADATA_R` |
+| `GET` | `/participants/linkable-groups?q=` | Search groups to join | scoped `REGISTRY_PROJECT_PARTICIPANT_METADATA_R` |
+| `GET` | `/participants/{id}/movements` | Read a participant's movement history | scoped `REGISTRY_PROJECT_PARTICIPANT_HISTORY_R` |
+| `POST` | `/participants` | Register a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_C` |
+| `PATCH` | `/participants/{id}` | Update a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_U` |
+| `POST` | `/participants/{id}/disable` | Soft-disable a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_U` |
+| `POST` | `/participants/{id}/enable` | Re-enable a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_U` |
+| `DELETE` | `/participants/{id}` | Delete a participant | scoped `REGISTRY_PROJECT_PARTICIPANT_D` |
