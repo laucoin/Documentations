@@ -234,7 +234,70 @@ export default withMermaid(
         {
           text: "Functional",
           collapsed: false,
-          items: [{ text: "Overview", link: "/registry/functional/" }],
+          items: [
+            { text: "Overview", link: "/registry/functional/" },
+            { text: "Personas", link: "/registry/functional/personas" },
+            {
+              text: "Roles & Permissions",
+              link: "/registry/functional/roles-and-permissions",
+            },
+            { text: "Domain Model", link: "/registry/functional/domain-model" },
+            { text: "Workflows", link: "/registry/functional/workflows" },
+            {
+              text: "Features",
+              collapsed: false,
+              items: [
+                {
+                  text: "Projects",
+                  link: "/registry/functional/features/projects",
+                },
+                {
+                  text: "Project Profiles",
+                  link: "/registry/functional/features/project-profiles",
+                },
+                {
+                  text: "Participants",
+                  link: "/registry/functional/features/participants",
+                },
+                {
+                  text: "Groups",
+                  link: "/registry/functional/features/groups",
+                },
+                {
+                  text: "Movements",
+                  link: "/registry/functional/features/movements",
+                },
+                {
+                  text: "Vehicles",
+                  link: "/registry/functional/features/vehicles",
+                },
+                {
+                  text: "Activities",
+                  link: "/registry/functional/features/activities",
+                },
+                {
+                  text: "Communications",
+                  link: "/registry/functional/features/communications",
+                },
+                {
+                  text: "Alerts",
+                  link: "/registry/functional/features/alerts",
+                },
+                {
+                  text: "Users",
+                  link: "/registry/functional/features/users",
+                },
+                {
+                  text: "Preferences",
+                  link: "/registry/functional/features/preferences",
+                },
+                {
+                  text: "Data Retention",
+                  link: "/registry/functional/features/data-retention",
+                },
+              ],
+            },
+          ],
         },
         {
           text: "Technical",
