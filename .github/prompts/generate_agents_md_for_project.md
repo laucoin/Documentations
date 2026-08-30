@@ -89,6 +89,9 @@ Strict separation must be maintained between documentation/specs and implementat
 - **FORBIDDEN:** Do not modify documentation files during code implementation steps.
 
 ## 4. Git Strategy & GitHub Stacked PRs Execution
+
+> **Terminology:** "stack PR" / "stacked PR" refers to [GitHub Stack](https://github.blog/changelog/2025-08-19-stacked-pull-requests-public-preview/) (GitHub's native stacked-PR feature), not a third-party stacking tool. Generated `AGENTS.md` files must preserve this meaning wherever they describe stacking.
+
 Each PR must represent the **smallest testable feature** to ensure fast, hazard-free code reviews:
 
 1. **Stack Branching:** For step $N$, create branch `feat/<feature>/0N-<step-name>` branching from `0N-1` (or `main` for step 1).

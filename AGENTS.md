@@ -175,6 +175,8 @@ labelled sections:
 
 ## Git Strategy — Stacked PRs
 
+> **Terminology:** "stack PR" / "stacked PR" refers to [GitHub Stack](https://github.blog/changelog/2025-08-19-stacked-pull-requests-public-preview/) (GitHub's native stacked-PR feature), not a third-party stacking tool.
+
 Any task spanning more than one independently reviewable change (e.g. a project's functional **and** technical docs, or
 several unrelated fixes) must be split into the smallest reviewable units and stacked as sequential PRs — never bundled
 into one large PR:
