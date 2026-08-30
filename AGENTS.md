@@ -4,12 +4,23 @@ This file documents conventions for AI agents (Claude Code, Copilot, etc.) worki
 
 ## General AI Rules & Workflow
 
-1. **Language:** All documentation across all projects (functional, technical, landing pages) **must be written strictly in English**.
+1. **Language:**
+   - **Conversation:** Reply to the user in whichever language they use to write to you.
+   - **Edits:** Every file written to this repository (functional, technical, landing pages, commit messages, code comments) **must be strictly in English**, regardless of the language the user asked in or requested it in.
 2. **Interactive First:** Always guide the user interactively. Present structured choices/options and ALWAYS include an `"Other (please specify)"` choice.
 3. **Sequential Documentation Flow:**
    - **Step 1 — Functional First:** Focus on complete business domain requirements, roles & permissions (RBAC), user flows (BDD Gherkin scenarios), domain entities, and functional specs in `documentation/[project-name]/functional/`.
    - **Step 2 — Technical Second:** Never draft, complete, or make technical decisions (`documentation/[project-name]/technical/`) before the functional specs and security baseline are completed and fully established.
 4. **Project Hub Context:** Remember this repository acts both as a central global documentation system and a hub to navigate between projects.
+5. **Technical Decision Protocol:** A technical choice is never a non-choice. When a decision has more than one viable option (a library, a pattern, an architecture, a data model), present at least two alternatives with their advantages/drawbacks and a recommendation — then let the user make the final call. Never silently pick one option and present it as the only path.
+
+---
+
+## Communication Style & Concision
+
+- **Absolute conciseness:** Direct, factual answers — no pleasantries, no theoretical ramblings.
+- **No jargon:** Avoid complex or academic vocabulary. Explain actions in 1–2 simple sentences.
+- **Strict scope:** Address only the requested task. Do not refactor surrounding content or fix unrelated items in passing.
 
 ---
 
@@ -18,8 +29,18 @@ This file documents conventions for AI agents (Claude Code, Copilot, etc.) worki
 | Command        | Purpose                  |
 | -------------- | ------------------------ |
 | `pnpm dev`     | Start local dev server   |
-| `pnpm build`   | Build for production     |
+| `pnpm build`   | Build for production — also the dead-link checker (see below) |
 | `pnpm preview` | Preview production build |
+
+---
+
+## Mandatory Pre-Task Validation
+
+**No task, edit, or commit may be marked complete without a clean `pnpm build` run.**
+
+1. Run `pnpm build` after any change that touches content, links, or file paths — and always before closing out a task.
+2. The build fails on dead links and broken pages. A failing build means the task is **not** done, regardless of how complete the content looks.
+3. Fix every reported error and re-run the build until it passes cleanly. Do not hand off, commit, or report completion on a red build.
 
 ---
 
@@ -49,15 +70,16 @@ This file documents conventions for AI agents (Claude Code, Copilot, etc.) worki
 
 ## Links & Cross-References
 
-All in-repo links between documentation pages **must be root-absolute** — resolved from the VitePress source root (`documentation/`, the configured `srcDir`), not relative to the current file. This keeps links intact when a page is moved or a folder is restructured; relative `./` / `../` links break the moment a file changes depth.
+All in-repo links **must be root-absolute** — resolved from the VitePress source root (`documentation/`, the `srcDir`), never relative (`./`, `../`) to the current file. Relative links break the moment a file changes depth; root-absolute links survive moves and restructures.
 
-Rules:
+| Rule                         | Wrong                          | Right                                            |
+| ---------------------------- | ------------------------------- | ------------------------------------------------- |
+| Always start with `/`        | `./architecture`, `../technical/architecture` | `/registry/technical/architecture`     |
+| Omit the `.md` extension     | `/registry/technical/adr/017-api-v2-conventions.md` | `/registry/technical/adr/017-api-v2-conventions` |
+| Trailing slash on index pages | `/registry/technical/adr`      | `/registry/technical/adr/`                        |
+| Anchors appended as-is       | n/a                              | `/registry/functional/roles-and-permissions#project-options-gating` (same-page anchors stay bare: `#section`) |
 
-- **Always start with `/`.** A page at `documentation/registry/technical/architecture.md` is linked as `/registry/technical/architecture` — never `./architecture` or `../technical/architecture`.
-- **Omit the `.md` extension.** VitePress serves extensionless clean URLs (`/registry/technical/adr/017-api-v2-conventions`).
-- **End directory/index pages with a trailing slash.** A folder's `index.md` is linked with a trailing `/` (`/registry/technical/adr/`, `/registry/technical/migration-plan/2026-07-25-plan`) — VitePress's canonical path for an index page carries the slash, and omitting it fails the dead-link check.
-- **Keep anchors as-is.** Append `#section` to the root-absolute path (`/registry/functional/roles-and-permissions#project-options-gating`). Same-page anchors stay bare (`#section`).
-- **`pnpm build` is the check.** The build fails on dead links; run it after touching links or moving pages. `.vitepress/config.mts` sidebar links already follow this convention.
+`pnpm build` is the authority: it fails on dead links. Run it after touching links or moving pages (see [Mandatory Pre-Task Validation](#mandatory-pre-task-validation)). `.vitepress/config.mts` sidebar links already follow this convention.
 
 ---
 
@@ -82,6 +104,30 @@ All inline `<style scoped>` blocks follow **OOCSS** (Object-Oriented CSS). Split
 - Use `--modifier` suffix for skin variants on the same object (`.btn--primary`, `.btn--alt`, `.badge--date`, `.badge--skill`).
 - Shared link skin across pages: `.link-brand` for brand-coloured anchor tags.
 - Shared badge pattern: `.badge` base + `.badge--date` or `.badge--skill` modifier.
+
+---
+
+## Git Strategy — Stacked PRs
+
+Any task spanning more than one independently reviewable change (e.g. a project's functional **and** technical docs, or several unrelated fixes) must be split into the smallest reviewable units and stacked as sequential PRs — never bundled into one large PR:
+
+1. **Branch per step:** `docs/<project>/0N-<step-name>`, branching from step `0N-1` (or from `main` for step 1).
+2. **One scope per PR:** each PR covers exactly one step — no unrelated changes riding along.
+3. **Clean build first:** `pnpm build` must pass (see [Mandatory Pre-Task Validation](#mandatory-pre-task-validation)) before opening each PR.
+4. **Stack the base:** open the PR against the previous step's branch, not `main`.
+5. **Confirm before continuing:** stop and get user validation before starting the next step in the stack.
+
+This mirrors the Spec-Driven Development / Stacked PR discipline defined in `.github/prompt/generate_agents_md_for_project.md` for per-project `AGENTS.md` generation.
+
+---
+
+## Error Handling & Rollback Protocol
+
+- **Spec misunderstanding:** If a change turns out to be based on a misread or outdated spec, **stop immediately**. Do not stack a correction commit on top of the wrong one — roll back (`git reset` / revert) to the last known-good state and redo the step cleanly.
+- **Scope change:** If the required scope changes mid-task, update the specification/documentation first, then implement — never code ahead of an unwritten spec change.
+- **Explain, then retry:** When rolling back, state in one sentence what was misunderstood before redoing the work.
+
+---
 
 ## Adding a New Project Workflow
 
@@ -206,3 +252,7 @@ Add a sidebar entry under `themeConfig.sidebar`:
 - Do not use element selectors scoped to a container (e.g. `.portal-header h1`) — add an explicit class instead.
 - Do not create new VitePress theme overrides unless explicitly asked.
 - Do not add hero `image`, `actions`, or `features` links that point to non-existent pages.
+- Do not mark a task, edit, or commit complete without a clean `pnpm build` run.
+- Do not make a technical decision unilaterally when viable alternatives exist — present the options with pros/cons and let the user choose.
+- Do not stack a correction commit on top of a change based on a misunderstood spec — roll back and redo instead.
+- Do not bundle multiple independently reviewable changes into a single PR — stack them (see [Git Strategy — Stacked PRs](#git-strategy--stacked-prs)).
