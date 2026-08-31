@@ -26,7 +26,7 @@ An experienced staff member who runs the event's operations but does not manage 
 
 - **Maps to**: the project role `PROJECT_COORDINATOR`.
 - **Goals**: keep the day-to-day record accurate — register people, organize groups, record movements, manage vehicles, activities, communications and alerts.
-- **What they do**: full operational management of participants, groups, movements and the optional modules. They **cannot** invite or manage members, cannot modify the project itself (name, dates, options, enable/disable), and cannot delete it — read-only on project settings.
+- **What they do**: create, edit and disable/enable participants, groups, and the optional modules, plus full control of movements — including deleting one. They **cannot** invite or manage members, cannot modify the project itself, and — outside of movements — **cannot permanently delete** what they manage: only the administrator can delete a participant, group, vehicle, activity, communication or alert.
 - **What Registry owes them**: everything they need to keep the live record correct, without the responsibility (or the risk) of membership administration.
 
 ## Staff Member (Project Participant-role)
@@ -35,7 +35,7 @@ A helper on the ground whose job is mostly to record who comes and goes.
 
 - **Maps to**: the project role `PROJECT_PARTICIPANT`.
 - **Goals**: check people in and out quickly and reliably; see who is present.
-- **What they do**: a limited operational subset — create and read participants, groups, movements, communications and alerts, and read the project. They cannot edit or delete most resources, nor manage vehicles or activities beyond what their permissions allow.
+- **What they do**: create, read, edit and disable/enable participants, groups, movements and — where enabled — communications and alerts (including resolving one); read the project. This floor is the **same as the coordinator's** for these resources — the differences are narrower than the role names suggest: a participant cannot see the member list, cannot view movement history, has no standing access to vehicles or activities (beyond selecting one inside a movement), and can never permanently delete anything.
 - **What Registry owes them**: a fast, forgiving check-in/check-out flow and a clear view of the current headcount.
 
 ## Invited User

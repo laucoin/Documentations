@@ -1,120 +1,98 @@
 # Feature: Alerts
 
-> A group is two hours overdue. Someone opens an alert, and from that moment every phone call, every sighting, every
-> decision gets pinned to it. Three hours later the alert is resolved — and the whole sequence is still there, in order,
-> for whoever has to explain it.
+## 1. Overview
 
-An alert is an incident: a titled, timestamped thing that is **open until it is closed**, gathering communications as it
-goes.
+- **Goal:** An alert is an **incident** the team needs to act on — a title, a timestamp, and a status. Alerts are typically **raised from a movement's discussion thread**: a note about a problem is escalated into a tracked item, then followed to resolution. Each alert carries its own [communication](/registry/functional/features/communications) thread and a live *"in progress since"* timer, so anyone can see what is open, for how long, and what has been said about it. The status lifecycle records whether the incident is being handled, has been dealt with, or was called off.
+- **Who uses it:** Everyone on the project. All three roles raise, read, edit and change the status of alerts — including resolving one; only `PROJECT_ADMINISTRATOR` can permanently remove one.
+- **Option required:** `ALERT`. The module is enabled per project and requires both `ACTIVITY` and `COMMUNICATION` (see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating)). While the option is off, every endpoint below is closed regardless of role.
 
-Alerts sit at the top of the option chain — the project needs `ALERT`, which needs `COMMUNICATION`, which needs
-`ACTIVITY`.
+## 2. Roles & Permissions
 
-**Who this is for:** everyone with a profile. Whoever notices the problem opens the alert.
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. Status changes are an **U**pdate. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Alert](/registry/functional/domain-model#alert-option) for the entity.
 
-## Who can do what
+| Role | Permitted actions | Conditions / Scope |
+| ---- | ----------------- | ------------------ |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + status changes | Scoped to the project. Only role that can permanently delete an alert; also raises, edits, resolves/cancels/reopens and disables/enables. Requires the `ALERT` option. |
+| `PROJECT_COORDINATOR` | **C R U** + status changes | Scoped to the project. Raises, edits, resolves/cancels/reopens and disables/enables an alert, same as the administrator — but cannot delete. Requires the `ALERT` option. |
+| `PROJECT_PARTICIPANT` | **C R U** + status changes | Scoped to the project. Raises, reads (with threads), edits, resolves/cancels/reopens and disables/enables an alert — same floor as the coordinator — but cannot delete. Requires the `ALERT` option. |
 
-| Role                    | May do                                                                                                | Limits                      |
-|-------------------------|-------------------------------------------------------------------------------------------------------|-----------------------------|
-| `PROJECT_ADMINISTRATOR` | Create · Read · Update · change status · Disable · Enable · **Delete** · read attached communications | Requires the `ALERT` option |
-| `PROJECT_COORDINATOR`   | Create · Read · Update · change status · Disable · Enable · read attached communications              | Cannot delete               |
-| `PROJECT_PARTICIPANT`   | Create · Read · Update · change status · Disable · Enable · read attached communications              | Cannot delete               |
+## 3. Business rules
 
-Opening and **closing** an alert is available to every role. That is deliberate: an incident should never wait for an
-administrator to be found.
+- **Title ≤ 50 characters.** A longer title is rejected.
+- **Timestamped.** Each alert carries a creation timestamp; the dashboard derives a live *"in progress since"* duration from it while the status is `IN_PROGRESS`.
+- **Status lifecycle.** An alert is `IN_PROGRESS`, `RESOLVED` or `CANCELED`. From `IN_PROGRESS` it can be **resolved** (→ `RESOLVED`) or **canceled** (→ `CANCELED`); a closed alert can be **reopened** (→ `IN_PROGRESS`). See [Domain Model → Alert status](/registry/functional/domain-model#status-vocabulary).
+- **Own discussion thread.** Every alert has an attached [communication](/registry/functional/features/communications) thread; alerts are commonly escalated from a movement's thread.
+- **Disabling is a soft, reversible action, open to all three roles.** Disabling hides an alert without deleting it; it can be re-enabled. Deletion is permanent and **administrator only**.
+- **Gated by the option.** If the `ALERT` option is disabled on the project, the whole feature is invisible and its API is closed.
 
-## The life of an alert
-
-```mermaid
-stateDiagram-v2
-    [*] --> IN_PROGRESS: opened
-    IN_PROGRESS --> RESOLVED: handled
-    IN_PROGRESS --> CANCELED: false alarm
-    RESOLVED --> [*]
-    CANCELED --> [*]
-```
-
-`RESOLVED` and `CANCELED` are both terminal, and they mean different things — *"this happened and we dealt with it"*
-versus *"this never really happened"*. Preserving that distinction is why there are two closing states rather than one.
-
-## Open means editable; closed means frozen
-
-This is the rule that shapes everything else:
-
-| While `IN_PROGRESS`                    | Once closed                            |
-|----------------------------------------|----------------------------------------|
-| Title and date can be corrected        | Content is frozen — edits are rejected |
-| New communications can be attached     | No new communications                  |
-| Can be closed as resolved or cancelled | —                                      |
-
-An alert is a live record while the situation is live, and evidence afterwards.
+## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: Opening an alert
-  Given the project has the ALERT option
-  When I open an alert with a title and a date
-  Then it is created with the status IN_PROGRESS
-
-Scenario: Correcting an open alert
-  Given an alert is IN_PROGRESS
-  When I correct its title
-  Then the change is saved
-
-Scenario: Refusing to edit a closed alert
-  Given an alert has been resolved
-  When I try to change its title
-  Then the request is rejected
-
-Scenario: Closing an alert
-  Given an alert is IN_PROGRESS
-  When I set its status to RESOLVED
-  Then it is closed and stops accepting communications
+Scenario: A participant raises an alert from a movement thread
+  Given I am a PROJECT_PARTICIPANT on a project with the ALERT option enabled
+  And a movement thread contains a message reporting a problem
+  When I raise an alert titled "Missing participant at checkpoint"
+  Then the alert is created with status IN_PROGRESS and a timestamp
+  And it has its own communication thread
 ```
-
-## What an alert carries
-
-A **title** of up to 50 characters and a **date and time**, which must fall inside the project's own date range. The
-status completes it. Alerts are searched by fuzzy text on the title and filtered by status, visibility and a date range.
-
-Its **communications** are read as their own paginated thread, which is where the substance of an incident actually
-lives.
 
 ```gherkin
-Scenario: Refusing an alert outside the project's dates
-  When I open an alert dated before the project begins
-  Then it is rejected
-
-Scenario: Refusing to move an alert away from its communications
-  Given communications are attached to an alert
-  When I move the alert to a time that leaves them outside it
-  Then the change is rejected
+Scenario: An alert title longer than 50 characters is rejected
+  Given I am a PROJECT_COORDINATOR on a project with the ALERT option enabled
+  When I raise an alert with a 51-character title
+  Then the request is rejected for exceeding the maximum length
+  And no alert is created
 ```
-
-## Disabling and deleting
-
-Disabling hides an alert from the day-to-day list without erasing it — the way to clear a duplicate off the board.
-
-Deletion is administrator-only and refused outright for **any alert that carries communications**. An incident that
-generated a conversation cannot be made to disappear; empty the thread first, or hide the alert instead.
 
 ```gherkin
-Scenario: Refusing to delete an alert with communications
-  Given communications are attached to an alert
-  When I try to delete it
-  Then the request is rejected
-
-Scenario: Denying deletion to a coordinator
-  Given I hold the PROJECT_COORDINATOR role
-  When I try to delete an alert
-  Then the request is denied
-
-Scenario: Denying alerts when the option is off
-  Given the project does not have the ALERT option
-  When I list the alerts
-  Then the request is denied
+Scenario: A coordinator resolves an alert
+  Given I am a PROJECT_COORDINATOR on a project with the ALERT option enabled
+  And an alert is IN_PROGRESS
+  When I change its status to RESOLVED
+  Then the alert's status becomes RESOLVED
+  And the "in progress since" timer stops
 ```
 
-## Related
+```gherkin
+Scenario: A resolved alert can be reopened
+  Given I am a PROJECT_ADMINISTRATOR on a project with the ALERT option enabled
+  And an alert is RESOLVED
+  When I change its status to IN_PROGRESS
+  Then the alert is reopened with status IN_PROGRESS
+```
 
-- [Communications](/registry/functional/features/communications) — the thread an alert accumulates
-- [Projects](/registry/functional/features/projects) — the option chain that unlocks alerts
+```gherkin
+Scenario: A participant resolves an alert, but cannot delete it
+  Given I am a PROJECT_PARTICIPANT on a project with the ALERT option enabled
+  And an alert is IN_PROGRESS
+  When I change its status to RESOLVED
+  Then the alert's status becomes RESOLVED
+  And the "in progress since" timer stops
+  When I then attempt to delete that alert
+  Then the request is refused for lack of permission
+```
+
+```gherkin
+Scenario: The feature is closed when the option is disabled
+  Given I am a PROJECT_ADMINISTRATOR on a project with the ALERT option disabled
+  When I attempt to list the project's alerts
+  Then the request is refused because the option is not enabled
+```
+
+## 5. API surface
+
+REST endpoints backing this feature, all under `/api/v2/projects/{projectId}/alerts` and **gated by the `ALERT` option**. See [Technical → API Reference](/registry/technical/api-reference).
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| `GET` | `/alerts` | List the project's alerts | `REGISTRY_PROJECT_ALERT_R` |
+| `GET` | `/alerts/{id}` | Read a single alert | `REGISTRY_PROJECT_ALERT_R` |
+| `GET` | `/alerts/{id}/communications` | Read an alert's discussion thread | `REGISTRY_PROJECT_ALERT_COMMUNICATION_R` |
+| `POST` | `/alerts` | Raise a new alert | `REGISTRY_PROJECT_ALERT_C` |
+| `PATCH` | `/alerts/{id}` | Edit an alert (e.g. its title) | `REGISTRY_PROJECT_ALERT_U` |
+| `POST` | `/alerts/{id}/resolve` | Resolve an alert (`IN_PROGRESS` → `RESOLVED`) | `REGISTRY_PROJECT_ALERT_U` |
+| `POST` | `/alerts/{id}/cancel` | Cancel an alert (`IN_PROGRESS` → `CANCELED`) | `REGISTRY_PROJECT_ALERT_U` |
+| `POST` | `/alerts/{id}/reopen` | Reopen a closed alert (→ `IN_PROGRESS`) | `REGISTRY_PROJECT_ALERT_U` |
+| `POST` | `/alerts/{id}/disable` | Soft-disable (hide) an alert | `REGISTRY_PROJECT_ALERT_U` |
+| `POST` | `/alerts/{id}/enable` | Re-enable a hidden alert | `REGISTRY_PROJECT_ALERT_U` |
+| `DELETE` | `/alerts/{id}` | Permanently delete an alert | `REGISTRY_PROJECT_ALERT_D` |

@@ -12,8 +12,8 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — 
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Full control of vehicles (`REGISTRY_PROJECT_VEHICLE_C/R/U/D`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
-| `PROJECT_COORDINATOR` | **C R U D** + History | Same rights as the administrator (`REGISTRY_PROJECT_VEHICLE_C/R/U/D`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Only role that can permanently delete a vehicle; also registers, edits and views movement history (`REGISTRY_PROJECT_VEHICLE_C/R/U/D`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
+| `PROJECT_COORDINATOR` | **C R U** + History | Registers, edits, disables/enables and views movement history, same as the administrator — but cannot delete a vehicle (`REGISTRY_PROJECT_VEHICLE_C/R/U`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
 | `PROJECT_PARTICIPANT` | — | No access to vehicle management. May still assign an existing vehicle within a movement. |
 
 > **Option gating first.** All rows above assume the project has the `VEHICLE` option enabled. With the option off, the API is closed for every role — see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating).
@@ -29,13 +29,15 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — 
 ## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: A coordinator registers a vehicle
+Scenario: A coordinator registers a vehicle but cannot delete one
   Given the project has the VEHICLE option enabled
   And I hold the PROJECT_COORDINATOR role
   When I create a vehicle with plate "AA-123-BB", brand "Renault", model "Trafic"
   And an availability window from 2026-07-10 to 2026-07-24
   Then the vehicle is created
   And it is available for assignment in movements
+  When I then attempt to delete "AA-123-BB"
+  Then the request is refused for lack of REGISTRY_PROJECT_VEHICLE_D
 ```
 
 ```gherkin

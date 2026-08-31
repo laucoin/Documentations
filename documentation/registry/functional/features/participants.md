@@ -3,7 +3,7 @@
 ## 1. Overview
 
 - **Goal:** A participant is a person taking part in the event — the unit Registry counts, moves and displays on the live headcount. Staff register each person once, with a name, a birthday and an availability window, and mark them as *registered* (enrolled) or a *guest* (visitor). From there the dashboard derives who is present, splits majors from minors, and highlights today's birthdays, all without anyone maintaining a status by hand.
-- **Who uses it:** `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` manage participants fully and review their movement history; `PROJECT_PARTICIPANT` (check-in staff) can register and read them.
+- **Who uses it:** All three roles register, read and edit participants; `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` additionally review movement history, and only `PROJECT_ADMINISTRATOR` can permanently delete one.
 - **Option required:** None — always available. Participants are part of the core.
 
 ## 2. Roles & Permissions
@@ -12,9 +12,9 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — 
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Full control, scoped to the project (`REGISTRY_...PARTICIPANT_C/R/U/D`, `REGISTRY_PROJECT_PARTICIPANT_HISTORY_R`). |
-| `PROJECT_COORDINATOR` | **C R U D** + History | Same operational rights as the administrator for participants. |
-| `PROJECT_PARTICIPANT` | **C R** | Register new people and read them; cannot edit, disable or delete, and cannot view movement history. |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Only role that can permanently delete a participant; also registers, edits and views movement history (`REGISTRY_...PARTICIPANT_C/R/U/D`, `REGISTRY_PROJECT_PARTICIPANT_HISTORY_R`). |
+| `PROJECT_COORDINATOR` | **C R U** + History | Registers, edits, disables/enables and views movement history, same as the administrator — but cannot delete a participant. |
+| `PROJECT_PARTICIPANT` | **C R U** | Registers, reads, edits and disables/enables participants — same floor as the coordinator — but cannot delete one or view movement history. |
 
 ## 3. Business rules
 
@@ -68,10 +68,21 @@ Scenario: Linking a participant to a user locks the name
 ```
 
 ```gherkin
-Scenario: A participant cannot edit or delete participants
+Scenario: A participant can edit a participant but not delete one
   Given I am a PROJECT_PARTICIPANT on a project
-  When I try to update or delete an existing participant
-  Then the action is refused
+  And an existing participant "Jordan Lee"
+  When I correct Jordan Lee's birthday
+  Then the update is accepted
+  When I then attempt to delete Jordan Lee
+  Then the request is refused for lack of REGISTRY_PROJECT_PARTICIPANT_D
+```
+
+```gherkin
+Scenario: A coordinator cannot delete a participant either
+  Given I am a PROJECT_COORDINATOR on a project
+  And an existing participant "Jordan Lee"
+  When I attempt to delete Jordan Lee
+  Then the request is refused for lack of REGISTRY_PROJECT_PARTICIPANT_D
 ```
 
 ```gherkin

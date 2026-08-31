@@ -3,7 +3,7 @@
 ## 1. Overview
 
 - **Goal:** A group is a named set of participants — a team, a unit, a tent — used to **move and count people together**. Instead of picking a dozen names one by one, staff select the group and a movement expands to its current members. Registry also tracks how many of a group's members are inside versus outside, turning the headcount into something teams can read at their own level of organization.
-- **Who uses it:** `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` create and maintain groups, including their membership; `PROJECT_PARTICIPANT` (check-in staff) can create and read them.
+- **Who uses it:** All three roles create, read, edit and maintain group membership (add/remove members); only `PROJECT_ADMINISTRATOR` can permanently delete a group.
 - **Option required:** None — always available. Groups are part of the core.
 
 ## 2. Roles & Permissions
@@ -12,9 +12,9 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + add/remove members | Full control, scoped to the project (`REGISTRY_...GROUP_C/R/U/D`). |
-| `PROJECT_COORDINATOR` | **C R U D** + add/remove members | Same operational rights as the administrator for groups. |
-| `PROJECT_PARTICIPANT` | **C R** | Create and read groups; cannot edit membership, disable or delete. |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + add/remove members | Only role that can permanently delete a group; also creates, edits and maintains membership (`REGISTRY_...GROUP_C/R/U/D`). |
+| `PROJECT_COORDINATOR` | **C R U** + add/remove members | Creates, edits, disables/enables and maintains membership, same as the administrator — but cannot delete a group. |
+| `PROJECT_PARTICIPANT` | **C R U** + add/remove members | Same floor as the coordinator: creates, edits, disables/enables and maintains membership — but cannot delete a group. |
 
 ## 3. Business rules
 
@@ -57,19 +57,21 @@ Scenario: Selecting a group in a movement expands to its current members
 ```
 
 ```gherkin
-Scenario: A participant can create and read but not edit membership
+Scenario: A participant adds and removes members, but cannot delete the group
   Given I am a PROJECT_PARTICIPANT on a project
-  When I add or remove a member on an existing group
-  Then the action is refused
-  But I can still create a new group and read existing ones
-```
-
-```gherkin
-Scenario: An administrator adds and removes members
-  Given I am the PROJECT_ADMINISTRATOR of a project
   And the group "Tent 1" has members "Ana" and "Ben"
   When I add "Cora" and remove "Ben"
   Then the group's members become "Ana" and "Cora"
+  When I then attempt to delete "Tent 1"
+  Then the request is refused for lack of permission
+```
+
+```gherkin
+Scenario: Only an administrator can delete a group
+  Given I am the PROJECT_ADMINISTRATOR of a project
+  And the group "Tent 1" exists
+  When I delete "Tent 1"
+  Then the group is permanently removed
 ```
 
 ```gherkin

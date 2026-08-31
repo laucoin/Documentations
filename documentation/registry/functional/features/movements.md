@@ -3,7 +3,7 @@
 ## 1. Overview
 
 - **Goal:** A movement is the core record of Registry — a **check-in (`IN`)** or **check-out (`OUT`)** event that changes who is physically present. Recording movements is how the paper attendance sheet becomes a live headcount: each movement moves a set of participants in or out, optionally records the vehicle they travelled in, and captures *why* — either a free **reason** or a linked **activity**, except when the movement simply returns someone to their normal state. The [live presence dashboard](#5-api-surface) reads those movements to answer, at any moment, "who is here right now?".
-- **Who uses it:** Front-line check-in staff (`PROJECT_PARTICIPANT`) record and read movements at the gate; `PROJECT_COORDINATOR` and `PROJECT_ADMINISTRATOR` additionally correct and remove them. The dashboard is read by all three roles.
+- **Who uses it:** Front-line check-in staff (`PROJECT_PARTICIPANT`) record, read and correct movements at the gate; `PROJECT_COORDINATOR` and `PROJECT_ADMINISTRATOR` can additionally delete them — movements are the one resource where the coordinator keeps delete rights alongside the administrator. The dashboard is read by all three roles.
 - **Option required:** None — movements are part of the always-present core. Two enrichments are gated, though: attaching a **vehicle** needs the `VEHICLE` option, and justifying a movement with an **activity** needs the `ACTIVITY` option.
 
 ## 2. Roles & Permissions
@@ -12,9 +12,9 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** | Full control of movements in the project (`REGISTRY_PROJECT_MOVEMENT_C/R/U/D`). Only administrators and coordinators may edit, disable/enable or delete. |
-| `PROJECT_COORDINATOR` | **C R U D** | Same operational rights as the administrator (`REGISTRY_PROJECT_MOVEMENT_C/R/U/D`). |
-| `PROJECT_PARTICIPANT` | **C R** | Records and reads movements (`REGISTRY_PROJECT_MOVEMENT_C/R`), but cannot edit, disable or delete them. |
+| `PROJECT_ADMINISTRATOR` | **C R U D** | Full control of movements in the project (`REGISTRY_PROJECT_MOVEMENT_C/R/U/D`). |
+| `PROJECT_COORDINATOR` | **C R U D** | Same rights as the administrator, including delete (`REGISTRY_PROJECT_MOVEMENT_C/R/U/D`) — movements are the one resource in the project where the coordinator keeps this. |
+| `PROJECT_PARTICIPANT` | **C R U** | Records, reads and corrects movements — including disable/enable — (`REGISTRY_PROJECT_MOVEMENT_C/R/U`), but cannot permanently delete one. |
 | All project roles | **R** dashboard | The live presence dashboard (`REGISTRY_PROJECT_R`) is readable by every role. The vehicles-status card additionally requires the `VEHICLE` option. |
 
 ## 3. Business rules
@@ -35,6 +35,7 @@ All rules below are **enforced by validators** at write time; a request that bre
 - **Vehicles require the `VEHICLE` option and registered content.** A vehicle may be attached only when the project has the `VEHICLE` option enabled **and** the movement content is `REGISTERED`; drivers are chosen among the selected adult / major participants.
 - **Pool label snapshots the originating group.** When a movement is recorded by expanding a group, each resulting participant entry carries a **pool label** — the group's name (in full or in part) as it stood at that moment. It is independent of the `VEHICLE` option and of any vehicle assignment: it exists purely so later changes to the group's membership never need to be reconciled against past movements.
 - **Movements can be reversed.** A mistaken check-in or check-out is undone from the dashboard by recording the **opposite movement**, restoring the previous presence state.
+- **A movement's direction doesn't have to change anything — and that's not blocking.** Recording an `OUT` for someone already `OUT`, or an `IN` for someone already `IN`, is allowed. It isn't a required transition; it's simply a movement whose starting and ending presence happen to be the same.
 
 ## 4. Behavioral scenarios (BDD)
 
@@ -167,9 +168,20 @@ Scenario: A mistaken check-in is reversed from the dashboard
 ```
 
 ```gherkin
-Scenario: A participant may only create and read, not delete
+Scenario: Recording the same direction as the current state is not blocking
+  Given a registered participant "Alex" is currently OUT
+  When I record another OUT movement for "Alex"
+  Then the movement is accepted
+  And "Alex" remains OUT — the direction didn't have to change anything
+```
+
+```gherkin
+Scenario: A participant can correct a movement but not delete it
   Given I hold the PROJECT_PARTICIPANT role
-  When I attempt to delete an existing movement
+  And a movement I recorded has the wrong timestamp
+  When I correct its timestamp
+  Then the update is accepted
+  When I then attempt to delete that movement
   Then the request is refused for lack of REGISTRY_PROJECT_MOVEMENT_D
 ```
 

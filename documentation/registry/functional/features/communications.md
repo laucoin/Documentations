@@ -1,131 +1,100 @@
 # Feature: Communications
 
-> 14:20 — *"Called the group, they're leaving the climbing wall now."*
-> 14:55 — *"Back on site, everyone accounted for."*
+## 1. Overview
 
-A communication is a short, timestamped note pinned to something that is unfolding: a group that is out, or an incident
-that is open. It is the running commentary that turns a movement log into a story someone can follow afterwards.
+- **Goal:** A communication is a short, timestamped message pinned to an operational event — a movement or an alert. Together, the messages on one target form its **discussion thread**: the running commentary staff use to coordinate around a check-in/out or an incident. A message written on a movement can be **escalated into an alert**, turning a passing note into a tracked incident. Communications keep the "who said what, and when" beside the record it concerns instead of in a separate chat.
+- **Who uses it:** Everyone on the project. All three roles write, read, correct and disable/enable messages; only `PROJECT_ADMINISTRATOR` can permanently remove one.
+- **Option required:** `COMMUNICATION`. The module is enabled per project and itself requires `ACTIVITY` (see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating)). While the option is off, every endpoint below is closed regardless of role.
 
-Communications require the project's `COMMUNICATION` option, which itself requires `ACTIVITY`.
+## 2. Roles & Permissions
 
-**Who this is for:** everyone with a profile — the person on the radio is rarely the administrator.
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Communication](/registry/functional/domain-model#communication-option) for the entity.
 
-## Who can do what
+| Role | Permitted actions | Conditions / Scope |
+| ---- | ----------------- | ------------------ |
+| `PROJECT_ADMINISTRATOR` | **C R U D** | Scoped to the project. Only role that can permanently delete a message; also posts, edits and disables/enables. Requires the `COMMUNICATION` option. |
+| `PROJECT_COORDINATOR` | **C R U** | Scoped to the project. Posts, edits and disables/enables messages, same as the administrator — but cannot delete. Requires the `COMMUNICATION` option. |
+| `PROJECT_PARTICIPANT` | **C R U** | Scoped to the project. Posts, reads, edits and disables/enables messages — same floor as the coordinator — but cannot delete. Requires the `COMMUNICATION` option. |
 
-| Role                    | May do                                                                               | Limits                              |
-|-------------------------|--------------------------------------------------------------------------------------|-------------------------------------|
-| `PROJECT_ADMINISTRATOR` | Create · Read · Update · Disable · Enable · **Delete** · search movements and alerts | Requires the `COMMUNICATION` option |
-| `PROJECT_COORDINATOR`   | Create · Read · Update · Disable · Enable · search movements and alerts              | Cannot delete                       |
-| `PROJECT_PARTICIPANT`   | Create · Read · Update · Disable · Enable · search movements and alerts              | Cannot delete                       |
+## 3. Business rules
 
-Reading the communications attached to a **movement** additionally requires the `COMMUNICATION` option; reading those
-attached to an **alert** requires `ALERT`.
+- **A message must have a target.** Every communication references a **movement and/or an alert** — at least one of the two (`@AtLeastOneIsDefined`). A message with neither target is rejected.
+- **Message length ≤ 250 characters.** Longer text is rejected.
+- **Timestamped.** Each message carries a timestamp; a thread is read in chronological order.
+- **Escalation.** A message in a movement thread can be turned into an [alert](/registry/functional/features/alerts), which then carries its own thread. The original message stays on the movement.
+- **Disabling is a soft, reversible action, open to all three roles.** Disabling hides a message without deleting it; it can be re-enabled. Deletion is permanent and **administrator only**.
+- **Gated by the option.** If the `COMMUNICATION` option is disabled on the project, the whole feature is invisible and its API is closed.
 
-## What a communication carries
-
-A **date and time**, an optional **message** of up to 250 characters, and an attachment: a movement, an alert, or both —
-but **never neither**. A communication with nothing to attach to is rejected, because a note floating free of context is
-not information.
-
-```gherkin
-Scenario: Refusing a communication attached to nothing
-  When I post a communication with neither a movement nor an alert
-  Then it is rejected
-
-Scenario: Refusing a message that is too long
-  When I post a communication whose message exceeds 250 characters
-  Then it is rejected
-
-Scenario: Refusing a communication outside the project's dates
-  When I post a communication dated after the project ends
-  Then it is rejected
-```
-
-## What you can attach to
-
-### Movements — but only the ones that are still open questions
-
-Not every movement can carry a communication. It must be:
-
-- **an `OUT` movement** — an exit is the thing that leaves a question hanging; an arrival answers it;
-- **of registered participants**, not guests;
-- **visible**, and belonging to the same project;
-- **dated at or before** the communication itself.
-
-Read those together and the intent is clear: communications track *our own people who are currently away*. Searching for
-movements to attach to returns exactly that shortlist.
+## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: Attaching a note to a group that is out
-  Given a group of registered participants left on an OUT movement
-  When I post a communication attached to that movement
-  Then the communication is recorded against it
-
-Scenario: Refusing to attach to an arrival
-  When I attach a communication to an IN movement
-  Then it is rejected
-
-Scenario: Refusing to attach to a guest movement
-  When I attach a communication to a movement of guests
-  Then it is rejected
-
-Scenario: Refusing a note that predates its movement
-  When I post a communication dated before the movement it attaches to
-  Then it is rejected
+Scenario: A participant posts a message on a movement thread
+  Given I am a PROJECT_PARTICIPANT on a project with the COMMUNICATION option enabled
+  And a movement has been recorded
+  When I post the message "Bus running 15 minutes late" on that movement
+  Then the communication is created with a timestamp
+  And it appears in the movement's discussion thread
 ```
-
-### Alerts — but only while they are open
-
-An alert can only receive communications while its status is `IN_PROGRESS`. Once it is resolved or cancelled, the
-conversation is closed. The alert must also be visible, belong to the same project, and be dated at or before the
-communication.
-
-Attaching to an alert additionally requires the caller to hold the project's `ALERT` option — checked explicitly, over
-and above the communication permission.
 
 ```gherkin
-Scenario: Adding to an open incident
-  Given an alert is IN_PROGRESS
-  When I post a communication attached to it
-  Then the communication is recorded against the alert
-
-Scenario: Refusing to add to a closed incident
-  Given an alert has been resolved
-  When I post a communication attached to it
-  Then it is rejected
-
-Scenario: Refusing to attach to an alert without the ALERT option
-  Given the project does not have the ALERT option
-  When I attach a communication to an alert
-  Then the request is denied
+Scenario: A message with no target is rejected
+  Given I am a PROJECT_COORDINATOR on a project with the COMMUNICATION option enabled
+  When I post a communication that references neither a movement nor an alert
+  Then the request is rejected by the @AtLeastOneIsDefined validator
+  And no communication is created
 ```
-
-## Moving things in time
-
-Because a communication is anchored to a moment, time changes are checked from both ends:
-
-- Moving the **communication** earlier than its movement or its alert is rejected.
-- Moving the **movement** or the **alert** so that its communications would fall outside it is rejected too.
-
-Neither side can quietly strand the other.
-
-## Disabling and deleting
-
-Disabling hides a communication from the thread while keeping it on record — the way to retract a note that turned out
-to be wrong without pretending it was never said. Deletion is administrator-only.
-
-There is one automatic case: the retention pass removes **orphan communications**, those whose movement and alert have
-both been purged.
 
 ```gherkin
-Scenario: Denying deletion to a coordinator
-  Given I hold the PROJECT_COORDINATOR role
-  When I try to delete a communication
-  Then the request is denied
+Scenario: A message longer than 250 characters is rejected
+  Given I am a PROJECT_PARTICIPANT on a project with the COMMUNICATION option enabled
+  When I post a message of 251 characters on a movement
+  Then the request is rejected for exceeding the maximum length
+  And no communication is created
 ```
 
-## Related
+```gherkin
+Scenario: A participant can edit and disable a message, but not delete it
+  Given I am a PROJECT_PARTICIPANT on a project with the COMMUNICATION option enabled
+  And a message exists in a thread
+  When I correct a typo in that message
+  Then the update is accepted
+  When I disable that message
+  Then it is hidden from the thread, and I can re-enable it later
+  When I attempt to delete that message
+  Then the request is refused for lack of permission
+  And the message remains in the thread
+```
 
-- [Alerts](/registry/functional/features/alerts) — the incident these notes often hang from
-- [Movements](/registry/functional/features/movements) — the exits they comment on
-- [Data Retention](/registry/functional/features/data-retention) — orphan cleanup
+```gherkin
+Scenario: A coordinator disables a message reversibly, but cannot delete it either
+  Given I am a PROJECT_COORDINATOR on a project with the COMMUNICATION option enabled
+  And a message exists in a thread
+  When I disable that message
+  Then the message is hidden from the thread
+  And I can re-enable it later to restore it
+  When I attempt to delete that message
+  Then the request is refused for lack of permission
+```
+
+```gherkin
+Scenario: The feature is closed when the option is disabled
+  Given I am a PROJECT_ADMINISTRATOR on a project with the COMMUNICATION option disabled
+  When I attempt to read a movement's discussion thread
+  Then the request is refused because the option is not enabled
+```
+
+## 5. API surface
+
+REST endpoints backing this feature, all under `/api/v2/projects/{projectId}/communications` and **gated by the `COMMUNICATION` option**. See [Technical → API Reference](/registry/technical/api-reference).
+
+| Method | Path | Purpose | Permission |
+| ------ | ---- | ------- | ---------- |
+| `GET` | `/communications` | List communications on the project | `REGISTRY_PROJECT_COMMUNICATION_R` |
+| `GET` | `/communications/{id}` | Read a single communication | `REGISTRY_PROJECT_COMMUNICATION_R` |
+| `GET` | `/communications/attachable-movements?q=` | Find movements a message can attach to (metadata) | `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
+| `GET` | `/communications/attachable-alerts?q=` | Find alerts a message can attach to (metadata) | `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
+| `POST` | `/communications` | Post a message on a movement and/or alert | `REGISTRY_PROJECT_COMMUNICATION_C` |
+| `PATCH` | `/communications/{id}` | Edit a message | `REGISTRY_PROJECT_COMMUNICATION_U` |
+| `POST` | `/communications/{id}/disable` | Soft-disable (hide) a message | `REGISTRY_PROJECT_COMMUNICATION_U` |
+| `POST` | `/communications/{id}/enable` | Re-enable a hidden message | `REGISTRY_PROJECT_COMMUNICATION_U` |
+| `DELETE` | `/communications/{id}` | Permanently delete a message | `REGISTRY_PROJECT_COMMUNICATION_D` |

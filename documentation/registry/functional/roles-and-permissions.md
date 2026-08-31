@@ -58,7 +58,7 @@ Assigned per project when a user is invited (or when they create the project). E
 | ---- | ----- | -------------- |
 | **`PROJECT_ADMINISTRATOR`** | 0 | Full control of one event, including its membership. The creator gets this automatically. |
 | **`PROJECT_COORDINATOR`** | 10 | Runs the event's operations end to end, but cannot manage membership or delete the event. |
-| **`PROJECT_PARTICIPANT`** | 20 | Ground-level staff: register people and record movements, with limited edit rights. |
+| **`PROJECT_PARTICIPANT`** | 20 | Ground-level staff: register people and record movements, and correct their own entries — but never delete, and no standing access to vehicles or activities. |
 
 ### Project access matrix
 
@@ -68,13 +68,13 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. A d
 | -------- | :---: | :---: | :---: |
 | Project settings (name, dates, options, enable/disable) | R U D | R | R |
 | Members / profiles (invite, edit, block, remove) | C R U D | R | — |
-| Participants | C R U D | C R U D | C R |
-| Groups | C R U D | C R U D | C R |
-| Movements (check-in / check-out) | C R U D | C R U D | C R |
-| Vehicles *(option)* | C R U D | C R U D | — ¹ |
-| Activities *(option)* | C R U D | C R U D | — ¹ |
-| Communications *(option)* | C R U D | C R U D | C R |
-| Alerts *(option)* | C R U D | C R U D | C R |
+| Participants | C R U D | C R U | C R U |
+| Groups | C R U D | C R U | C R U |
+| Movements (check-in / check-out) | C R U D | C R U D ² | C R U |
+| Vehicles *(option)* | C R U D | C R U | — ¹ |
+| Activities *(option)* | C R U D | C R U | — ¹ |
+| Communications *(option)* | C R U D | C R U | C R U |
+| Alerts *(option)* | C R U D | C R U | C R U |
 | Live presence dashboard | R | R | R |
 
 *History* is a separate capability — the ability to view a resource's own movement history — and is listed on its own row below rather than folded into a resource's CRUD, for readability. It is **always read-only**: history is a derived view of movements already recorded, not an editable resource in its own right, so there is no create/update/delete operation on it for any role.
@@ -87,12 +87,15 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. A d
 
 ¹ A participant has no direct read access to the vehicle or activity registries, but may still select an *eligible* vehicle or activity while recording a movement, via the movement's own scoped search — see [Movements → API surface](/registry/functional/features/movements#5-api-surface).
 
-Reading between the lines:
+² Movements are the one resource where the coordinator keeps full **D**elete rights alongside the administrator — everywhere else, only the administrator can delete.
+
+Reading between the lines — and this is less tidy than a first read suggests, so take the table as the source of truth over any summary of it:
 
 - **Only the administrator manages membership.** Coordinators can see who is in the event but cannot invite, edit, block or remove members. Participants cannot see the member list at all.
 - **Only the administrator changes the project itself.** Coordinators are read-only on project settings — they cannot rename it, change its dates or options, enable/disable it, or delete it.
-- **Coordinators run everything else.** Their operational rights match the administrator's for participants, groups, movements and the optional modules.
-- **Participants are check-in staff.** They create and read the operational resources they need (people, groups, movements, communications, alerts) but do not edit or delete them, do not see movement history, and have no standing access to vehicles or activities beyond selecting one inside a movement.
+- **Delete is the administrator's alone almost everywhere.** For participants, groups, vehicles, activities, communications and alerts, only the administrator can permanently delete — the coordinator has full create/read/update (including disable/enable and, for alerts, status changes) but never delete. **Movements are the single exception**: the coordinator keeps delete there too.
+- **Coordinators and participants are closer than the role names suggest.** Below the administrator, both roles share the same create/read/update floor on participants, groups, movements, communications and alerts — participants are *not* limited to create-and-read. What actually separates a coordinator from a participant is: visibility into membership (coordinator only), movement history (coordinator only), any access at all to vehicles or activities (coordinator only, beyond what a participant can select inside a movement), and delete on movements (coordinator only, alongside the administrator).
+- **Vehicles and activities are the coordinator's private territory.** A participant has no standing access to either — not even read — beyond selecting an eligible one while recording a movement.
 
 ## Project options (gating)
 

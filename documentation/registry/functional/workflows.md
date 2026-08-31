@@ -79,6 +79,8 @@ Scenario: A registered participant returns to their normal state with nothing to
   And on save, "Alex" is counted as present again
 ```
 
+*Recording a movement in the same direction as the current state is not blocking — it's allowed, it just doesn't change anything: an `OUT` for someone already `OUT`, or an `IN` for someone already `IN`, is accepted the same as any other movement.*
+
 ## W6 — Checking a guest in and out
 
 *Visitors are counted without being enrolled as full participants, so the "who is on site" number is always complete.*
@@ -116,7 +118,7 @@ Scenario: An incident is escalated from a discussion and resolved
   Given the ALERT option is enabled and a movement's discussion thread contains a message about a problem
   When I escalate that message into an alert titled "Missing participant at checkpoint"
   Then the alert appears IN_PROGRESS, with a running "since" timer and its own communication thread
-  When the team discusses it there and a PROJECT_COORDINATOR marks it RESOLVED
+  When the team discusses it there and any of the three project roles marks it RESOLVED — resolving isn't reserved to the coordinator or administrator
   Then the timer stops
 ```
 
