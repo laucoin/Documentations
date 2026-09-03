@@ -29,7 +29,7 @@ A project-scoped permission is always bound to **one** project. Holding a permis
 | ---- | ----- | ------------ | ------- |
 | **`USER_ADMINISTRATOR`** | 0 | Platform staff | Administer every user account; also allowed to read/create projects and grant support access. |
 | **`USER`** | 9000 | Everyone, by default | The role each new account receives. Can create projects and read project metadata. Nothing else at the global level. |
-| **`SERVICE_ACCOUNT`** | — | The system itself | A non-human account that runs the scheduled data-retention jobs. Not assignable to people. |
+| **`SERVICE_ACCOUNT`** | — | The system itself | A user *type* (not a role of its own) for the single non-human account that runs the scheduled data-retention jobs. It is provisioned with the `USER_ADMINISTRATOR` role — the role that carries `REGISTRY_JOB_C` — and is not assignable to people. |
 
 Lower level means more powerful. Exactly **one** level-0 global role exists.
 
@@ -45,7 +45,7 @@ Lower level means more powerful. Exactly **one** level-0 global role exists.
 | Read *any* project globally | ✓ | — |
 | Read project metadata (available options) | ✓ | ✓ |
 | Grant "support" access to a project | ✓ | — |
-| Run data-retention purge jobs | ✓ | *service account only* |
+| Run data-retention purge jobs (`REGISTRY_JOB_C`) | ✓ | — |
 | Anonymize **their own** account | ✓ | ✓ |
 
 The important onboarding consequence: **any signed-in user can create a project**, and the creator automatically becomes its `PROJECT_ADMINISTRATOR`. That is how ordinary users get project-scoped power without a platform administrator being involved.
@@ -85,7 +85,7 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. A d
 | Vehicle movements *(option)* | R | R | — |
 | Activity movements *(option)* | R | R | — |
 
-¹ A participant has no direct read access to the vehicle or activity registries, but may still select an *eligible* vehicle or activity while recording a movement, via the movement's own scoped search — see [Movements → API surface](/registry/functional/features/movements#5-api-surface).
+¹ A participant has no direct read access to the vehicle or activity registries, but may still select an *eligible* vehicle or activity while recording a movement, via the movement's own scoped search — see [Movements](/registry/functional/features/movements) and [Technical → API Reference](/registry/technical/api-reference).
 
 ² Movements are the one resource where the coordinator keeps full **D**elete rights alongside the administrator — everywhere else, only the administrator can delete.
 
@@ -99,7 +99,7 @@ Reading between the lines — and this is less tidy than a first read suggests, 
 
 ## Project options (gating)
 
-Four **optional modules** are enabled per project. A module that is off is invisible and its API is closed — regardless of a user's role. Modules also have dependencies:
+Four **optional modules** are enabled per project. A module that is off is invisible and its API is closed — regardless of a user's role. **Turning a module off never deletes data:** rows already created, and references already recorded inside movements (a vehicle assignment, an activity used as a reason), are kept in the database — they simply stop being reachable through the module's endpoints and drop out of the UI until the module is re-enabled. Modules also have dependencies:
 
 | Option | Adds | Requires |
 | ------ | ---- | -------- |

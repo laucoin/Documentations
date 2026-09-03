@@ -1,112 +1,73 @@
 # Getting Started
 
-Running Registry locally means three moving parts: a PostgreSQL database, an OIDC provider, and the two applications.
-The backend repository ships a Compose file that provides the first two.
+This is the guided procedure to run the whole Registry stack locally: PostgreSQL, an OIDC provider, the backend, and the frontend. The two application repositories are `Registry-Backend` (Kotlin/Spring) and `Registry-Frontend` (Angular).
 
 ## Prerequisites
 
-| Tool             | Version                     | For                      |
-|------------------|-----------------------------|--------------------------|
-| JDK              | **25 or later**             | Backend                  |
-| Docker + Compose | recent                      | PostgreSQL and Authentik |
-| Node.js          | **≥ 22**                    | Frontend                 |
-| pnpm             | 11 (`corepack enable pnpm`) | Frontend                 |
+| Tool | Version | For |
+| ---- | ------- | --- |
+| **JDK** | 25 | Building and running the backend (Gradle toolchain) |
+| **Docker + Compose** | recent | Running PostgreSQL and the OIDC provider locally |
+| **Node.js** | 22 (`^22.22` or `^24.15`) | Building and running the frontend; Angular 22's engine range, and CI builds on Node 22 |
+| **pnpm** | 11 | Frontend package management (`packageManager` pins the exact version) |
 
-Gradle comes with the wrapper; no separate install.
+The backend builds with the bundled Gradle wrapper (`./gradlew`), so a system Gradle is not required.
 
-## 1. Dependencies
+## 1 — Start the dependencies
 
-```bash
-git clone git@github.com:laucoin/Registry-Backend.git
+The backend repository ships `local-dev/compose.yml`, which brings up everything the backend needs: **PostgreSQL** (initializing a `registry` database and an `authentik` one) and an **OIDC provider** — the local setup uses **Authentik** (default `http://localhost:9000`); the backend is provider-agnostic, see [ADR 004](/registry/technical/adr/004-oidc-resource-server-auth).
+
+```shell
+cd Registry-Backend/local-dev
+cp .example.env .env      # then fill in PG_PASS, AU_SECRET_KEY, AU_EMAIL, AU_PASS
+docker compose up -d
+```
+
+Once Authentik is up, create an **OAuth2/OIDC provider + application** for Registry (confidential, with a client secret), and note its **issuer / JWKS / authorization / token / end-session URLs**, the **client id**, and the **client secret** — the backend needs them below.
+
+## 2 — Run the backend
+
+The backend reads all infrastructure settings from JVM system properties (`-D…`). Point it at the database and the OIDC provider, then start it in dev mode:
+
+```shell
 cd Registry-Backend
-
-cp local-dev/.example.env local-dev/.env
-# Edit local-dev/.env — PG_PASS, AU_SECRET_KEY, AU_EMAIL, AU_PASS, …
-
-docker compose -f local-dev/compose.yml up -d
+./gradlew bootRun
 ```
 
-That brings up PostgreSQL 18 on `5432` with two databases (one for Registry, one for the identity provider), plus
-**Authentik** — server on `9000`, worker alongside — bootstrapped with the credentials from `.env`.
-
-::: info Authentik, in a package called `keycloak`
-The OIDC adapter lives in `infrastructure/in/keycloak` and is named after Keycloak, but nothing in it is
-Keycloak-specific — it speaks plain OAuth2. Local development runs Authentik. Any OIDC provider that issues JWTs with
-the configured claims will work; see [ADR 004](/registry/technical/adr/004-oidc-resource-server-auth).
-:::
-
-In Authentik, create an OAuth2 provider and application for Registry, then note its authorize, token, end-session and
-JWKS URLs, its client ID and its client secret. The JWT must carry `sub`, `email`, `given_name` and `family_name` — the
-claim names are configurable, but those are the defaults.
-
-## 2. Backend
-
-Flyway runs at boot, so the schema and the seeded roles and permissions appear on first start. Pass configuration as JVM
-options:
-
-```bash
-./gradlew bootRun --args='' -Dorg.gradle.jvmargs="..."
-```
-
-or, more practically, set them in your run configuration:
+Pass the settings as VM options. The essentials:
 
 ```
--Dregistry.datasource.base-url=localhost:5432
+-Dregistry.datasource.base-url=localhost:5432                        # host:port, no scheme
 -Dregistry.datasource.database=registry
 -Dregistry.datasource.schemas=public
 -Dregistry.datasource.username=postgres
--Dregistry.datasource.password=<from .env>
-
--Dexternal.oidc.jwks-uri=http://localhost:9000/application/o/registry/jwks
--Dexternal.oidc.authorization-uri=http://localhost:9000/application/o/authorize
--Dexternal.oidc.token-uri=http://localhost:9000/application/o/token
--Dexternal.oidc.end-session-uri=http://localhost:9000/application/o/registry/end-session
--Dexternal.oidc.client-id=registry
--Dexternal.oidc.client-secret=<secret>
--Dexternal.oidc.swagger.client-id=registry
-
+-Dregistry.datasource.password=<password>
+-Dexternal.oidc.jwks-uri=http://localhost:9000/application/o/registry/jwks/
+-Dexternal.oidc.authorization-uri=http://localhost:9000/application/o/authorize/
+-Dexternal.oidc.token-uri=http://localhost:9000/application/o/token/
+-Dexternal.oidc.end-session-uri=http://localhost:9000/application/o/registry/end-session/
+-Dexternal.oidc.client-id=<client-id>
+-Dexternal.oidc.client-secret=<client-secret>
+-Dexternal.cors.urls=http://localhost:4200                           # frontend origin(s), comma-separated
 -Dregistry.server.port=8081
--Dregistry.server.logging-level=DEBUG
--Dregistry.feature.documentation.enabled=true
--Dexternal.cors.urls=http://localhost:4200
+-Dregistry.server.logging-level=INFO
+-Dregistry.feature.documentation.enabled=true                        # enable Swagger locally
 ```
 
-::: warning Secrets are never committed
-`registry.datasource.password` and `external.oidc.client-secret` are placeholders in `application.yml` with no default,
-so a missing value **fails startup loudly**. Pass them as JVM options or environment variables — never in an
-`application*.yml`.
-:::
+The OIDC URLs above are the Authentik defaults for an application slug `registry`; take the exact values from the provider you configured. On boot, **Flyway applies the migrations** to the `registry` database automatically. The API is then available at `http://localhost:8081/api/v1`, and — with documentation enabled — Swagger UI at `/swagger-ui.html` (also served at the root).
 
-Two flags matter for development. `registry.feature.documentation.enabled=true` publishes Swagger UI at
-`http://localhost:8081/swagger-ui.html`, which is the fastest way to explore the API. `external.cors.urls` must contain
-the frontend's origin or every browser call fails.
+To produce a runnable artifact instead:
 
-The port is 8081 because Compose already uses 9000 for the identity provider.
-
-### Useful commands
-
-```bash
-./gradlew build              # compile + test + coverage verify + report
-./gradlew test               # tests only
-./gradlew bootRun            # run
-./gradlew koverHtmlReport    # coverage → build/reports/kover
-./gradlew clean
+```shell
+./gradlew build          # → build/libs/*.jar
+java -jar build/libs/<jar-name>.jar   # with the same -D options
 ```
 
-`build` finalises with `koverVerify` and `koverHtmlReport`, and runs the ArchUnit suite — an architecture violation
-fails the build like any other test.
+## 3 — Configure and run the frontend
 
-## 3. Frontend
+The frontend is **environment-agnostic**: it loads its configuration at runtime from two JSON files under `public/settings/`, which are not committed ([ADR 007](/registry/technical/adr/007-frontend-runtime-config)). Create them before starting.
 
-```bash
-git clone git@github.com:laucoin/Registry-Frontend.git
-cd Registry-Frontend
-pnpm install
-```
-
-Then create the **two runtime configuration files**, which are not committed:
-
-`public/settings/env.json`
+`public/settings/env.json` — where the backend is and which paths skip auth:
 
 ```json
 {
@@ -123,66 +84,29 @@ Then create the **two runtime configuration files**, which are not committed:
 }
 ```
 
-`public/settings/config.json` — the default language and supported list, the PrimeNG theme preset (semantic palette plus
-light and dark colour schemes), logo paths, enabled element actions, and notification durations per severity. The
-frontend README carries a complete example to copy.
+`public/settings/config.json` — languages, theme tokens, logos, enabled UI actions and notification durations. Start from the sample in the frontend README and adjust `defaultLanguage`, `languages` (`fr`, `en`), and the PrimeNG theme.
 
-```bash
-pnpm start        # ng serve → http://localhost:4200
-pnpm run lint
-pnpm run build    # add --configuration=production
+Then install and run:
+
+```shell
+cd Registry-Frontend
+pnpm install
+pnpm start          # ng serve, on http://localhost:4200
 ```
 
-::: warning Both files are required
-`env.json` and `config.json` are fetched before Angular bootstraps. Without them the application loads but cannot reach
-the backend and has no theme. Missing files are logged to the console rather than raising a visible error, so an app
-that looks broken is usually a missing `settings/` file.
-:::
+## 4 — Verify
 
-## 4. First sign-in
+1. Open `http://localhost:4200`. Being unauthenticated, the app redirects you to the OIDC provider.
+2. Sign in. On first login the backend **auto-provisions** your account with the default `USER` role ([Security](/registry/technical/security#jwt--application-user)).
+3. You land on an empty project list. Click **Create project** to make yourself its administrator, and you are inside the app.
 
-Open `http://localhost:4200`. You will be redirected to Authentik; sign in with the bootstrap account.
+To make yourself a **platform administrator** (to reach the Users directory), change your user's global role directly in the `registry` database (`tb_user.role = 'USER_ADMINISTRATOR'`) and sign in again so a fresh token picks up the new authorities.
 
-On return, the backend creates your Registry account automatically with the default `USER` role — nobody provisions it.
-That role lets you **create a project**, which makes you its `PROJECT_ADMINISTRATOR` and drops you inside it.
+## Build outputs & images
 
-To exercise the administration screens you need the global `USER_ADMINISTRATOR` role, which no account has on a fresh
-database. Promote yourself directly:
+| Service | Local build | Container image |
+| ------- | ----------- | --------------- |
+| Backend | `./gradlew build` → JVM jar | Distroless Java 25, non-root, `:8081` |
+| Frontend | `pnpm build` → `dist/browser` | Unprivileged nginx serving the static bundle, `:8080` |
 
-```sql
-UPDATE tb_user
-SET role = 'USER_ADMINISTRATOR'
-WHERE email = '<your email>';
-```
-
-Then sign out and back in — authorities are rebuilt from the account on each request, but the frontend caches the
-current user for the session.
-
-## Troubleshooting
-
-| Symptom                                            | Likely cause                                                                                  |
-|----------------------------------------------------|-----------------------------------------------------------------------------------------------|
-| Backend exits at startup                           | A secret placeholder is unresolved — check the datasource password and the OIDC client secret |
-| Every API call fails in the browser, works in curl | `external.cors.urls` does not contain `http://localhost:4200`                                 |
-| Sign-in loops back to the login screen             | The OIDC URLs or the client secret are wrong, or the token lacks `sub` / `email`              |
-| `401 AUTH_BLOCKED_ACCOUNT`                         | The account's `visible` flag is `false`                                                       |
-| `409 AUTH_IMPERSONATED_ACCOUNT`                    | The account was anonymised — it can never sign in again                                       |
-| `409 AUTH_EMAIL_ALREADY_USED`                      | Two rows in `tb_user` share the token's email                                                 |
-| Frontend loads with no styling and no data         | `settings/config.json` or `settings/env.json` is missing                                      |
-| A project screen says to select a project          | No selected profile — pick one, or create a project                                           |
-| Swagger UI returns 404                             | `registry.feature.documentation.enabled` is not `true`                                        |
-
-## Contributing
-
-Both repositories share the same rules: `main` holds development code, every change arrives through a pull request from
-a branch, and **commit messages must follow Conventional Commits** because Semantic Release derives the version from
-them.
-
-The CI gates a pull request with the build and tests, Dependency Review, and CodeQL. On merge to `main`, a DEV image is
-published, Semantic Release computes and tags the version, and the release image is built.
-
-## Related
-
-- [Architecture](/registry/technical/architecture) — how the pieces fit
-- [Backend](/registry/technical/backend) · [Frontend](/registry/technical/frontend)
-- [API Reference](/registry/technical/api-reference) — the endpoint surface
+Both images are produced and published by CI via semantic-release ([ADR 009](/registry/technical/adr/009-container-delivery-semantic-release)); you rarely build them by hand.

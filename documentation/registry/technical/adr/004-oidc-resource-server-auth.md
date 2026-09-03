@@ -1,56 +1,45 @@
-# ADR 004 — OIDC resource server with backend-brokered token exchange
+# ADR 004 — Delegated authentication via OIDC (resource server + confidential client)
 
 ## Status
 
-Accepted
+<Badge type="tip" text="Accepted" />
 
 ## Context
 
-Registry must not hold passwords. It needs federated sign-in through an external identity provider, and it needs the
-resulting identity to carry into a stateless API that a browser SPA calls cross-origin.
-
-The standard SPA pattern — a public OAuth2 client running Authorization Code with PKCE entirely in the browser — puts
-the whole flow in JavaScript. The alternative is to keep the confidential-client role on the server, where a secret can
-actually be kept.
-
-There is also a provisioning question. Registry needs its own account row per user (for the global role, preferences and
-profiles), but nobody wants to pre-create accounts before people can sign in.
+The registry is multi-tenant and needs authentication. Building a local auth system — password store, hashing, resets, MFA, brute-force protection, session security — is a large, security-sensitive surface with no product value here.
 
 ## Decision
 
-Run the backend as an **OAuth2 resource server** validating JWTs against the provider's JWKS, and make it **broker both
-token exchanges** on the browser's behalf.
+Delegate authentication to an **external OIDC provider** and keep **no local password store**. The provider issues JWTs; the backend plays two OAuth2 roles:
 
-The backend exposes four public endpoints: build the authorize URL, build the end-session URL, exchange an authorization
-code for tokens, and exchange a refresh token. The SPA performs the browser redirect and holds the resulting tokens, but
-the **client secret never leaves the server**.
+- **Resource server** — every request's JWT is validated against the provider's JWKS. Only four endpoints are public (login URL, logout URL, token, token refresh); everything else requires a valid JWT. CORS is restricted to a configured allowlist (`external.cors.urls`).
+- **Confidential client** — for the login/refresh endpoints, the backend brokers the authorization-code and refresh-token exchanges **server-side**, so the **client secret never reaches the browser**.
 
-`TokenConverterService` converts each validated JWT into the principal, and **provisions on first sign-in**: look the
-account up by OIDC subject; failing that, by email; failing that, create it with the configured default role. Personal
-fields are refreshed from the token on every request, making the provider the source of truth for identity. Blocked and
-anonymised accounts are refused here, before any endpoint is reached.
+On successful JWT validation, a custom converter maps the token to the local user: it looks the user up by OIDC subject, **refuses blocked and anonymized accounts**, **syncs changed profile fields** from the token, and **auto-provisions (JIT)** a new local user on first login, guarding against a duplicate email.
 
-The provider is configured entirely through properties — issuer URLs, client credentials and the four claim names.
+The provider is configured **generically** (JWKS / authorization / token / end-session URIs, client id, secret). The identity adapter package is named `keycloak`, but the provider is provider-agnostic — local development runs **Authentik**. The `keycloak` name is a known wart.
 
-## Rationale & best practices
+### Why delegate, and why server-side brokering
 
-- **Security:** the OIDC client secret lives only on the server. Blocked and anonymised accounts are rejected at
-  conversion, so a still-valid token cannot be used by a suspended account. Signature validation happens against the
-  live JWKS on every request.
-- **Operability:** no user provisioning step. Granting someone access to Registry means granting them access in the
-  identity provider.
-- **Portability:** the adapter speaks plain OAuth2. Local development runs Authentik; nothing binds the code to a
-  specific product, despite the package being named `keycloak`.
+- **Not worth building or owning.** An IdP does credential storage, MFA, and session security better than this codebase would, and removes the highest-risk area from it.
+- **Keep the secret off the browser.** Brokering the code/refresh exchange in the backend (confidential client) keeps the client secret server-side — a better posture than a public SPA client holding it, which is the main reason a public PKCE client was not used.
 
 ## Consequences
 
-- **Pros:** no passwords, no local credential storage, no session state to replicate. Account lifecycle follows the
-  identity provider. Provider-agnostic and configuration-driven.
-- **Cons / trade-offs:** the backend takes on a responsibility a pure resource server would not have, and the four
-  brokering endpoints are public by necessity. Every request costs the database reads needed to rebuild the principal. A
-  token stays valid until it expires, so a revoked profile is only enforced on the next request rather than instantly.
-  Email-based account matching refuses sign-in when two accounts share an address — correct, but a support case when it
-  happens. The `keycloak` package name misleads readers about what actually runs.
-- **Alternatives rejected:** a public browser client with PKCE (no server secret to protect, but the entire flow and the
-  refresh handling sit in JavaScript); a full BFF with server-side sessions and cookies (stronger token custody, but it
-  makes the API stateful and couples the two sides far more tightly).
+### Positive
+
+- **No credential storage to secure.** Hashing, resets, MFA, and session security are the provider's problem.
+- **Single sign-on** across the platform; **zero-touch onboarding** via JIT provisioning.
+- **The client secret stays server-side.**
+- **Authorization stays local** — the provider proves *who*, the backend decides *what* ([ADR 005](/registry/technical/adr/005-db-driven-project-rbac)).
+
+### Negative
+
+- **Hard dependency on the IdP.** If it is down, nobody can log in — an accepted single point of failure.
+- **The `keycloak` package name is misleading** — the provider is actually Authentik in dev and abstract in principle.
+- **JIT provisioning needs care** — the converter must not create a second account for an existing email, or provision a blocked/anonymized identity.
+- **Profile data is a copy** synced at login, so it can lag the provider between logins.
+
+### Why not build local authentication
+
+Full control and no runtime dependency on an external provider — but it re-implements a large security-critical surface and gives up SSO. The maintenance and risk cost outweighs the independence.

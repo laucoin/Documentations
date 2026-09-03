@@ -1,132 +1,102 @@
 # Architecture
 
-Registry is two independently built, independently released applications that meet at one REST contract. Neither shares code with the other; the API is the seam.
+Registry is two deployables — a reactive Kotlin backend and an Angular SPA — talking over a versioned REST API, with an external OIDC provider and a single PostgreSQL database behind the backend. This page describes each service's internal shape and how a request flows end to end.
 
-## Deployment topology
+## Backend — hexagonal, reactive
+
+The backend follows **Hexagonal architecture (ports & adapters)**. The domain sits at the centre and knows nothing about HTTP, the database, or the identity provider; everything framework-specific is an adapter at the edge. The dependency rules are not a convention — they are **verified at build time by an ArchUnit test** ([ADR 001](/registry/technical/adr/001-hexagonal-architecture)).
 
 ```mermaid
 flowchart TB
-    subgraph Client["Browser"]
-        SPA["Angular SPA<br/>tokens in session storage"]
+    subgraph out["infrastructure/out · REST API (driving)"]
+      CTRL["@RestController impls<br/>+ contract interfaces (@PreAuthorize, OpenAPI)"]
+      RDTO["reader / writer DTOs + mappers"]
     end
-
-    subgraph Edge["Frontend container"]
-        NGX["nginx-unprivileged :8080<br/>static bundle + settings/*.json"]
+    subgraph domain["domain · the hexagon core"]
+      SVC["services / use-cases"]
+      PORT["ports (interfaces)"]
+      MODEL["models · validators · enums · constants"]
     end
-
-    subgraph Api["Backend container"]
-        BE["Spring Boot WebFlux :8081<br/>distroless Java 25"]
+    subgraph in["infrastructure/in · adapters (driven)"]
+      PG["postgres: repositories, entities, mappers"]
+      KC["keycloak: OIDC adapter"]
     end
+    CFG["config · Spring wiring only"]
 
-    DB[("PostgreSQL<br/>uuid-ossp · unaccent · pg_trgm")]
-    IDP["OIDC provider<br/>(Authentik)"]
-    PROM["Prometheus"]
-    SPA -->|" HTML, JS, runtime config "| NGX
-    SPA -->|" /api/v1/** · Bearer JWT · CORS "| BE
-    SPA -->|" browser redirect: authorize / end-session "| IDP
-    BE -->|" code & refresh exchange<br/>client secret "| IDP
-    BE -->|" JWKS: validate every token "| IDP
-    BE -->|" R2DBC pool "| DB
-    BE -->|" Flyway at boot (JDBC) "| DB
-    PROM -->|" scrape /actuator/prometheus "| BE
+    CTRL --> SVC
+    SVC --> PORT
+    PORT -. implemented by .-> PG
+    PORT -. implemented by .-> KC
+    CFG -.wires.-> domain
 ```
 
-Three details in that picture are load-bearing:
+### Layers
 
-- **The browser never calls the identity provider's token endpoint.** It is redirected to the provider to authenticate, gets an authorization code back, and hands that code to the *backend*, which performs the exchange. The OIDC client secret therefore lives only on the server — the SPA is not a confidential client.
-- **The frontend is a static bundle.** nginx serves files; it proxies nothing. The browser talks to the API directly, cross-origin, which is why CORS is a first-class concern on the backend.
-- **The database is reached two ways.** R2DBC for all runtime access, and plain JDBC once at boot for the Flyway migration run — Flyway has no reactive driver.
+- **`domain/`** — the core: `model/` (business models, `RegistryException`, pagination), `port/` (driven-port interfaces the domain depends on), `service/` + `service/impl/` (use-cases), plus `validator/`, `annotation/`, `enumeration/`, `constant/`, `handler/` and reactive `extension/` helpers. No Spring-web or persistence types leak in.
+- **`infrastructure/out/`** — the **REST API** (the outward-facing, "driving" side). Controllers are **contract-first**: REST semantics — path mapping, `@PreAuthorize`, OpenAPI tags, bean validation, `@AuthenticationPrincipal CurrentUserModel` — live on an interface (`I…V1Controller`); the `@RestController` impl only delegates to a domain service. Inbound *writer* DTOs and outbound *reader* DTOs are mapped to/from domain models.
+- **`infrastructure/in/`** — the **driven adapters** that feed the domain: `postgres/` (R2DBC repositories implementing the domain ports, entities, entity mappers) and `keycloak/` (the OIDC provider adapter).
+- **`config/`** — Spring wiring only (`SecurityConfig`, `R2dbcConfig`, `I18nConfig`, `GsonConfig`, `SwaggerConfig`, `LoggerConfig`).
 
-## Runtime request flow
+> **Naming caveat.** This codebase inverts the textbook hexagonal labels: `infrastructure/in` is the persistence/identity side ("data coming in") and `infrastructure/out` is the REST API ("facing out"). This is the opposite of the usual "inbound = REST" convention — mind the inversion when reading the package tree.
 
-An authenticated call carries a JWT, and every request rebuilds the caller's rights from scratch:
+### Reactive from top to bottom
+
+Every layer is non-blocking: WebFlux controllers return `Mono`/`Flux`, repositories use the reactive **R2DBC** driver, and writes run inside reactive transactions (`TransactionalOperator`) with programmatic R2DBC auditing. Schema management is the one exception — **Flyway** migrates the database over a JDBC connection on boot, so the backend opens two connections to the same database: an R2DBC pool for runtime and JDBC for migrations ([ADR 002](/registry/technical/adr/002-reactive-webflux-r2dbc)). Repositories hand-write SQL via Spring Data `@Query`, composing reusable fragments (join clauses, visibility/project filters) to stay DRY, and assemble `PageModel` results from a count + a page query.
+
+### Cross-cutting concerns
+
+- **Errors** — a `RegistryControllerAdvice` maps `RegistryException`, validation failures, and framework exceptions to a localized `ErrorDto` (status, code, i18n title/message).
+- **Validation** — Jakarta Bean Validation plus a family of custom cross-field constraints (`@StartBeforeEnd`, `@MinUpperMax`, `@MovementReason`, `@BothCannotBeDefined`, `@AtLeastOneIsDefined`, `@MovementGuestContent`, `@DateDefinedForTime`, `@ProjectOptionDependencies`, `@ProfileAcceptOrReject`), evaluated by a reflection-based `GenericValidator`.
+- **i18n** — request locale from the `Accept-Language` header drives `messages`/`errors` bundles (English default, French supported).
+- **Pagination** — the API takes `pageNumber` (≥ 0, default 0) and `pageSize` (bounded 1–200, default 20), mapped to the domain's `PageableModel(offset, limit)`; a `PageModel` (content + page metadata) comes back, assembled from a count query plus a page query.
+- **Observability** — Spring Actuator with a Micrometer/Prometheus endpoint, feature-flagged per environment.
+
+## Frontend — standalone Angular, per-route state
+
+The frontend is a **standalone-component Angular 22 SPA** (no `NgModule`), organized by domain.
+
+- **Bootstrap & runtime config.** Before the app bootstraps, `AppConfig.load()` fetches two JSON files — `settings/config.json` (theme tokens, logos, enabled UI actions, languages, notification durations) and `settings/env.json` (backend URL, production flag, no-auth paths). The repo ships only placeholders; the real files are injected per environment, so one built image serves any environment ([ADR 007](/registry/technical/adr/007-frontend-runtime-config)).
+- **Folder taxonomy.** `domains/project/**` and `domains/user/**` hold the feature domains, each with its own `data/` (NGXS state, DTOs, models). `shell/` holds the app frame (navbar, auth-callback). `shared/util-*` libraries provide UI components, models/enums, the central state, tools, config, and authentication.
+- **State management.** NGXS (`@State`/`@Action`/`@Selector`) exposed to components as **Signals** through facade classes. Feature state is **provided per route** — scoped to the lazy-loaded subtree and code-split with it — while a root state holds the current user, preferences (theme, language), and cross-cutting UI (notifications, online status, screen width) ([ADR 008](/registry/technical/adr/008-ngxs-state-management)). The "active project" is simply `currentUser.preferences.selectedProfile.project`; selecting a profile updates preferences server-side and resets dependent feature states.
+- **HTTP & auth.** A functional interceptor attaches the bearer token, substitutes URL placeholders (current user id, selected project id), refreshes the token on `401`, and normalizes transport errors into user-facing notifications.
+- **Routing & guards.** Lazy `loadChildren` for `projects` and `users` behind an `authGuard`; nested guards enforce that a profile is selected (`selectedProfileGuard`) and that the project has the relevant option enabled — one guard per gated module (`vehicle-option`, `activity-option`, `activity-communication-option`, `activity-alert-option`; the last two also assert the option's dependency chain) — mirroring the backend's per-project option authorities.
+
+## Request flow, end to end
 
 ```mermaid
 sequenceDiagram
-    participant B as Browser
-    participant I as HTTP interceptor
-    participant F as Filter chain
-    participant T as TokenConverterService
-    participant DB as PostgreSQL
-    participant C as Controller
-    participant S as Domain service
+    participant B as Browser (SPA)
+    participant N as nginx
+    participant A as Backend (WebFlux)
+    participant I as OIDC Provider
+    participant D as PostgreSQL
 
-    B->>I: Action
-    I->>I: Attach Bearer token + Accept-Language
-    I->>F: GET /api/v1/projects/{id}/movements
-    F->>F: Validate the JWT signature against JWKS
-    F->>T: Convert the token into a principal
-    T->>DB: Load the account by OIDC subject
-    T->>T: Reject blocked or anonymised accounts
-    T->>DB: Load accepted, in-window profiles
-    T->>T: Build authorities: global + "<projectId>_<PERMISSION>" + options
-    T->>F: Authenticated principal
-    F->>C: @PreAuthorize hasPermission(#projectId, '…')
-    C->>S: Delegate (DTO → model)
-    S->>DB: Reactive query
-    S->>C: Model
-    C->>B: Reader DTO
+    B->>N: GET / (load SPA)
+    N-->>B: static bundle
+    B->>A: GET /api/v1/authentication/login/uri
+    A-->>B: provider authorize URL
+    B->>I: redirect → authenticate
+    I-->>B: redirect to /auth/callback?code=…
+    B->>A: POST /api/v1/authentication/token {code}
+    A->>I: exchange code (confidential client)
+    I-->>A: access + refresh tokens
+    A-->>B: tokens
+    B->>A: GET /api/v1/... (Authorization: Bearer)
+    A->>I: validate JWT via JWKS (cached)
+    A->>D: R2DBC query (permission-checked)
+    D-->>A: rows
+    A-->>B: JSON (reader DTO)
 ```
 
-The interesting move is in `TokenConverterService`: project permissions become **authority strings prefixed with the project's identifier**, like `9f3c…_REGISTRY_PROJECT_MOVEMENT_R`. A permission check is then a string comparison against the authority set, and multi-tenant isolation is structural — an authority for one project simply cannot satisfy a check for another. See [Security](/registry/technical/security).
+The [Security](/registry/technical/security) page details the JWT-to-user mapping and how the project-scoped permission check happens on every call.
 
-The cost is equally structural: every request pays a couple of database reads to rebuild the principal, and a token stays valid until it expires even if a profile was revoked a minute ago.
+## Deployment topology
 
-## The two sides
+Four cooperating tiers:
 
-| | Backend | Frontend |
-| --- | --- | --- |
-| Repository | `Registry-Backend` | `Registry-Frontend` |
-| Runtime | JVM 25, distroless image, port 8081 | nginx-unprivileged, port 8080 |
-| Shape | Hexagonal, enforced by ArchUnit | Feature-first domains, NGXS state |
-| Configuration | JVM options and environment variables | `settings/config.json` and `settings/env.json`, fetched at boot |
-| Detail | [Backend](/registry/technical/backend) | [Frontend](/registry/technical/frontend) |
+1. **PostgreSQL** — the single source of truth; schema owned by Flyway.
+2. **OIDC provider** — issues and signs JWTs; configured generically (see [ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)).
+3. **Backend** — distroless Java 25 image, non-root, listening on `:8081`, exposing `/api/v1/**`, Prometheus metrics, and (optionally) OpenAPI. CORS is restricted to a configured allowlist.
+4. **Frontend** — the static bundle served by an unprivileged nginx on `:8080` with SPA fallback and hardening headers; parameterized per environment by the two runtime JSON files.
 
-### Where each concern lives
-
-| Concern | Owner | Note |
-| ------- | ----- | ---- |
-| Authentication | **Backend** | Builds the provider URLs and brokers both token exchanges |
-| Authorisation | **Backend** | `@PreAuthorize` on every endpoint; the frontend only mirrors it for the UI |
-| Multi-tenant isolation | **Backend** | Project-prefixed authorities, checked per endpoint |
-| Business rules | **Backend** | Validation annotations plus domain-service chains |
-| Presentation, theming, i18n copy | **Frontend** | Runtime-configurable per environment |
-| Route guards | **Frontend** | Convenience only — never a security boundary |
-| Retention purges | **Backend** | Cron-driven, permission-gated endpoints |
-
-::: warning The frontend enforces nothing
-Route guards and hidden buttons are usability, not security. Every rule they express is independently enforced by the backend, which assumes the client is hostile.
-:::
-
-## Delivery
-
-Both sides follow the same pipeline, and both release **one immutable image per version**:
-
-```mermaid
-flowchart LR
-    PR["Pull request"] -->|build + tests| PRI["Branch-tagged image"]
-    PR --> DR["Dependency review"]
-    PR --> CQ["CodeQL"]
-    PR -->|merge to main| DEV["DEV image"]
-    DEV --> SR["Semantic Release<br/>version from Conventional Commits"]
-    SR --> REL["Release image + tag"]
-    REL --> RET["Retention job prunes old images"]
-    PRC["PR closed"] -->|cleanup| DEL["Branch image deleted"]
-```
-
-Versions are **derived from commit messages**, never hand-edited, which is why Conventional Commits are mandatory in both repositories. A `*-hotfix-*` tag branched off a release tag builds an isolated image outside the Semantic Release flow.
-
-Because the image is immutable, **nothing environment-specific may be baked into it**. The backend takes its configuration from JVM options and environment variables; the frontend fetches two JSON files at boot. That single constraint explains [ADR 008](/registry/technical/adr/008-frontend-runtime-config).
-
-## Observability
-
-The backend exposes Micrometer metrics on `/actuator/prometheus`, with request-latency histograms enabled, behind a feature flag that also decides whether the actuator endpoints are publicly reachable. springdoc publishes OpenAPI and Swagger UI behind a second flag, off by default and intended for development only.
-
-The frontend has no telemetry of its own.
-
-## Related
-
-- [Backend](/registry/technical/backend) · [Frontend](/registry/technical/frontend)
-- [Security](/registry/technical/security) — the authority model in full
-- [Data Model](/registry/technical/data-model) — schema and migrations
-- [ADR index](/registry/technical/adr/) — why each of these choices was made
+Both services are versioned by semantic-release and published as container images with a retain-5 policy ([ADR 009](/registry/technical/adr/009-container-delivery-semantic-release)).

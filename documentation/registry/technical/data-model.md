@@ -1,6 +1,6 @@
 # Data Model
 
-Registry stores everything in a single PostgreSQL database. The schema is owned by **Flyway migrations** (`V1_0_0` through `V1_11_0`), applied on boot; runtime access is reactive **R2DBC**. This page is the physical-schema companion to the business-facing [Domain Model](/registry/functional/domain-model).
+Registry stores everything in a single PostgreSQL database. The schema is owned by **Flyway migrations** (`V1_0_0` through `V1_12_0`), applied on boot; runtime access is reactive **R2DBC**. This page is the physical-schema companion to the business-facing [Domain Model](/registry/functional/domain-model).
 
 ## Entity-relationship overview
 
@@ -67,7 +67,7 @@ Every table except `tb_user`, `tb_preferences` and the RBAC tables carries a `pr
 | Table | Key columns | Notes |
 | ----- | ----------- | ----- |
 | `tb_movement` | `date_time`, `type` (`IN`/`OUT`), `project_id` (cascade), `activity_id` → `tb_activity`, `reason` | A check-in/out event, justified by either a `reason` or an `activity_id` (never both). |
-| `tb_movement_content` | PK (`movement_id`, `participant_id`), `pool_name`, `vehicle_id` → `tb_vehicle` | The people moved. `pool_name` snapshots the name of the group (in full or in part) expanded to produce this entry, independent of `vehicle_id`. |
+| `tb_movement_content` | PK (`movement_id`, `participant_id`), `pool_name` (nullable `VARCHAR`), `vehicle_id` → `tb_vehicle` | The people moved. `pool_name` is the name of the group expanded to produce this entry, snapshotted at record time; it is `NULL` for a participant added individually, and is independent of `vehicle_id`. |
 
 ### Optional modules
 

@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-- **Goal:** A movement is the core record of Registry — a **check-in (`IN`)** or **check-out (`OUT`)** event that changes who is physically present. Recording movements is how the paper attendance sheet becomes a live headcount: each movement moves a set of participants in or out, optionally records the vehicle they travelled in, and captures *why* — either a free **reason** or a linked **activity**, except when the movement simply returns someone to their normal state. The [live presence dashboard](#5-api-surface) reads those movements to answer, at any moment, "who is here right now?".
+- **Goal:** A movement is the core record of Registry — a **check-in (`IN`)** or **check-out (`OUT`)** event that changes who is physically present. Recording movements is how the paper attendance sheet becomes a live headcount: each movement moves a set of participants in or out, optionally records the vehicle they travelled in, and captures *why* — either a free **reason** or a linked **activity**, except when the movement simply returns someone to their normal state. The [live presence dashboard](/registry/technical/api-reference) reads those movements to answer, at any moment, "who is here right now?".
 - **Who uses it:** Front-line check-in staff (`PROJECT_PARTICIPANT`) record, read and correct movements at the gate; `PROJECT_COORDINATOR` and `PROJECT_ADMINISTRATOR` can additionally delete them — movements are the one resource where the coordinator keeps delete rights alongside the administrator. The dashboard is read by all three roles.
 - **Option required:** None — movements are part of the always-present core. Two enrichments are gated, though: attaching a **vehicle** needs the `VEHICLE` option, and justifying a movement with an **activity** needs the `ACTIVITY` option.
 
@@ -25,15 +25,17 @@ All rules below are **enforced by validators** at write time; a request that bre
 - **Reason / direction / type coherence** (`@MovementReason`):
   - A **guest** with **no reason** must be `OUT` (leaving).
   - A **registered** participant with **no reason and no activity** must be `IN` (returning).
-  - Otherwise, either an **activity** is present, or the chosen **reason's own direction and participant-type must match** the movement. The pairings are fixed: `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` are `OUT` for registered participants; `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT` are `IN` for guests. See [Domain Model → How reasons pair with direction and type](/registry/functional/domain-model#how-reasons-pair-with-direction-and-type).
+  - Otherwise, either an **activity** is present, or the chosen **reason's own direction and participant-type must match** the movement. The pairings are fixed: `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` are `OUT` for registered participants; `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT` are `IN` for guests. See [Domain Model → How reasons pair with direction and type](/registry/functional/domain-model#how-reasons-pair-with-direction-and-type). The case of one or more registered participants leaving `OUT` for an **activity** is spelled out in [Activities → Behavioral scenarios](/registry/functional/features/activities#4-behavioral-scenarios-bdd).
 - **Guest movement content** (`@MovementGuestContent`). For a guest movement:
   - if direction is `IN`, a **non-empty list of new guests** (first name, last name, birthday) is provided and the existing-participant list is empty — guests are **created on arrival**;
   - if direction is `OUT`, it references **existing guest participants** and the new-guest list is empty.
 - **A time cannot be given without a date** (`@DateDefinedForTime`). The timestamp defaults to "now"; if a time is supplied, its date must be supplied too.
+- **The timestamp must fall inside the project's date range.** A movement's `dateTime` is rejected with `MOVEMENT_DATETIME_OUT_OF_PROJECT_DATE_RANGE` when it lies outside the project's `begin`–`end` window. There is **no past/future restriction of the movement's own** — it may be back-dated or dated ahead of now, as long as it stays within that window; a project with no `begin`/`end` accepts any timestamp. (On edit, pushing a movement's `dateTime` later cannot leave an attached communication stranded after it — `MOVEMENT_COMMUNICATION_OUT_OF_MOVEMENT_DATETIME`.)
 - **Direction and content type are locked on edit.** A movement's direction (`IN`/`OUT`) and content type (`REGISTERED`/`GUEST`) cannot be changed after creation — only its other fields may be corrected.
 - **Definitive departure is terminal.** The `DEFINITIVE_DEPARTURE` reason (an `OUT` for a registered participant) marks that participant as **gone for good** — the state a guest reaches automatically on every `OUT`, without needing a dedicated reason.
 - **Vehicles require the `VEHICLE` option and registered content.** A vehicle may be attached only when the project has the `VEHICLE` option enabled **and** the movement content is `REGISTERED`; drivers are chosen among the selected adult / major participants.
-- **Pool label snapshots the originating group.** When a movement is recorded by expanding a group, each resulting participant entry carries a **pool label** — the group's name (in full or in part) as it stood at that moment. It is independent of the `VEHICLE` option and of any vehicle assignment: it exists purely so later changes to the group's membership never need to be reconciled against past movements.
+- **Pool label is optional, and only group expansion sets it.** Each participant entry in a movement *may* carry a **pool label**. It is left empty for a participant picked individually, and set to the **group's name** — as it stood at that moment — for a participant brought in by expanding that group. It is independent of the `VEHICLE` option and of any vehicle assignment; its only purpose is that later changes to a group's membership never have to be reconciled against past movements.
+- **Adding a group fills the participant list — you stay in control of it.** Selecting a group is a client-side shortcut: it expands to the group's current members, each pre-tagged with the group's pool label. You can then drop individual members from the movement, or remove the whole group at once, before recording. The request carries the **final list of participant entries**, never a group reference — this is how you move "the whole tent except two" without adding people one by one.
 - **Movements can be reversed.** A mistaken check-in or check-out is undone from the dashboard by recording the **opposite movement**, restoring the previous presence state.
 - **A movement's direction doesn't have to change anything — and that's not blocking.** Recording an `OUT` for someone already `OUT`, or an `IN` for someone already `IN`, is allowed. It isn't a required transition; it's simply a movement whose starting and ending presence happen to be the same.
 
@@ -88,7 +90,7 @@ Scenario: A guest leaving must reference existing guests, not new ones
   When I record a guest movement with direction OUT referencing "Sam Doe"
   And the new-guest list is empty
   Then the movement is accepted
-  And "Sam Doe" is counted as off-site
+  And "Sam Doe" is no longer counted among the guests on site — a guest who leaves is gone for good, not tracked as off-site
 ```
 
 ```gherkin
@@ -106,11 +108,23 @@ Scenario: Selecting a group expands to its members
 ```
 
 ```gherkin
+Scenario: Members from a group can be dropped from the movement before recording
+  Given a group "Tent 1" currently has members "Ana", "Ben" and "Cora"
+  When I select the group "Tent 1" in a movement
+  And I remove "Ben" from the expanded list
+  And I record the movement
+  Then the movement contains only "Ana" and "Cora"
+  And their entries keep the pool label "Tent 1"
+  And "Ben" has no entry in the movement
+```
+
+```gherkin
 Scenario: A vehicle is attached to a registered movement
   Given the project has the VEHICLE option enabled
   And a registered participant "Alex" who is a major
   When I record an OUT movement for "Alex" assigned to vehicle "AA-123-BB"
   Then the movement is accepted
+  And "Alex" is counted as absent on the dashboard
   And the vehicle "AA-123-BB" is counted as OUT on the dashboard
 ```
 
@@ -141,6 +155,21 @@ Scenario: A vehicle cannot be attached when the option is off
 Scenario: A time without a date is rejected
   When I record a movement with a time of 14:30 but no date
   Then the request is rejected by the @DateDefinedForTime validator
+```
+
+```gherkin
+Scenario: A movement timestamp outside the project's date range is rejected
+  Given the project runs from 2026-07-10 to 2026-07-24
+  When I record a movement dated 2026-08-01
+  Then the request is rejected with MOVEMENT_DATETIME_OUT_OF_PROJECT_DATE_RANGE
+```
+
+```gherkin
+Scenario: A movement may be dated ahead of now, within the project's range
+  Given the project runs from 2026-07-10 to 2026-07-24
+  And the current date is 2026-07-12
+  When I record a movement dated 2026-07-15
+  Then the movement is accepted — there is no rule against a future-dated movement
 ```
 
 ```gherkin
@@ -194,24 +223,4 @@ Scenario: The live headcount reflects recorded movements
 
 ## 5. API surface
 
-REST endpoints backing this feature. All project-scoped endpoints live under `/api/v2/projects/{projectId}/...`. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/movements` | List movements | `REGISTRY_PROJECT_MOVEMENT_R` |
-| `GET` | `/movements/contents` | List movement contents | `REGISTRY_PROJECT_MOVEMENT_R` |
-| `GET` | `/movements/{id}` | Read a single movement | `REGISTRY_PROJECT_MOVEMENT_R` |
-| `GET` | `/movements/reasons?q=` | Search selectable reasons (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
-| `GET` | `/movements/eligible-participants-and-groups?q=` | Search participants and groups to move (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
-| `GET` | `/movements/eligible-vehicles?q=` | Search assignable vehicles (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
-| `GET` | `/movements/eligible-activities?q=` | Search selectable activities to justify a movement (metadata) | `REGISTRY_PROJECT_MOVEMENT_METADATA_R` |
-| `GET` | `/movements/{id}/communications` | Read the movement's discussion thread | `COMMUNICATION` option + `REGISTRY_PROJECT_MOVEMENT_COMMUNICATION_R` |
-| `GET` | `/movements/participants/status` | Live headcount: present minors / majors, absent, guests on site | `REGISTRY_PROJECT_R` |
-| `GET` | `/movements/vehicles/status` | Live vehicle presence (present / absent) | `VEHICLE` option + `REGISTRY_PROJECT_R` |
-| `POST` | `/movements` | Record a registered movement | `REGISTRY_PROJECT_MOVEMENT_C` |
-| `POST` | `/movements/guests` | Record a guest movement (creating guests on arrival) | `REGISTRY_PROJECT_MOVEMENT_C` |
-| `PATCH` | `/movements/{id}` | Correct a registered movement | `REGISTRY_PROJECT_MOVEMENT_U` |
-| `PATCH` | `/movements/guests/{id}` | Correct a guest movement | `REGISTRY_PROJECT_MOVEMENT_U` |
-| `POST` | `/movements/{id}/disable` | Soft-disable a movement | `REGISTRY_PROJECT_MOVEMENT_U` |
-| `POST` | `/movements/{id}/enable` | Re-enable a disabled movement | `REGISTRY_PROJECT_MOVEMENT_U` |
-| `DELETE` | `/movements/{id}` | Permanently delete a movement | `REGISTRY_PROJECT_MOVEMENT_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

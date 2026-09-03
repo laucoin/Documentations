@@ -63,6 +63,7 @@ Scenario: The feature is closed when the VEHICLE option is off
   When I attempt to list vehicles
   Then the request is refused because the feature is closed
   Regardless of my role
+  And any vehicles and past movement assignments recorded earlier are retained, not deleted — see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating)
 ```
 
 ```gherkin
@@ -92,15 +93,4 @@ Scenario: A coordinator reviews a vehicle's movement history
 
 ## 5. API surface
 
-REST endpoints backing this feature. All project-scoped endpoints live under `/api/v2/projects/{projectId}/...` and **require the `VEHICLE` option**. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/vehicles` | List vehicles | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_R` |
-| `GET` | `/vehicles/{id}` | Read a single vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_R` |
-| `GET` | `/vehicles/{id}/movements` | Read the vehicle's movement history | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_HISTORY_R` |
-| `POST` | `/vehicles` | Register a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_C` |
-| `PATCH` | `/vehicles/{id}` | Update a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_U` |
-| `POST` | `/vehicles/{id}/disable` | Soft-disable a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_U` |
-| `POST` | `/vehicles/{id}/enable` | Re-enable a disabled vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_U` |
-| `DELETE` | `/vehicles/{id}` | Permanently delete a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

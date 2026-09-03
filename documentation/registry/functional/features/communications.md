@@ -19,9 +19,10 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 ## 3. Business rules
 
 - **A message must have a target.** Every communication references a **movement and/or an alert** — at least one of the two (`@AtLeastOneIsDefined`). A message with neither target is rejected.
-- **Message length ≤ 250 characters.** Longer text is rejected.
+- **Message is required and ≤ 250 characters.** The form requires a non-blank message; the server rejects anything over **250 characters** (`COMMUNICATION_MESSAGE_TOO_LONG`, and the column is `VARCHAR(250)`).
 - **Timestamped.** Each message carries a timestamp; a thread is read in chronological order.
 - **Escalation.** A message in a movement thread can be turned into an [alert](/registry/functional/features/alerts), which then carries its own thread. The original message stays on the movement.
+- **Thread attribution is derived, not chosen.** The stored record always keeps its real author — the signed-in user who created it (audit `created_by`). In the discussion thread the message is *displayed* as coming from: the linked movement's **reason or activity** when it has one (a note on a movement justified by the activity "Hike" shows under "Hike"); otherwise its **author**, rendered as your own message when that author is you; or **"no author"** if the author account was later removed. There is no separate author picker — you influence attribution only by choosing which movement the message is pinned to.
 - **Disabling is a soft, reversible action, open to all three roles.** Disabling hides a message without deleting it; it can be re-enabled. Deletion is permanent and **administrator only**.
 - **Gated by the option.** If the `COMMUNICATION` option is disabled on the project, the whole feature is invisible and its API is closed.
 
@@ -50,6 +51,22 @@ Scenario: A message longer than 250 characters is rejected
   When I post a message of 251 characters on a movement
   Then the request is rejected for exceeding the maximum length
   And no communication is created
+```
+
+```gherkin
+Scenario: A message on an activity movement is attributed to the activity in the thread
+  Given I am a PROJECT_PARTICIPANT on a project with the COMMUNICATION option enabled
+  And a movement justified by the activity "Hike"
+  When I post "Back in ten minutes" on that movement
+  Then the communication is stored with me as its author
+  And the thread displays it as coming from "Hike"
+```
+
+```gherkin
+Scenario: A message with no movement reason is attributed to its author
+  Given I am a PROJECT_COORDINATOR on a project with the COMMUNICATION option enabled
+  When I post a message on an alert thread
+  Then the thread displays it as coming from me
 ```
 
 ```gherkin
@@ -85,16 +102,4 @@ Scenario: The feature is closed when the option is disabled
 
 ## 5. API surface
 
-REST endpoints backing this feature, all under `/api/v2/projects/{projectId}/communications` and **gated by the `COMMUNICATION` option**. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/communications` | List communications on the project | `REGISTRY_PROJECT_COMMUNICATION_R` |
-| `GET` | `/communications/{id}` | Read a single communication | `REGISTRY_PROJECT_COMMUNICATION_R` |
-| `GET` | `/communications/attachable-movements?q=` | Find movements a message can attach to (metadata) | `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
-| `GET` | `/communications/attachable-alerts?q=` | Find alerts a message can attach to (metadata) | `REGISTRY_PROJECT_COMMUNICATION_METADATA_R` |
-| `POST` | `/communications` | Post a message on a movement and/or alert | `REGISTRY_PROJECT_COMMUNICATION_C` |
-| `PATCH` | `/communications/{id}` | Edit a message | `REGISTRY_PROJECT_COMMUNICATION_U` |
-| `POST` | `/communications/{id}/disable` | Soft-disable (hide) a message | `REGISTRY_PROJECT_COMMUNICATION_U` |
-| `POST` | `/communications/{id}/enable` | Re-enable a hidden message | `REGISTRY_PROJECT_COMMUNICATION_U` |
-| `DELETE` | `/communications/{id}` | Permanently delete a message | `REGISTRY_PROJECT_COMMUNICATION_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

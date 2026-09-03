@@ -1,58 +1,59 @@
-# ADR 005 — Database-driven, project-scoped permissions
+# ADR 005 — Database-driven, project-scoped RBAC
 
 ## Status
 
-Accepted
+<Badge type="tip" text="Accepted" />
 
 ## Context
 
-Registry is multi-tenant and the isolation guarantee is absolute: a user's rights on one project must grant nothing on
-any other. Roles are also two-dimensional — a global plane governing accounts and project creation, and a per-project
-plane governing everything inside a project — and a global role must not leak into a project.
+The registry is multi-tenant: users act inside **projects**, and a user's rights in one project say nothing about their rights in another. Authorization has two planes — **global** (platform-wide) and **project-scoped** (within one project).
 
-The usual approach is a `WHERE project_id = ?` clause on every query. That works right up to the first time someone
-forgets it, and the failure is silent cross-tenant data exposure.
-
-The permission set also grows with every feature. Encoding it in enums or annotations makes each new capability a code
-change and a deployment.
+Authentication is delegated ([ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)); the provider proves identity but does not model this application's project roles.
 
 ## Decision
 
-Store roles and permissions **in the database** — six tables: global permissions, global roles, project permissions,
-project roles and the two mapping tables — and turn a project role into **authority strings prefixed with the project's
-identifier**.
+Model roles and permissions as **data in the database** — real, related rows — and enforce them with Spring method security and a custom `PermissionEvaluator`.
 
-At sign-in conversion, `RoleService` maps each of the user's profiles to its permissions and emits
-`<projectId>_<PERMISSION>`:
+### The data model is the point
 
-```
-9f3c1a2e-…-b7d4_REGISTRY_PROJECT_MOVEMENT_R
-```
+Both planes are three tables (catalog of permission names, roles with a numeric `level`, role→permission mapping). Roles are **first-class entities that other rows relate to**:
 
-`PermissionService`, a Spring `PermissionEvaluator`, answers `hasPermission(#projectId, 'X')` by testing whether
-`"${projectId}_X"` is in the authority set. Enabled project options are emitted the same way, so an option gate is
-itself an authority check.
+- a **user** references a global **role**;
+- a **project profile** references a project **role**, and belongs to both a **user** and a **project**.
 
-Only profiles that are **`ACCEPTED` and inside their access window** contribute. Roles carry a `level`, with a partial
-unique index guaranteeing one level-0 role per plane, and a role may only ever assign itself or a weaker role.
+Making the role an entity rather than a string on the user (or a claim in the token) means membership, level ordering, and the safeguards built on them (the last-permanent-administrator rule, role-ceiling checks) are ordinary foreign-key relationships. It also makes **data migration straightforward**: renaming a role, adding a permission, or changing what a role grants is a Flyway migration against these tables — the existing profiles keep pointing at the same role rows, and no code changes.
 
-## Rationale & best practices
+### Enforcement
 
-- **Security:** isolation becomes a property of the credential rather than of a query. An authority for project A cannot
-  satisfy a check for project B — the prefixes differ. A forgotten tenant filter is still a bug, but it is not
-  exploitable into cross-tenant access without a matching authority.
-- **Least privilege:** permissions are fine-grained per feature and operation, including separate `_HISTORY_R` and
-  `_METADATA_R` reads, so roles are composed rather than approximated.
-- **Evolvability:** granting a role a new permission is a Flyway migration, not a release.
+- Rows are seeded by Flyway migrations and loaded into an **in-memory map at startup**.
+- Granted authorities are plain strings, computed at **token-conversion time** (the same converter as [ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)):
+  - global permission names (e.g. `REGISTRY_USER_R`);
+  - per-project authorities namespaced as **`{projectId}_{PERMISSION}`**;
+  - per-project option authorities `{projectId}_REGISTRY_PROJECT_OPTION_{X}`.
+- `@PreAuthorize` on the controller contract interfaces:
+  - `hasAuthority('X')` — a global check;
+  - `hasPermission(#projectId, 'X')` — routes to the custom `PermissionEvaluator`, which checks whether the user holds the string `{projectId}_X`.
+- **Visibility gating:** for a disabled (invisible) project, non-admins receive no project authorities; admins keep only project read/update/delete.
 
 ## Consequences
 
-- **Pros:** tenant isolation is structural. Permissions are data, auditable with a query. The two planes stay genuinely
-  independent. Option gating reuses the same mechanism at no extra cost.
-- **Cons / trade-offs:** the authority set grows with the number of projects a user holds — a user on fifty projects
-  carries a large principal, rebuilt on every request. Role maps are cached at application start, so a permission change
-  is not picked up until restart. Authority strings are stringly-typed, mitigated only by the convention that they come
-  from constants. Debugging an authorisation failure means inspecting a set of prefixed strings.
-- **Alternatives rejected:** query-level tenant filtering alone (one omission is a silent breach); PostgreSQL row-level
-  security (strong, but invisible from the application and awkward with a pooled reactive driver); permissions as code
-  enums (no migration needed to grant, but every grant becomes a deployment).
+### Positive
+
+- **Roles/permissions are relatable data.** Membership and the level-based safeguards are foreign keys, not string parsing or token claims.
+- **Cheap data migrations.** Changing the permission model is a migration against a handful of tables; existing profiles are untouched.
+- **Multi-tenant isolation falls out of the namespacing.** `A_EDIT` can never satisfy a check for `B_EDIT`.
+- **Checks are fast** — an in-memory string-set lookup — and **declarative**, sitting on the API contract.
+
+### Negative
+
+- **Authorities are recomputed only at token conversion.** A role change takes effect for an already-authenticated user only after they re-authenticate; there is no live mid-session revocation.
+- **The seed data and the `@PreAuthorize` strings must stay aligned.** A permission renamed in one place but not the other fails silently as a denied check.
+- **`{projectId}_{PERMISSION}` is compact but non-obvious.** A reader must know the convention.
+
+### Why not the identity provider's roles/groups
+
+The provider does not model the project-scoped plane; encoding per-project authorities for every project into provider groups does not scale and couples the tenant model to IdP administration.
+
+### Why not a full ACL / policy engine
+
+More expressive and supports live changes, but overkill for a two-plane model. The `PermissionEvaluator` is the single seam where a richer engine would slot in if per-record grants or runtime revocation are ever needed.

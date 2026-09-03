@@ -1,42 +1,43 @@
-# ADR 003 — Kotlin on JVM 25
+# ADR 003 — Kotlin on the JVM, Java 25 toolchain
 
 ## Status
 
-Accepted
+<Badge type="tip" text="Accepted" />
 
 ## Context
 
-The backend is a validation-heavy domain: dozens of rules that check whether a field is present, whether two optional
-fields conflict, whether a referenced entity exists and is visible. That is the shape of code where `null` handling
-dominates, and where Java's verbosity is felt on every line.
-
-The reactive style chosen in [ADR 002](/registry/technical/adr/002-reactive-webflux-r2dbc) compounds it: long chains of
-operators read badly in Java, and the domain is written almost entirely as such chains.
+The ecosystem is fixed and JVM-based (Spring Boot, Reactor, R2DBC — [ADR 002](/registry/technical/adr/002-reactive-webflux-r2dbc)). The open choices are the JVM language and the toolchain version.
 
 ## Decision
 
-Write the backend in **Kotlin 2.4** targeting a **JVM 25 toolchain**, with `-Xjsr305=strict` so platform types from Java
-libraries are treated as nullable rather than trusted.
+Write the backend in **Kotlin** (2.x) on a **Java 25 toolchain**, with the Gradle Kotlin DSL and Spring Boot 4.x.
 
-Kotlin's extension functions are used deliberately as a structuring tool: reactive helpers in
-`domain/extension/ReactiveExt.kt`, and validation steps expressed as extensions on `Mono<T>` so a service reads as a
-named pipeline — `validateMovementDate` → `validateActivity` → `saveGuestsIfNecessary` → `validateParticipants`.
+### Why Kotlin
 
-## Rationale & best practices
+- **Null-safety in the type system.** Nullability is expressed and checked at compile time, so the class of `NullPointerException` bugs common to plain-Java Spring code is caught by the compiler — worthwhile for a registry full of optional fields.
+- **Less verbose than Java.** `data class`es (value semantics, `copy`, destructuring), expressions over statements, and no getter/setter boilerplate keep the domain models, DTOs, and mappers small.
 
-- **Security:** null-safety in the type system removes an entire class of runtime failure from code whose whole job is
-  checking whether things are present.
-- **Maintainability:** `reactor-kotlin-extensions` makes reactive chains legible, and extension functions let each
-  validation step be named, ordered and read top to bottom.
-- **First-class support:** Spring Boot treats Kotlin as a supported language, so this is not a fringe combination.
+Kotlin has no "LTS" release line — it ships roughly six-monthly feature releases — so the project simply tracks a recent 2.x.
+
+### Why the Java 25 toolchain
+
+**Java 25 is the current LTS** (September 2025, the successor to 21), so it is the natural baseline rather than an aggressive choice. The toolchain is declared through Gradle, so moving it later is a configuration change, not a code change.
 
 ## Consequences
 
-- **Pros:** substantially less boilerplate; null-safety enforced at compile time; readable reactive pipelines; full Java
-  interoperability.
-- **Cons / trade-offs:** a second language toolchain to keep current, and Kotlin compilation is slower than Java's. JVM
-  25 is recent enough to constrain where the image can run. Heavy use of extension functions is idiomatic but can hide
-  where behaviour is defined from someone new to the codebase.
-- **Alternatives rejected:** Java 25 with records (no third-party toolchain, but far more verbose in a null-heavy
-  reactive domain); an older LTS JVM (fewer platform improvements for no benefit, since the runtime is a container the
-  project controls).
+### Positive
+
+- **Compile-time null-safety** removes a whole bug class before runtime.
+- **Concise code.** Data classes and expression syntax keep the ports-and-adapters boilerplate of [ADR 001](/registry/technical/adr/001-hexagonal-architecture) as small as that structure allows.
+- **First-class Spring + Reactor support.** Spring Boot ships Kotlin DSLs and the `kotlin-spring` compiler plugin; Kotlin bridges cleanly to the Reactor types used in [ADR 002](/registry/technical/adr/002-reactive-webflux-r2dbc).
+- **On a supported LTS.** Java 25 gets long-term updates; no near-term runtime migration is owed.
+
+### Negative
+
+- **Kotlin + Spring reflection edge cases.** Final-by-default classes, nullability of injected generics, and `data class` proxying occasionally interact awkwardly with Spring's reflection/proxying, producing non-obvious errors.
+- **Contributors must know Kotlin.** Java-only contributors face a learning curve, mainly around null-safety.
+- **Recent LTS, lagging tooling.** Even as an LTS, Java 25 is new enough that some CI images, IDE plugins, and downstream tools may lag for a while.
+
+### Why not plain Java
+
+Modern Java (records, sealed types, pattern matching) closes much of the historical gap and avoids a second language. Kotlin was chosen because its null-safety is a language guarantee rather than opt-in tooling, and because it is materially less verbose for this codebase's shape. The cost is the learning curve and occasional reflection friction.

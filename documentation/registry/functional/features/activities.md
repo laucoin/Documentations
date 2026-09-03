@@ -108,15 +108,4 @@ Scenario: Disabling an activity hides it without losing history
 
 ## 5. API surface
 
-REST endpoints backing this feature. All project-scoped endpoints live under `/api/v2/projects/{projectId}/...` and **require the `ACTIVITY` option**. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/activities` | List activities | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_R` |
-| `GET` | `/activities/{id}` | Read a single activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_R` |
-| `GET` | `/activities/{id}/movements` | Read the activity's movement history | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_HISTORY_R` |
-| `POST` | `/activities` | Plan an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_C` |
-| `PATCH` | `/activities/{id}` | Update an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
-| `POST` | `/activities/{id}/disable` | Soft-disable an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
-| `POST` | `/activities/{id}/enable` | Re-enable a disabled activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
-| `DELETE` | `/activities/{id}` | Permanently delete an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

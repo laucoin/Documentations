@@ -93,7 +93,7 @@ links survive moves and restructures.
 | Rule                          | Wrong                                               | Right                                                                                                         |
 |-------------------------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
 | Always start with `/`         | `./architecture`, `../technical/architecture`       | `/registry/technical/architecture`                                                                            |
-| Omit the `.md` extension      | `/registry/technical/adr/017-api-v2-conventions.md` | `/registry/technical/adr/017-api-v2-conventions`                                                              |
+| Omit the `.md` extension      | `/registry/technical/adr/001-hexagonal-architecture.md` | `/registry/technical/adr/001-hexagonal-architecture`                                                        |
 | Trailing slash on index pages | `/registry/technical/adr`                           | `/registry/technical/adr/`                                                                                    |
 | Anchors appended as-is        | n/a                                                 | `/registry/functional/roles-and-permissions#project-options-gating` (same-page anchors stay bare: `#section`) |
 

@@ -1,3 +1,30 @@
+/* Status pills (used for the ADR "Status" field) — solid, high-contrast,
+   overriding VitePress's very pale default tints. Badges are used only for
+   ADR status in this repo, so a global override is fine. */
+.VPBadge {
+  font-weight: 600;
+}
+.VPBadge.tip {
+  --vp-badge-tip-bg: var(--vp-c-green-3);
+  --vp-badge-tip-text: #fff;
+  --vp-badge-tip-border: transparent;
+}
+.VPBadge.warning {
+  --vp-badge-warning-bg: var(--vp-c-yellow-3);
+  --vp-badge-warning-text: #20160a;
+  --vp-badge-warning-border: transparent;
+}
+.VPBadge.danger {
+  --vp-badge-danger-bg: var(--vp-c-red-3);
+  --vp-badge-danger-text: #fff;
+  --vp-badge-danger-border: transparent;
+}
+.VPBadge.info {
+  --vp-badge-info-bg: var(--vp-c-default-soft);
+  --vp-badge-info-text: var(--vp-c-text-1);
+  --vp-badge-info-border: var(--vp-c-divider);
+}
+
 /* Click-to-zoom affordance for Mermaid diagrams */
 .mermaid-zoomable {
   cursor: zoom-in;

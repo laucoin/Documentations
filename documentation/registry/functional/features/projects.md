@@ -32,8 +32,9 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 ```gherkin
 Scenario: Any signed-in user creates a project and becomes its administrator
   Given I am a signed-in user
+  And the current date is 2026-09-02
   When I create a project named "Summer Gathering 2026" beginning 2026-07-10 and ending 2026-07-24
-  Then the project is created with derived status UNAVAILABLE
+  Then the project is created with derived status UNAVAILABLE, because 2026-09-02 is past its end date
   And I am granted a PROJECT_ADMINISTRATOR profile on it
   And the project appears in my project list
 ```
@@ -91,15 +92,4 @@ Scenario: A platform administrator can read any project for support
 
 ## 5. API surface
 
-REST endpoints backing this feature. Project-scoped endpoints live under `/api/v2/projects/{projectId}/...` and are secured by the holder's project-scoped permission. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/projects` | List the projects the caller can access | Authenticated (scoped to caller's profiles) |
-| `GET` | `/projects/{id}` | Read a single project | `REGISTRY_PROJECT_R` (global or scoped) |
-| `GET` | `/projects/options` | Read available options (metadata) | `REGISTRY_PROJECT_METADATA_R` |
-| `POST` | `/projects` | Create a project (creator becomes administrator) | `REGISTRY_PROJECT_C` (global) |
-| `PATCH` | `/projects/{id}` | Update name, dates or options | scoped `REGISTRY_PROJECT_U` |
-| `POST` | `/projects/{id}/disable` | Soft-disable (hide) the project | scoped `REGISTRY_PROJECT_U` |
-| `POST` | `/projects/{id}/enable` | Re-enable a disabled project | scoped `REGISTRY_PROJECT_U` |
-| `DELETE` | `/projects/{id}` | Permanently delete the project | scoped `REGISTRY_PROJECT_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

@@ -1,134 +1,102 @@
 # Feature: Users
 
-> This is the **global plane** — accounts, not projects. Everything here is about who may sign in and what they may do
-> platform-wide, and none of it grants a single right inside anybody's project.
+## 1. Overview
 
-**Who this is for:** platform administrators. Plus two operations that every user can perform on themselves.
+- **Goal:** Users are the platform-wide directory of people who can sign in — the only entity that does not live inside a project. This feature is how platform staff administer that directory: browse accounts, adjust a user's **global role**, **block** an account from signing in, and, when data-protection requires it, **anonymize** (permanently scrub) a user. It also gives every user a single self-service right: the ability to anonymize **their own** account.
+- **Who uses it:** A global `USER_ADMINISTRATOR` administers all accounts. An ordinary `USER` has **no access to the directory**, but may anonymize their own account.
+- **Option required:** None. This is a **global** feature, governed by global roles rather than project options.
 
-## Who can do what
+## 2. Roles & Permissions
 
-| Role                   | May do                                                                                                    | Limits                                        |
-|------------------------|-----------------------------------------------------------------------------------------------------------|-----------------------------------------------|
-| `USER_ADMINISTRATOR`   | Read the directory · list assignable roles · change a role · Block · Unblock · **Anonymise** · **Delete** | Platform-wide; grants nothing inside projects |
-| `USER`                 | Nothing on other accounts                                                                                 | —                                             |
-| Any authenticated user | **Anonymise their own account**                                                                           | Acting on themselves only                     |
+This is a **global** feature: it uses the platform-wide roles `USER_ADMINISTRATOR` and `USER`, not project roles. Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → User](/registry/functional/domain-model#user) for the entity.
 
-::: info Accounts are not created here
-There is no "create user" operation. Accounts appear when someone signs in for
-the first time — see [Roles & Permissions](/registry/functional/roles-and-permissions#account-provisioning).
-:::
+| Role | Permitted actions | Conditions / Scope |
+| ---- | ----------------- | ------------------ |
+| `USER_ADMINISTRATOR` (global) | **R U D** | View the directory and user metadata/roles (`REGISTRY_USER_R`, `REGISTRY_USER_METADATA_R`); change a user's global role (`REGISTRY_USER_U`); block/unblock an account (`REGISTRY_USER_U`); anonymize or delete another user (`REGISTRY_USER_D`). Subject to the role-level and last-administrator safeguards below. |
+| `USER` (global, default) | **self-service only** | No access to the directory. May, however, anonymize **their own** account (authenticated; no special permission). |
 
-## Roles on the global plane
+> Accounts are not created through this feature: they are **auto-provisioned on first OIDC sign-in** with the default `USER` role. See [Roles & Permissions → Authentication model](/registry/functional/roles-and-permissions#authentication-model).
 
-Two roles: `USER_ADMINISTRATOR` (level 0) and `USER` (level 9000, the default given to every new account). The same
-ladder rule as everywhere else applies — **you may assign your own role or a weaker one, never a stronger one** — and an
-administrator can only act on accounts whose role is one they could assign.
+## 3. Business rules
 
-```gherkin
-Scenario: Promoting a colleague
-  Given I am a USER_ADMINISTRATOR
-  When I set another user's role to USER_ADMINISTRATOR
-  Then the change is saved
+- **"Impersonate" means GDPR anonymization, not logging in as someone else.** In this system, anonymizing a user **scrambles their personal data** (name, email), **clears the birthday**, and **marks the account purged**. It is a soft-delete for data-protection purposes; the scrambled identity can **never sign in again**. It does **not** let anyone act as another user or borrow their session.
+- **Blocking toggles sign-in.** A blocked account is **refused at sign-in**; unblocking restores access. Blocking is reversible; anonymization is not.
+- **Role-level safety.** A user may only assign roles **at or below their own level**. The system **refuses to remove or demote the last platform administrator** (the last level-0 global role), so the platform can never be left with no administrator.
+- **Auto-provisioning.** On first sign-in through the OIDC provider, an account is created automatically and linked to the provider identity with the default `USER` role.
+- **Self-anonymization.** Any signed-in user may anonymize their own account without administrator involvement; the effect is identical to an administrator anonymizing them.
 
-Scenario: Listing the roles I may assign
-  When I ask for the assignable roles
-  Then I get my own role and every weaker one
-```
-
-## The last administrator is protected
-
-A platform without an administrator cannot be recovered, so Registry refuses every path that would produce one. The
-**last global administrator** cannot be demoted, blocked, anonymised or deleted.
-
-The same protection extends sideways into projects: a user who is the **last administrator of any project** cannot be
-blocked, anonymised or deleted either — the error names the project so you know where to hand the role over first.
+## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: Refusing to demote the last administrator
-  Given I am the only USER_ADMINISTRATOR on the platform
-  When I try to change my own role
-  Then the request is rejected
-
-Scenario: Refusing to delete the last administrator of a project
-  Given a user is the sole administrator of a project
-  When I try to delete their account
-  Then the request is rejected and the project is named
+Scenario: An administrator browses the user directory
+  Given I am a global USER_ADMINISTRATOR
+  When I list the platform's users
+  Then I see each account with its name, email and global role
 ```
-
-## Blocking
-
-Blocking makes an account invisible and **refuses its sign-in outright** — the token is valid, the account exists, and
-Registry says no. It is the reversible way to suspend someone who has left, without touching the history their account
-is attached to.
-
-You cannot block yourself.
 
 ```gherkin
-Scenario: Blocking an account
-  Given a user who has left the organisation
-  When I block their account
-  Then their next sign-in is refused
-
-Scenario: Unblocking an account
-  Given a blocked account
-  When I unblock it
-  Then the user can sign in again
-
-Scenario: Refusing to block myself
-  When I try to block my own account
-  Then the request is rejected
+Scenario: An ordinary user cannot access the directory
+  Given I am a global USER with the default role
+  When I attempt to list the platform's users
+  Then the request is refused for lack of permission
 ```
-
-## Anonymising
-
-Anonymisation is Registry's answer to an erasure request. It **severs the identity while keeping the account row**:
-
-- first name, last name and email are replaced with random values;
-- the birthday is cleared;
-- the account is flagged as anonymised, and any future sign-in is refused.
-
-Keeping the row is the point: everything the account created — projects, participants, movements — keeps a coherent
-author, with nobody's name on it. A hard delete would leave the history dangling.
-
-Two people can trigger it: a platform administrator on someone else's account, or **any user on their own**.
-Self-service erasure needs no permission at all, only that you are not the last administrator somewhere.
 
 ```gherkin
-Scenario: Erasing my own account
-  Given I am signed in and I am not the last administrator anywhere
-  When I anonymise my own account
-  Then my personal data is replaced and my next sign-in is refused
-
-Scenario: Refusing to anonymise myself as an administrator acting on others
-  When a USER_ADMINISTRATOR targets their own account through the administration screen
-  Then the request is rejected, because self-erasure has its own route
-
-Scenario: Refusing to anonymise the last administrator of a project
-  Given I am the sole administrator of a project
-  When I anonymise my account
-  Then the request is rejected and the project is named
+Scenario: Anonymizing a user scrubs their identity permanently
+  Given I am a global USER_ADMINISTRATOR
+  And a user account exists
+  When I anonymize that user
+  Then their name and email are scrambled
+  And their birthday is cleared
+  And the account is marked purged and can never sign in again
 ```
 
-## Deleting
+```gherkin
+Scenario: Anonymize is not "sign in as" — it does not grant a session
+  Given I am a global USER_ADMINISTRATOR
+  When I anonymize another user
+  Then I do not gain a session or act on their behalf
+  And their personal data is scrubbed instead
+```
 
-Deletion removes the account entirely, cascading its profiles and preferences. Anything it authored keeps its record but
-loses the link back. It is administrator-only, and guarded by the same protections as anonymisation, plus one more:
-**you cannot delete yourself** through the administration screen.
+```gherkin
+Scenario: A blocked user is refused at sign-in
+  Given a user has been blocked by an administrator
+  When that user attempts to sign in through the identity provider
+  Then sign-in is refused
+  And unblocking the account restores their ability to sign in
+```
 
-Anonymisation is almost always the better instrument — it honours erasure without breaking authorship.
+```gherkin
+Scenario: The last platform administrator cannot be demoted
+  Given only one user holds the level-0 global administrator role
+  When an administrator attempts to remove or demote that user's role
+  Then the request is refused to avoid leaving the platform without an administrator
+```
 
-## Reading the directory
+```gherkin
+Scenario: A user may only assign roles at or below their own level
+  Given I am a global USER_ADMINISTRATOR at level 0
+  When I assign a role above my own level to another user
+  Then the request is refused by the role-level safeguard
+```
 
-The directory lists every account with its role and its status, searched by fuzzy text across first name, last name and
-email, and filtered by visibility so that blocked accounts can be found deliberately. It requires an explicit read
-permission that only administrators hold — ordinary users cannot enumerate each other.
+```gherkin
+Scenario: Any user may anonymize their own account
+  Given I am a signed-in USER with the default role
+  When I anonymize my own account
+  Then my personal data is scrambled and the account is marked purged
+  And I can no longer sign in
+```
 
-The **service account** used by the scheduled retention jobs also lives here. It is a distinct account type, it carries
-no email, and it exists solely to hold the job permission.
+```gherkin
+Scenario: Accounts are auto-provisioned on first sign-in
+  Given I have never signed in before
+  When I sign in through the OIDC identity provider for the first time
+  Then an account is created and linked to my provider identity
+  And it is granted the default USER role
+```
 
-## Related
+## 5. API surface
 
-- [Roles & Permissions](/registry/functional/roles-and-permissions) — the global permission catalogue and provisioning
-  rules
-- [Project Profiles](/registry/functional/features/project-profiles) — the other plane, and support profiles
-- [Data Retention](/registry/functional/features/data-retention) — automatic removal of dormant accounts
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

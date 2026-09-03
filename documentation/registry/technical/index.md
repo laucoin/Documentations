@@ -1,67 +1,60 @@
 # Technical Documentation
 
-This section covers the engineering of Registry: a reactive Kotlin backend, an Angular single-page frontend, and the
-decision records behind each choice. It assumes the [Functional Documentation](/registry/functional/) — in particular
-the roles and permissions baseline — is understood.
+This section covers the engineering of Registry: the two-service architecture, the reactive backend, the Angular frontend, the data model and API contracts, the security model, and the Architecture Decision Records that justify each choice. It assumes the [Functional Documentation](/registry/functional/) — especially the [Roles & Permissions](/registry/functional/roles-and-permissions) baseline — is understood.
 
-::: info Documents what is deployed
-Everything in this section describes the system **as it is implemented today**.
-Where the code and its own inline documentation disagree, the code wins and the divergence is called out.
-:::
+## System at a glance
 
-## Two sides, one contract
-
-Registry is delivered as two independently built and released container images that meet at a versioned REST contract.
+Registry is delivered as **two independently versioned services** plus two supporting infrastructure components:
 
 ```mermaid
 flowchart LR
-    Browser["Browser<br/>(Angular SPA)"]
-    Nginx["nginx<br/>static hosting"]
-    Api["Registry Backend<br/>Spring Boot WebFlux"]
-    Db[("PostgreSQL")]
-    Idp["OIDC provider<br/>(Authentik)"]
-    Browser -->|" loads bundle + settings/*.json "| Nginx
-    Browser -->|" /api/v1/** · Bearer JWT "| Api
-    Browser -->|" redirect to authorize "| Idp
-    Api -->|" token exchange · JWKS "| Idp
-    Api -->|" R2DBC "| Db
+    Browser["Browser (SPA)"]
+    subgraph Frontend["Frontend · nginx :8080"]
+      SPA["Angular 22 SPA<br/>NGXS · PrimeNG"]
+    end
+    subgraph Backend["Backend · JVM :8081"]
+      API["Spring WebFlux (reactive)<br/>Hexagonal · R2DBC"]
+    end
+    IdP["OIDC Identity Provider"]
+    DB[("PostgreSQL")]
+
+    Browser --> SPA
+    SPA -- "REST /api/v1 (Bearer JWT)" --> API
+    Browser -. "login redirect" .-> IdP
+    SPA -- "code / refresh exchange" --> API
+    API -- "validate JWT (JWKS) · code/refresh grants" --> IdP
+    API -- "R2DBC (runtime) · JDBC (Flyway)" --> DB
 ```
 
-The browser never calls the identity provider's token endpoint itself: the backend owns the OIDC client secret and
-brokers the code and refresh exchanges. The frontend holds the resulting tokens and sends them as `Bearer` credentials
-on every API call.
-
-## Stack summary
-
-| Concern       | Backend                                                        | Frontend                                                 |
-|---------------|----------------------------------------------------------------|----------------------------------------------------------|
-| Language      | Kotlin 2.4 on JVM 25                                           | TypeScript 6                                             |
-| Framework     | Spring Boot 4.1 WebFlux (fully reactive)                       | Angular 22, standalone components                        |
-| Build         | Gradle (Kotlin DSL)                                            | Angular CLI + pnpm                                       |
-| Persistence   | R2DBC + PostgreSQL, Flyway migrations                          | —                                                        |
-| State         | —                                                              | NGXS 22 with per-domain facades                          |
-| UI            | —                                                              | PrimeNG 22 + `@primeuix/themes` + Bootstrap grid         |
-| Auth          | OAuth2 resource server (JWT), permission-based `@PreAuthorize` | Token in session storage, HTTP interceptor, route guards |
-| i18n          | Spring `MessageSource` (`en`, `fr`)                            | `@ngx-translate` (`en`, `fr`)                            |
-| Observability | Micrometer → Prometheus, springdoc OpenAPI                     | —                                                        |
-| Packaging     | Distroless Java 25 image                                       | nginx-unprivileged image                                 |
-| Quality gates | Kover coverage, ArchUnit rules, JUnit 5 + Testcontainers       | ESLint (angular-eslint)                                  |
+The browser loads the SPA from nginx, which calls the backend over REST with a bearer JWT. Authentication is delegated to an external OIDC provider; the backend both validates JWTs (as a resource server) and brokers the code/refresh exchanges (as a confidential client). All state lives in a single PostgreSQL database.
 
 ## Documentation map
 
-| Page                                                   | Purpose                                                                                                                                       |
-|--------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| [Getting Started](/registry/technical/getting-started) | Prerequisites and the exact procedure to run both sides locally, plus a troubleshooting table                                                 |
-| [Architecture](/registry/technical/architecture)       | Deployment topology, the authenticated request flow, where each concern lives, and the delivery pipeline                                      |
-| [Backend](/registry/technical/backend)                 | Hexagonal layering and the rules ArchUnit enforces, the controller-interface pattern, reactive discipline, validation, configuration, testing |
-| [Frontend](/registry/technical/frontend)               | Application shape, routing and guards, the NGXS flow, browser authentication, runtime configuration, delivery                                 |
-| [Data Model](/registry/technical/data-model)           | Schema conventions, the access-control tables, search, the derived reads, indexing and the migration history                                  |
-| [API Reference](/registry/technical/api-reference)     | Every v1 endpoint with the exact authorisation rule it applies                                                                                |
-| [Security](/registry/technical/security)               | The filter chain, how a token becomes project-prefixed authorities, and the boundary defences                                                 |
-| [ADR index](/registry/technical/adr/)                  | The twelve decision records, in causal order                                                                                                  |
+| Page | Purpose |
+| ---- | ------- |
+| [Getting Started](/registry/technical/getting-started) | Run the whole stack locally: prerequisites, dependencies, and configuration |
+| [Architecture](/registry/technical/architecture) | The hexagonal backend, the Angular frontend, and how a request flows end to end |
+| [Security](/registry/technical/security) | Authentication flow, JWT-to-user mapping, and how the project-scoped RBAC is enforced |
+| [Data Model](/registry/technical/data-model) | The PostgreSQL schema, entity relationships, auditing, and trigram search |
+| [API Reference](/registry/technical/api-reference) | Every `/api/v1` endpoint, grouped by domain, with its required permission |
+| [ADR index](/registry/technical/adr/) | All Architecture Decision Records, in causal order |
 
-## Reading order
+## Stack summary
 
-Start with [Architecture](/registry/technical/architecture) for the shape of the system,
-then [Security](/registry/technical/security) — the authority model is the one mechanism that, once understood, explains
-most of the rest. The per-side pages assume both.
+Versions are given to the major only; the source repositories hold the exact pins.
+
+| Layer | Backend                                             | Frontend |
+| ----- |-----------------------------------------------------| -------- |
+| Language | Kotlin 2 (JVM toolchain 25)                         | TypeScript 6 |
+| Framework | Spring Boot 4 · WebFlux (reactive)                  | Angular 22 (standalone components) |
+| Architecture | Hexagonal (ports & adapters), ArchUnit-enforced     | Domain-driven folders, per-route lazy state |
+| State / data | R2DBC (reactive) + Flyway migrations                | NGXS (`selectSignal`) behind per-domain facades |
+| UI | —                                                   | PrimeNG + `@primeuix/themes` + Bootstrap grid |
+| Auth | OAuth2 resource server + confidential client (OIDC) | Bearer token in session storage, HTTP interceptor, route guards |
+| API docs | springdoc OpenAPI (feature-flagged)                 | — |
+| i18n | Spring `MessageSource` (en, fr)                     | `@ngx-translate` (en, fr) |
+| Observability | Actuator + Micrometer/Prometheus                    | — |
+| Build | Gradle (Kotlin DSL)                                 | Angular CLI + pnpm |
+| Runtime image | Distroless Java 25, non-root, JVM jar               | Unprivileged nginx serving the static bundle |
+| Persistence | PostgreSQL (`pg_trgm` trigram search)               | — |
+| Release | semantic-release → GHCR (retain 5)                  | semantic-release → GHCR (retain 5) |

@@ -252,7 +252,7 @@ export default withMermaid(
                   link: "/registry/functional/features/projects",
                 },
                 {
-                  text: "Project Profiles",
+                  text: "Members & Profiles",
                   link: "/registry/functional/features/project-profiles",
                 },
                 {
@@ -291,10 +291,6 @@ export default withMermaid(
                   text: "Preferences",
                   link: "/registry/functional/features/preferences",
                 },
-                {
-                  text: "Data Retention",
-                  link: "/registry/functional/features/data-retention",
-                },
               ],
             },
           ],
@@ -309,13 +305,11 @@ export default withMermaid(
               link: "/registry/technical/getting-started",
             },
             { text: "Architecture", link: "/registry/technical/architecture" },
-            { text: "Backend", link: "/registry/technical/backend" },
-            { text: "Frontend", link: "/registry/technical/frontend" },
+            { text: "Security", link: "/registry/technical/security" },
             { text: "Data Model", link: "/registry/technical/data-model" },
             { text: "API Reference", link: "/registry/technical/api-reference" },
-            { text: "Security", link: "/registry/technical/security" },
             {
-              text: "Decision Records",
+              text: "ADRs",
               collapsed: true,
               items: [
                 { text: "Index", link: "/registry/technical/adr/" },
@@ -324,11 +318,11 @@ export default withMermaid(
                   link: "/registry/technical/adr/001-hexagonal-architecture",
                 },
                 {
-                  text: "002 — Reactive WebFlux & R2DBC",
+                  text: "002 — Reactive WebFlux + R2DBC",
                   link: "/registry/technical/adr/002-reactive-webflux-r2dbc",
                 },
                 {
-                  text: "003 — Kotlin on JVM 25",
+                  text: "003 — Kotlin + Java 25",
                   link: "/registry/technical/adr/003-kotlin-java25",
                 },
                 {
@@ -336,36 +330,24 @@ export default withMermaid(
                   link: "/registry/technical/adr/004-oidc-resource-server-auth",
                 },
                 {
-                  text: "005 — Project-Scoped RBAC",
+                  text: "005 — DB-driven Project RBAC",
                   link: "/registry/technical/adr/005-db-driven-project-rbac",
                 },
                 {
-                  text: "006 — Flyway & Trigram Search",
+                  text: "006 — Flyway + Trigram Search",
                   link: "/registry/technical/adr/006-flyway-trigram-search",
                 },
                 {
-                  text: "007 — Adapter Naming",
-                  link: "/registry/technical/adr/007-inverted-adapter-naming",
+                  text: "007 — Frontend Runtime Config",
+                  link: "/registry/technical/adr/007-frontend-runtime-config",
                 },
                 {
-                  text: "008 — Frontend Runtime Config",
-                  link: "/registry/technical/adr/008-frontend-runtime-config",
+                  text: "008 — NGXS State Management",
+                  link: "/registry/technical/adr/008-ngxs-state-management",
                 },
                 {
-                  text: "009 — NGXS State Management",
-                  link: "/registry/technical/adr/009-ngxs-state-management",
-                },
-                {
-                  text: "010 — Container Delivery",
-                  link: "/registry/technical/adr/010-container-delivery-semantic-release",
-                },
-                {
-                  text: "011 — Retention Purges",
-                  link: "/registry/technical/adr/011-scheduled-retention-purges",
-                },
-                {
-                  text: "012 — PrimeNG Runtime Theming",
-                  link: "/registry/technical/adr/012-primeng-runtime-theming",
+                  text: "009 — Container Delivery",
+                  link: "/registry/technical/adr/009-container-delivery-semantic-release",
                 },
               ],
             },

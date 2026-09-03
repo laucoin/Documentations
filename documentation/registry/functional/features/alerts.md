@@ -81,18 +81,4 @@ Scenario: The feature is closed when the option is disabled
 
 ## 5. API surface
 
-REST endpoints backing this feature, all under `/api/v2/projects/{projectId}/alerts` and **gated by the `ALERT` option**. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/alerts` | List the project's alerts | `REGISTRY_PROJECT_ALERT_R` |
-| `GET` | `/alerts/{id}` | Read a single alert | `REGISTRY_PROJECT_ALERT_R` |
-| `GET` | `/alerts/{id}/communications` | Read an alert's discussion thread | `REGISTRY_PROJECT_ALERT_COMMUNICATION_R` |
-| `POST` | `/alerts` | Raise a new alert | `REGISTRY_PROJECT_ALERT_C` |
-| `PATCH` | `/alerts/{id}` | Edit an alert (e.g. its title) | `REGISTRY_PROJECT_ALERT_U` |
-| `POST` | `/alerts/{id}/resolve` | Resolve an alert (`IN_PROGRESS` → `RESOLVED`) | `REGISTRY_PROJECT_ALERT_U` |
-| `POST` | `/alerts/{id}/cancel` | Cancel an alert (`IN_PROGRESS` → `CANCELED`) | `REGISTRY_PROJECT_ALERT_U` |
-| `POST` | `/alerts/{id}/reopen` | Reopen a closed alert (→ `IN_PROGRESS`) | `REGISTRY_PROJECT_ALERT_U` |
-| `POST` | `/alerts/{id}/disable` | Soft-disable (hide) an alert | `REGISTRY_PROJECT_ALERT_U` |
-| `POST` | `/alerts/{id}/enable` | Re-enable a hidden alert | `REGISTRY_PROJECT_ALERT_U` |
-| `DELETE` | `/alerts/{id}` | Permanently delete an alert | `REGISTRY_PROJECT_ALERT_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

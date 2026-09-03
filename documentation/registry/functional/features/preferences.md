@@ -1,90 +1,83 @@
 # Feature: Preferences
 
-> Three small settings that follow you between devices — and one of them decides which project the entire application is
-> talking about.
+## 1. Overview
 
-**Who this is for:** every authenticated user, on their own account. There is no permission to check: preferences are
-yours, and nobody else can read or change them.
+- **Goal:** Preferences are the small set of personal settings that shape how Registry looks and behaves for one signed-in user: the **theme**, the interface **language**, and the **active project profile** — the event the user is currently "inside". Because preferences are stored server-side, they follow the user to any device: sign in elsewhere and the same theme, language and active event are already applied.
+- **Who uses it:** Every signed-in user, over **their own** preferences only. There is no cross-user administration here.
+- **Option required:** None. This is a **global**, per-user feature, governed by global roles rather than project options.
 
-## Who can do what
+## 2. Roles & Permissions
 
-| Role                   | May do                                      | Limits                                                   |
-|------------------------|---------------------------------------------|----------------------------------------------------------|
-| Any authenticated user | Set theme · set language · select a profile | **Own preferences only** — there is no cross-user access |
-| `USER_ADMINISTRATOR`   | The same, on their own account              | The global role grants nothing here                      |
+This is a **global**, per-user feature: it uses the platform-wide roles `USER_ADMINISTRATOR` and `USER`. Both have **identical** rights here — each acting only on their own preferences. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → User](/registry/functional/domain-model#user) for where preferences live.
 
-Preferences are created lazily: the first time you touch them, the record appears.
+| Role | Permitted actions | Conditions / Scope |
+| ---- | ----------------- | ------------------ |
+| `USER` (global, default) | **R U** (own) | May read and update **their own** theme, language and active profile. No special permission needed — authenticated is enough. |
+| `USER_ADMINISTRATOR` (global) | **R U** (own) | Identical rights, and only over their **own** preferences. Being a platform administrator grants **no** access to another user's preferences. |
 
-## The selected profile — the important one
+## 3. Business rules
 
-You may hold profiles on several projects. The **selected profile** is the one you are currently working through, and it
-decides which project every screen operates on. Without one, the movement and configuration screens refuse to open and
-tell you to pick a project.
+- **Per-user and server-side.** Preferences belong to one user and are stored on the server, so they **follow the user to any device** rather than living in a single browser.
+- **Theme.** One of `SYSTEM`, `LIGHT` or `DARK` (see [Domain Model → Theme](/registry/functional/domain-model#status-vocabulary)). `SYSTEM` follows the device's own light/dark setting.
+- **Language.** English (`en`) or French (`fr`). Switching language **re-localizes** the interface labels immediately.
+- **Active project profile.** Selecting an active profile switches **which event the user is "inside"** and **resets the in-app project context** to that event. The profile can be chosen directly by its id, or by naming a project (the user's profile on that project is selected).
+- **Own scope only.** Every operation acts on the caller's own preferences; there is no endpoint to read or change someone else's.
 
-It can be chosen two ways — by naming the profile, or by naming the **project** and letting Registry find your live
-profile on it. The second is what the project switcher uses, because users think in projects, not profiles.
-
-Selecting is guarded exactly like access itself: the profile must be yours, visible, `ACCEPTED`, and inside its access
-window. You cannot select your way into a project you have not joined, or one whose window has closed.
-
-It can also be **cleared**, which puts you back to having no project context.
+## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: Switching to another project
-  Given I hold an accepted, in-window profile on that project
-  When I select it
-  Then that project becomes my working context on every device
-
-Scenario: Refusing to select a profile that is not mine
-  When I select a profile belonging to another user
-  Then the request is rejected
-
-Scenario: Refusing to select an expired profile
-  Given my profile's access window has closed
-  When I try to select it
-  Then the request is rejected
-
-Scenario: Clearing the selection
-  When I clear my selected profile
-  Then I have no project context and project screens ask me to pick one
-```
-
-::: tip It is chosen for you when it would be obvious
-Creating a project, or being granted a support profile, sets that
-profile as your selection **if you had none** — so you land inside what you just created. An existing selection is never
-overridden behind your back.
-:::
-
-## Theme
-
-`SYSTEM`, `LIGHT` or `DARK`, stored on the account rather than in the browser so a phone and a laptop agree. `SYSTEM` —
-the default — follows the device.
-
-```gherkin
-Scenario: Choosing dark mode
+Scenario: A user switches to dark theme
+  Given I am a signed-in user
   When I set my theme to DARK
-  Then the interface switches, and stays dark on my other devices
+  Then my preference is saved server-side
+  And the interface renders in dark mode on every device I sign in from
 ```
-
-## Language
-
-The interface speaks **English** and **French**. Your choice is stored on the account and matched leniently against the
-supported set — asking for `fr-FR` selects French — so a browser's regional locale does not have to be spelled exactly.
-
-An unmatched language leaves the preference empty, and the interface falls back to the configured default rather than
-failing.
 
 ```gherkin
-Scenario: Choosing French
-  When I set my language to fr
-  Then the interface is in French on every device I sign in from
-
-Scenario: Matching a regional locale
-  When I set my language to fr-FR
-  Then French is selected
+Scenario: The system theme follows the device
+  Given I am a signed-in user
+  When I set my theme to SYSTEM
+  Then the interface follows my device's own light/dark setting
 ```
 
-## Related
+```gherkin
+Scenario: A user switches the interface language
+  Given I am a signed-in user with the interface in English
+  When I set my language to fr
+  Then the interface labels are re-localized to French
+  And the preference is saved server-side
+```
 
-- [Project Profiles](/registry/functional/features/project-profiles) — what a profile is and how it is granted
-- [Workflows](/registry/functional/workflows) — where selecting a profile sits in a working session
+```gherkin
+Scenario: Selecting an active profile switches the current event
+  Given I am a signed-in user with accepted profiles on project A and project B
+  And project A is my active profile
+  When I select my profile on project B as active
+  Then project B becomes the event I am "inside"
+  And the in-app project context is reset to project B
+```
+
+```gherkin
+Scenario: Selecting an active profile by project
+  Given I am a signed-in user with an accepted profile on project B
+  When I select the active profile by naming project B
+  Then my profile on project B becomes active
+```
+
+```gherkin
+Scenario: Preferences follow the user to another device
+  Given I set my theme to DARK and my language to fr on one device
+  When I sign in from a different device
+  Then the interface is already in dark mode and French
+```
+
+```gherkin
+Scenario: An administrator cannot change another user's preferences
+  Given I am a global USER_ADMINISTRATOR
+  When I attempt to change another user's theme
+  Then there is no such capability — preferences act only on the caller's own account
+```
+
+## 5. API surface
+
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.
