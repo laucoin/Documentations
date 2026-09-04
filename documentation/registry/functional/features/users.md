@@ -99,16 +99,4 @@ Scenario: Accounts are auto-provisioned on first sign-in
 
 ## 5. API surface
 
-REST endpoints backing this feature, under `/api/v2/users`. This is a global feature — permissions are global, not project-scoped. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/users` | List the user directory | `REGISTRY_USER_R` |
-| `GET` | `/users/{id}` | Read a single user | `REGISTRY_USER_R` |
-| `GET` | `/users/roles` | Read assignable global roles (metadata) | `REGISTRY_USER_METADATA_R` |
-| `PATCH` | `/users/{id}/role` | Change a user's global role | `REGISTRY_USER_U` |
-| `POST` | `/users/{id}/block` | Block an account from signing in | `REGISTRY_USER_U` |
-| `POST` | `/users/{id}/unblock` | Restore an account's ability to sign in | `REGISTRY_USER_U` |
-| `POST` | `/users/{id}/anonymize` | Anonymize (GDPR purge) another user | `REGISTRY_USER_D` |
-| `POST` | `/users/anonymize` | Anonymize (GDPR purge) **own** account | Authenticated (self) |
-| `DELETE` | `/users/{id}` | Delete a user | `REGISTRY_USER_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

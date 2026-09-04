@@ -3,7 +3,7 @@
 ## 1. Overview
 
 - **Goal:** An alert is an **incident** the team needs to act on — a title, a timestamp, and a status. Alerts are typically **raised from a movement's discussion thread**: a note about a problem is escalated into a tracked item, then followed to resolution. Each alert carries its own [communication](/registry/functional/features/communications) thread and a live *"in progress since"* timer, so anyone can see what is open, for how long, and what has been said about it. The status lifecycle records whether the incident is being handled, has been dealt with, or was called off.
-- **Who uses it:** Everyone on the project. `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` raise, edit, change the status of, and remove alerts; `PROJECT_PARTICIPANT` — the ground staff — raise and read them.
+- **Who uses it:** Everyone on the project. All three roles raise, read, edit and change the status of alerts — including resolving one; only `PROJECT_ADMINISTRATOR` can permanently remove one.
 - **Option required:** `ALERT`. The module is enabled per project and requires both `ACTIVITY` and `COMMUNICATION` (see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating)). While the option is off, every endpoint below is closed regardless of role.
 
 ## 2. Roles & Permissions
@@ -12,9 +12,9 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. Sta
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + status changes | Scoped to the project. Full control: raise, edit, resolve/cancel/reopen, disable/enable and delete any alert. Requires the `ALERT` option. |
-| `PROJECT_COORDINATOR` | **C R U D** + status changes | Scoped to the project. Same operational rights as the administrator on alerts. Requires the `ALERT` option. |
-| `PROJECT_PARTICIPANT` | **C R** | Scoped to the project. May raise alerts and read them (with their threads), but cannot edit, change status, disable or delete them. Requires the `ALERT` option. |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + status changes | Scoped to the project. Only role that can permanently delete an alert; also raises, edits, resolves/cancels/reopens and disables/enables. Requires the `ALERT` option. |
+| `PROJECT_COORDINATOR` | **C R U** + status changes | Scoped to the project. Raises, edits, resolves/cancels/reopens and disables/enables an alert, same as the administrator — but cannot delete. Requires the `ALERT` option. |
+| `PROJECT_PARTICIPANT` | **C R U** + status changes | Scoped to the project. Raises, reads (with threads), edits, resolves/cancels/reopens and disables/enables an alert — same floor as the coordinator — but cannot delete. Requires the `ALERT` option. |
 
 ## 3. Business rules
 
@@ -22,7 +22,7 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. Sta
 - **Timestamped.** Each alert carries a creation timestamp; the dashboard derives a live *"in progress since"* duration from it while the status is `IN_PROGRESS`.
 - **Status lifecycle.** An alert is `IN_PROGRESS`, `RESOLVED` or `CANCELED`. From `IN_PROGRESS` it can be **resolved** (→ `RESOLVED`) or **canceled** (→ `CANCELED`); a closed alert can be **reopened** (→ `IN_PROGRESS`). See [Domain Model → Alert status](/registry/functional/domain-model#status-vocabulary).
 - **Own discussion thread.** Every alert has an attached [communication](/registry/functional/features/communications) thread; alerts are commonly escalated from a movement's thread.
-- **Disabling is a soft, reversible action.** Disabling hides an alert without deleting it; it can be re-enabled. Deletion is permanent and administrator/coordinator only.
+- **Disabling is a soft, reversible action, open to all three roles.** Disabling hides an alert without deleting it; it can be re-enabled. Deletion is permanent and **administrator only**.
 - **Gated by the option.** If the `ALERT` option is disabled on the project, the whole feature is invisible and its API is closed.
 
 ## 4. Behavioral scenarios (BDD)
@@ -62,12 +62,14 @@ Scenario: A resolved alert can be reopened
 ```
 
 ```gherkin
-Scenario: A participant cannot change an alert's status
+Scenario: A participant resolves an alert, but cannot delete it
   Given I am a PROJECT_PARTICIPANT on a project with the ALERT option enabled
   And an alert is IN_PROGRESS
-  When I attempt to change its status to RESOLVED
+  When I change its status to RESOLVED
+  Then the alert's status becomes RESOLVED
+  And the "in progress since" timer stops
+  When I then attempt to delete that alert
   Then the request is refused for lack of permission
-  And the alert stays IN_PROGRESS
 ```
 
 ```gherkin
@@ -79,18 +81,4 @@ Scenario: The feature is closed when the option is disabled
 
 ## 5. API surface
 
-REST endpoints backing this feature, all under `/api/v2/projects/{projectId}/alerts` and **gated by the `ALERT` option**. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/alerts` | List the project's alerts | `REGISTRY_PROJECT_ALERT_R` |
-| `GET` | `/alerts/{id}` | Read a single alert | `REGISTRY_PROJECT_ALERT_R` |
-| `GET` | `/alerts/{id}/communications` | Read an alert's discussion thread | `REGISTRY_PROJECT_ALERT_COMMUNICATION_R` |
-| `POST` | `/alerts` | Raise a new alert | `REGISTRY_PROJECT_ALERT_C` |
-| `PATCH` | `/alerts/{id}` | Edit an alert (e.g. its title) | `REGISTRY_PROJECT_ALERT_U` |
-| `POST` | `/alerts/{id}/resolve` | Resolve an alert (`IN_PROGRESS` → `RESOLVED`) | `REGISTRY_PROJECT_ALERT_U` |
-| `POST` | `/alerts/{id}/cancel` | Cancel an alert (`IN_PROGRESS` → `CANCELED`) | `REGISTRY_PROJECT_ALERT_U` |
-| `POST` | `/alerts/{id}/reopen` | Reopen a closed alert (→ `IN_PROGRESS`) | `REGISTRY_PROJECT_ALERT_U` |
-| `POST` | `/alerts/{id}/disable` | Soft-disable (hide) an alert | `REGISTRY_PROJECT_ALERT_U` |
-| `POST` | `/alerts/{id}/enable` | Re-enable a hidden alert | `REGISTRY_PROJECT_ALERT_U` |
-| `DELETE` | `/alerts/{id}` | Permanently delete an alert | `REGISTRY_PROJECT_ALERT_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

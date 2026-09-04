@@ -80,10 +80,4 @@ Scenario: An administrator cannot change another user's preferences
 
 ## 5. API surface
 
-REST endpoints backing this feature, under `/api/v2/users/preferences`. Every call is **authenticated** and acts on the **caller's own** preferences; there are no permissions beyond being signed in. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `POST` | `/users/preferences/theme` | Set the theme (`SYSTEM` / `LIGHT` / `DARK`) | Authenticated (self) |
-| `POST` | `/users/preferences/language` | Set the interface language (`en` / `fr`) | Authenticated (self) |
-| `POST` | `/users/preferences/select-profile` | Select the active profile (body: profileId or projectId) | Authenticated (self) |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

@@ -2,53 +2,58 @@
 
 ## Status
 
-Accepted
+<Badge type="tip" text="Accepted" />
 
 ## Context
 
-The registry is multi-tenant: users act inside **projects**, and a user's rights in one project say nothing about their rights in another. Authorization therefore has two planes — **global** (what a user may do platform-wide) and **project-scoped** (what a user may do *within a given project*).
+The registry is multi-tenant: users act inside **projects**, and a user's rights in one project say nothing about their rights in another. Authorization has two planes — **global** (platform-wide) and **project-scoped** (within one project).
 
-Authentication is already delegated to an external provider ([ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)); that provider proves identity but does not model this application's project-scoped roles. We also wanted roles and their permissions to be **editable as data**, so that adjusting who-can-do-what does not require a code change and redeploy, and we wanted per-request checks to be **cheap**.
+Authentication is delegated ([ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)); the provider proves identity but does not model this application's project roles.
 
 ## Decision
 
-Implement RBAC as **data in the database, enforced by Spring method security with a custom `PermissionEvaluator`**.
+Model roles and permissions as **data in the database** — real, related rows — and enforce them with Spring method security and a custom `PermissionEvaluator`.
 
-- **Roles and their permissions are rows in the database**, seeded by Flyway migrations, and loaded into an **in-memory map at startup**.
-- A user's granted authorities are **plain strings**:
-  - global permission names (e.g. `SOME_GLOBAL_PERMISSION`);
+### The data model is the point
+
+Both planes are three tables (catalog of permission names, roles with a numeric `level`, role→permission mapping). Roles are **first-class entities that other rows relate to**:
+
+- a **user** references a global **role**;
+- a **project profile** references a project **role**, and belongs to both a **user** and a **project**.
+
+Making the role an entity rather than a string on the user (or a claim in the token) means membership, level ordering, and the safeguards built on them (the last-permanent-administrator rule, role-ceiling checks) are ordinary foreign-key relationships. It also makes **data migration straightforward**: renaming a role, adding a permission, or changing what a role grants is a Flyway migration against these tables — the existing profiles keep pointing at the same role rows, and no code changes.
+
+### Enforcement
+
+- Rows are seeded by Flyway migrations and loaded into an **in-memory map at startup**.
+- Granted authorities are plain strings, computed at **token-conversion time** (the same converter as [ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)):
+  - global permission names (e.g. `REGISTRY_USER_R`);
   - per-project authorities namespaced as **`{projectId}_{PERMISSION}`**;
-  - per-project option authorities **`{projectId}_REGISTRY_PROJECT_OPTION_{X}`**.
-- Enforcement uses `@PreAuthorize`:
-  - `hasAuthority('X')` checks a **global** permission;
-  - `hasPermission(#projectId, 'X')` routes to the custom `PermissionEvaluator`, which simply checks whether the user holds the string **`{projectId}_X`**.
-
-  Project-scoped authorization is therefore a **namespaced-string membership test**.
-- **Visibility gating:** for a disabled (invisible) project, non-admins receive **no authorities** at all; even admins keep only project **read/update/delete**.
-
-Authorities are computed at **token-conversion time** — the same custom converter that maps the OIDC token to the local user ([ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)) builds this authority set.
+  - per-project option authorities `{projectId}_REGISTRY_PROJECT_OPTION_{X}`.
+- `@PreAuthorize` on the controller contract interfaces:
+  - `hasAuthority('X')` — a global check;
+  - `hasPermission(#projectId, 'X')` — routes to the custom `PermissionEvaluator`, which checks whether the user holds the string `{projectId}_X`.
+- **Visibility gating:** for a disabled (invisible) project, non-admins receive no project authorities; admins keep only project read/update/delete.
 
 ## Consequences
 
 ### Positive
 
-- **Roles and permissions are editable as data.** Changing what a role grants is a database change (a migration), not a code change — no redeploy to adjust the permission model.
-- **Multi-tenant isolation comes for free.** Because project authorities are namespaced by `projectId`, a permission in project A (`A_EDIT`) can never satisfy a check in project B (`B_EDIT`). Cross-tenant leakage is structurally impossible in the string form.
-- **Checks are simple and fast.** Both planes reduce to an in-memory string-set lookup, so `@PreAuthorize` adds negligible per-request cost.
-- **Declarative and co-located.** `@PreAuthorize` sits on the contract interfaces of [ADR 001](/registry/technical/adr/001-hexagonal-architecture), so the required permission for an endpoint is visible right at the API surface.
-- **Visibility gating is centralized.** The rule that an invisible project collapses a user's authorities lives in one place (authority computation), not scattered across handlers.
+- **Roles/permissions are relatable data.** Membership and the level-based safeguards are foreign keys, not string parsing or token claims.
+- **Cheap data migrations.** Changing the permission model is a migration against a handful of tables; existing profiles are untouched.
+- **Multi-tenant isolation falls out of the namespacing.** `A_EDIT` can never satisfy a check for `B_EDIT`.
+- **Checks are fast** — an in-memory string-set lookup — and **declarative**, sitting on the API contract.
 
 ### Negative
 
-- **Authorities are recomputed only at token conversion.** A role or permission change does not take effect for an already-authenticated user until they **re-authenticate** and a fresh authority set is built. There is no live revocation mid-session.
-- **String-namespacing is clever but non-obvious.** `{projectId}_{PERMISSION}` as an authority is compact and fast, but a reader must know the convention; a typo or a projectId containing an underscore-like value is a latent correctness risk, and the scheme is not self-documenting.
-- **The permission set is loaded at startup.** Because roles/permissions are read into memory once, changing the seed data requires a **restart or an explicit refresh** to take effect — the database being the source of truth does not make it live.
-- **Two moving parts to keep aligned.** Seed migrations define the permissions; `@PreAuthorize` strings consume them. A permission renamed in one place but not the other fails silently as a denied check.
+- **Authorities are recomputed only at token conversion.** A role change takes effect for an already-authenticated user only after they re-authenticate; there is no live mid-session revocation.
+- **The seed data and the `@PreAuthorize` strings must stay aligned.** A permission renamed in one place but not the other fails silently as a denied check.
+- **`{projectId}_{PERMISSION}` is compact but non-obvious.** A reader must know the convention.
 
 ### Why not the identity provider's roles/groups
 
-The OIDC provider ([ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)) can carry roles and groups in the token, which would avoid a local permission model entirely. We rejected leaning on it because the provider does not model this application's **project-scoped** plane — encoding per-project authorities for every project into provider groups does not scale, and it would couple the tenant permission model to IdP administration. Keeping authorization local and data-driven keeps it under application control and editable by a migration.
+The provider does not model the project-scoped plane; encoding per-project authorities for every project into provider groups does not scale and couples the tenant model to IdP administration.
 
-### Why not a fine-grained ACL / policy engine
+### Why not a full ACL / policy engine
 
-A full ACL table or an external policy engine (per-resource grants, attribute-based rules) is more expressive and supports live changes without re-auth. We judged it overkill for the current model: the namespaced-string scheme is dramatically simpler and faster, and the two planes (global + project-scoped) cover the requirements. If authorization ever needs per-record grants or runtime revocation, this is the natural place to revisit — the `PermissionEvaluator` is the single seam where a richer engine would slot in.
+More expressive and supports live changes, but overkill for a two-plane model. The `PermissionEvaluator` is the single seam where a richer engine would slot in if per-record grants or runtime revocation are ever needed.

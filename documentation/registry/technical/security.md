@@ -9,7 +9,7 @@ There is **no local password store**. The backend plays two OAuth2 roles at once
 - a **confidential client** — it brokers the authorization-code and refresh-token exchanges server-side, so the client secret never reaches the browser;
 - a **resource server** — it validates the JWT on every protected call against the provider's JWKS endpoint.
 
-Only four endpoints are public: `GET /authentication/login/uri`, `GET /authentication/logout/uri`, `POST /authentication/token`, and `POST /authentication/token/refresh`. API docs and health endpoints are public only when explicitly feature-flagged for the environment. Everything else requires a valid JWT. CORS is restricted to a configured origin allowlist.
+Only four API endpoints are public: `GET /authentication/login/uri`, `GET /authentication/logout/uri`, `POST /authentication/token`, and `POST /authentication/token/refresh`. The security chain also permits, unauthenticated, `GET /`, the Swagger UI / `api-docs` paths, and `/actuator/**` — but Swagger only serves content when `registry.feature.documentation.enabled` is set, and Actuator exposes only the Prometheus endpoint. Everything else requires a valid JWT. CORS is restricted to a configured origin allowlist (`external.cors.urls`).
 
 ### Login sequence
 
@@ -94,8 +94,8 @@ When a project is disabled (made invisible), the authority builder withholds pro
 ## Data protection
 
 - **Anonymization ("impersonate").** Anonymizing a user scrambles their name and email, clears their birthday, and marks the account `purged`; that OIDC identity can never sign in again. A user can anonymize their own account; a platform administrator can anonymize others. This is a soft-delete for data-protection compliance, not an account-switching feature.
-- **Retention purges.** A seeded, non-human `SERVICE_ACCOUNT` (holding `REGISTRY_JOB_C`) runs scheduled jobs that purge stale users, projects, contents and configurations past a configurable age threshold.
-- **Last-administrator safety.** The system refuses to remove or demote the last level-0 administrator of a project or of the platform.
+- **Retention purges.** The purge endpoints require `REGISTRY_JOB_C`, which the seed data grants only to the `USER_ADMINISTRATOR` role (`V1_9_0`). A seeded, non-human user of type `SERVICE_ACCOUNT` — provisioned with that role — is what an external scheduler authenticates as to purge stale users, projects, contents and configurations past a configurable age threshold. There is no in-process scheduler; the jobs are driven by calls to `/api/v1/purge/**`.
+- **Last-administrator safety.** The system refuses to remove or demote the last level-0 administrator of the platform, and the last *permanent* (no end date) level-0 administrator of a project — a temporary/support profile never counts toward this safeguard.
 
 ## Safe defaults & hardening
 

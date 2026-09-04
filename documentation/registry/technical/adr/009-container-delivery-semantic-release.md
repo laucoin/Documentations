@@ -1,20 +1,22 @@
-# ADR 010 — Container delivery: distroless JVM image, semantic-release to a registry
+# ADR 009 — Container delivery: distroless JVM image, semantic-release to a registry
 
 ## Status
 
-Accepted
+<Badge type="tip" text="Accepted" />
 
 ## Context
 
 Both repositories — the Kotlin/Spring Boot backend and the Angular frontend — need a delivery story that answers three questions: how a version number is decided, how the artifact is built, and where it is published. We want as little of that as possible to be a human's job.
 
-Manual versioning is the failure mode to avoid. When a person decides "this is 1.4.0", the version, the changelog, and the git tag drift apart, and the bump becomes a bikeshed. We already write [Conventional Commits](https://www.conventionalcommits.org/); those commits contain enough information to *derive* the version, the changelog, and the tag automatically.
+The commits already follow [Conventional Commits](https://www.conventionalcommits.org/), which carry enough information to *derive* the version, changelog, and tag automatically instead of a person maintaining them by hand.
 
-On the artifact side, the backend runs on the JVM (Java 25). The naive Dockerfile bases the runtime on a full JDK image running as root — a large image with a shell, a package manager, and a broad attack surface, none of which a running service needs. The frontend is a static bundle that needs an HTTP server; the naive choice there is an off-the-shelf nginx image with default config and root privileges.
+On the artifact side, the backend runs on the JVM. The naive Dockerfile bases the runtime on a full JDK image running as root — a large image with a shell, a package manager, and a broad attack surface, none of which a running service needs. The frontend is a static bundle that needs an HTTP server; the naive choice there is an off-the-shelf nginx image with default config and root privileges.
 
 ## Decision
 
-Automate versioning with **semantic-release** and publish **hardened container images** to a container registry through a shared CI action.
+Publish **hardened, minimal container images** and automate versioning with **semantic-release**, through a shared CI action.
+
+The primary driver for the image choice is a **small attack surface**: the runtime should carry only what the service needs to run, and run unprivileged.
 
 **Versioning.** On the `main` branch, semantic-release reads the Conventional Commits since the last release and derives the next version, generates the changelog, and creates the git tag — no human version bookkeeping. This runs for both repos.
 
@@ -32,7 +34,7 @@ Automate versioning with **semantic-release** and publish **hardened container i
 - **Minimal attack surface and image size.** A distroless runtime has no shell and no package manager, so a compromised process has far less to work with, and the image is smaller to store and pull.
 - **Non-root by default, everywhere.** Both images run unprivileged — the backend on distroless, the frontend on an unprivileged nginx — which is the right default for a service that faces the network.
 - **Registry portability.** Because the publish action is registry-agnostic, moving off GHCR is a configuration change in one shared action, not a rewrite of each repo's pipeline.
-- **Immutable, promotable artifacts.** The images carry no environment specifics — the frontend takes its config at runtime ([ADR 008](/registry/technical/adr/008-frontend-runtime-config)) — so the exact image that was tested is the one promoted across environments.
+- **Immutable, promotable artifacts.** The images carry no environment specifics — the frontend takes its config at runtime ([ADR 007](/registry/technical/adr/007-frontend-runtime-config)) — so the exact image that was tested is the one promoted across environments.
 
 ### Negative
 

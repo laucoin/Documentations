@@ -1,86 +1,149 @@
 # Workflows
 
-These are the end-to-end journeys Registry exists to support. Each is written from the actor's point of view, with the product doing the work behind the scenes. Where a step depends on a permission, the [Roles & Permissions](/registry/functional/roles-and-permissions) matrix governs it.
+These are the end-to-end journeys Registry exists to support, each expressed as a **Gherkin scenario spanning multiple features** — unlike the scenarios under [Features](/registry/functional/features/projects), which each test one rule of one feature in isolation, these trace a full actor journey the way an end-to-end test would. Where a step depends on a permission, the [Roles & Permissions](/registry/functional/roles-and-permissions) matrix governs it.
 
 ## W1 — Signing in for the first time
 
-1. A user opens Registry and is not signed in, so the app sends them to the central identity provider's login screen.
-2. They authenticate there and are redirected back. Registry exchanges the returned code for a session.
-3. Because this is their first visit, Registry **creates their account automatically** with the default `USER` role and remembers their identity for next time.
-4. They land on the list of projects they can access — empty, for a brand-new user, with a prompt to create one or check their invitations.
+*One login screen, no Registry-specific password, and zero manual account creation.*
 
-**Why this matters**: one login screen, no Registry-specific password, and zero manual account creation.
+```gherkin
+Scenario: A new user signs in for the first time and lands on an empty project list
+  Given I have never signed in to Registry before
+  When I authenticate through the central identity provider and am redirected back
+  Then my account is created automatically with the default USER role
+  And I land on my project list, which is empty
+  And I am prompted to create a project or check my invitations
+```
 
 ## W2 — Creating and configuring an event
 
-1. Any signed-in user clicks **Create project** and gives it a name and a start/end date-time.
-2. On the second step they choose the optional modules — vehicles, activities, communications, alerts — respecting dependencies (alerts pull in communications and activities).
-3. On save, Registry makes the creator the project's **administrator** and drops them straight into the event.
+*Getting from "I need to run an event" to "I'm administering it" takes one form and no approval.*
 
-**Why this matters**: getting from "I need to run an event" to "I'm administering it" takes one form and no approval.
+```gherkin
+Scenario: A signed-in user creates a project and starts administering it
+  Given I am a signed-in user
+  When I create a project named "Summer Gathering 2026" (dates are optional; I set them here)
+  And I enable the ACTIVITY and COMMUNICATION options together, respecting their dependency
+  Then the project is created
+  And I am granted a PROJECT_ADMINISTRATOR profile on it
+  And I land directly inside the event I just created
+```
 
 ## W3 — Inviting staff
 
-1. The administrator opens **Configuration → Profiles** and invites one or more users, choosing a **role** (coordinator, participant, or co-administrator) and an **access window**.
-2. Each invitee sees the invitation under **My invitations** and accepts or declines it.
-3. On acceptance, the invitee gains the granted role on that project and can select it as their active event.
+*The organizer delegates precisely — the right people, the right power, only for the right dates.*
 
-**Why this matters**: the organizer delegates precisely — the right people, the right power, only for the right dates.
+```gherkin
+Scenario: An administrator invites staff with a role and an optional access window
+  Given I am the PROJECT_ADMINISTRATOR of a project
+  When I invite users "alice" and "bob" as PROJECT_COORDINATOR
+  And I set an access window narrower than the project's own — a profile's dates are independent of the project's
+  Then an INVITED profile is created for each, with no permission yet
+  When "alice" accepts her invitation
+  Then she gains the PROJECT_COORDINATOR role and can select this project as her active one
+```
 
 ## W4 — Registering participants and organizing groups
 
-1. A coordinator opens **Configuration → Participants** and adds people — name, birthday, availability window, optionally linked to a user account.
-2. They open **Configuration → Groups**, create groups (teams, units, tents) and assign participants to them.
-3. From then on, a group can be moved and counted as a unit.
+*The roster is set up once, and groups make every later headcount and movement faster.*
 
-**Why this matters**: the roster is set up once, and groups make every later headcount and movement faster.
+```gherkin
+Scenario: Participants without their own dates inherit their group's availability
+  Given I am a PROJECT_COORDINATOR on a project
+  When I register participants "Ana", "Ben" and "Cora" with no availability window of their own
+  And I create a group "Tent 1" containing all three, with its own availability window
+  Then each participant's availability falls back to Tent 1's window
+  When I later select the group "Tent 1" in a movement
+  Then it expands to its current members
+```
 
 ## W5 — Recording a movement (the core loop)
 
-1. A staff member opens **Movements → Record** and sets the time (defaulting to now), the **direction** (`IN`/`OUT`), and whether this concerns **registered** participants or **guests**.
-2. They pick the people — individual participants or whole groups, which expand to their members — and choose a **reason** or an **activity** to justify the move.
-3. If the event tracks vehicles and the people are registered, they attach vehicles and assign drivers on a third step.
-4. On save, the dashboard headcount updates immediately: those people are now *in* or *out*.
+*This is the action the whole product is built around — it must be quick, and it must keep the live count honest.*
 
-**Why this matters**: this is the action the whole product is built around — it must be quick, and it must keep the live count honest.
+```gherkin
+Scenario: A registered participant leaves and must be justified
+  Given I am signed in with movement-create permission on the project
+  And a registered participant "Alex" is currently IN
+  When I record an OUT movement for "Alex"
+  Then I must provide either a reason or a linked activity to justify it
+  And, if the VEHICLE option is enabled, I may attach a vehicle and its driver
+  And on save, the dashboard headcount updates immediately
+```
+
+```gherkin
+Scenario: A registered participant returns to their normal state with nothing to justify
+  Given a registered participant "Alex" is currently OUT
+  When I record an IN movement for "Alex"
+  Then there is no reason or activity field to fill in — the movement simply restores their normal presence
+  And on save, "Alex" is counted as present again
+```
+
+*Recording a movement in the same direction as the current state is not blocking — it's allowed, it just doesn't change anything: an `OUT` for someone already `OUT`, or an `IN` for someone already `IN`, is accepted the same as any other movement.*
 
 ## W6 — Checking a guest in and out
 
-1. A guest arrives. A staff member records an `IN` movement with content type **guest**, entering the visitor's name and birthday (guests are created on arrival) and a reason such as *visit* or *logistics*.
-2. The dashboard's guest count goes up.
-3. When the guest leaves, a staff member records an `OUT` movement referencing that existing guest, and the count goes back down.
+*Visitors are counted without being enrolled as full participants, so the "who is on site" number is always complete.*
 
-**Why this matters**: visitors are counted without being enrolled as full participants, so the "who is on site" number is always complete.
+```gherkin
+Scenario: A guest arrives and later leaves for good
+  Given no guest named "Sam Doe" exists yet
+  When I record an IN movement of content type GUEST, entering "Sam Doe"'s name and birthday, justified by reason VISIT
+  Then "Sam Doe" is created and counted as present
+  When I later record an OUT movement referencing "Sam Doe", with nothing to justify it
+  Then "Sam Doe" is counted as off-site — definitively, since a guest's departure is always final
+```
 
 ## W7 — Watching the live picture
 
-1. Anyone with access to the event opens **Project home**.
-2. The dashboard shows present vs absent participants (split registered/guest and majors/minors), vehicle presence if enabled, and today's **birthdays**.
-3. Lists of in-progress movements — with and without a linked activity — let staff reverse a check-in/out in one click if it was a mistake.
-4. If the event has alerts enabled, an **active-alerts** banner surfaces anything currently in progress.
+*A single screen answers "who is here right now, and is anything wrong?"*
 
-**Why this matters**: a single screen answers "who is here right now, and is anything wrong?"
+```gherkin
+Scenario: Anyone on the project reads the live dashboard
+  Given I hold any of the three project roles
+  When I open the project's home page
+  Then I see present vs absent participants, split registered/guest and majors/minors
+  And, if VEHICLE is enabled, vehicle presence
+  And today's birthdays
+  And, if ALERT is enabled, a banner of alerts currently in progress
+  And I can reverse a mistaken check-in/out in one click from the in-progress movements list
+```
 
 ## W8 — Raising and resolving an alert
 
-1. While discussing a movement, a staff member escalates a message into an **alert** — giving it a title.
-2. The alert appears on the **Alerts** page in status *in progress*, with a running "since" timer, and on the dashboard banner.
-3. The team discusses it in the alert's own communication thread and, when handled, marks it **resolved** (or **canceled** if it was a false alarm), stopping the timer.
+*Incidents get a visible owner, a clock, and a paper trail instead of being lost in chat.*
 
-**Why this matters**: incidents get a visible owner, a clock, and a paper trail instead of being lost in chat.
+```gherkin
+Scenario: An incident is escalated from a discussion and resolved
+  Given the ALERT option is enabled and a movement's discussion thread contains a message about a problem
+  When I escalate that message into an alert titled "Missing participant at checkpoint"
+  Then the alert appears IN_PROGRESS, with a running "since" timer and its own communication thread
+  When the team discusses it there and any of the three project roles marks it RESOLVED — resolving isn't reserved to the coordinator or administrator
+  Then the timer stops
+```
 
 ## W9 — Administering users (platform)
 
-1. A platform administrator opens the **Users** directory.
-2. They change a user's global role, block a departed or compromised account, or — on a data-deletion request — **anonymize** it.
-3. Registry refuses any action that would remove the last platform administrator, and a blocked or anonymized user can no longer sign in.
+*Account hygiene and data-protection obligations are handled with safe, auditable, reversible-where-appropriate controls.*
 
-**Why this matters**: account hygiene and data-protection obligations are handled with safe, auditable, reversible-where-appropriate controls.
+```gherkin
+Scenario: Platform staff manage the account directory
+  Given I am a global USER_ADMINISTRATOR
+  When I change a user's global role, block a departed account, or anonymize one on a data-deletion request
+  Then the action succeeds
+  But an attempt to remove or demote the last platform administrator is refused
+  And a blocked or anonymized user can no longer sign in
+```
 
 ## W10 — Personal preferences
 
-1. Any user opens **Settings**.
-2. They switch **language** (English or French) and **theme** (system, light, or dark); the choice is saved to their account and follows them to any device.
-3. They can also switch which project profile is active, or leave a project they no longer help with.
+*The tool adapts to the person, and their context travels with their account rather than their browser.*
 
-**Why this matters**: the tool adapts to the person, and their context travels with their account rather than their browser.
+```gherkin
+Scenario: A user adapts Registry to themselves
+  Given I am any signed-in user
+  When I open Settings and switch my language and theme
+  Then the choice is saved to my account and follows me to any device
+  When I switch my active project profile, or leave a project I no longer help with
+  Then that choice takes effect immediately
+```

@@ -29,7 +29,7 @@ A project-scoped permission is always bound to **one** project. Holding a permis
 | ---- | ----- | ------------ | ------- |
 | **`USER_ADMINISTRATOR`** | 0 | Platform staff | Administer every user account; also allowed to read/create projects and grant support access. |
 | **`USER`** | 9000 | Everyone, by default | The role each new account receives. Can create projects and read project metadata. Nothing else at the global level. |
-| **`SERVICE_ACCOUNT`** | — | The system itself | A non-human account that runs the scheduled data-retention jobs. Not assignable to people. |
+| **`SERVICE_ACCOUNT`** | — | The system itself | A user *type* (not a role of its own) for the single non-human account that runs the scheduled data-retention jobs. It is provisioned with the `USER_ADMINISTRATOR` role — the role that carries `REGISTRY_JOB_C` — and is not assignable to people. |
 
 Lower level means more powerful. Exactly **one** level-0 global role exists.
 
@@ -45,7 +45,7 @@ Lower level means more powerful. Exactly **one** level-0 global role exists.
 | Read *any* project globally | ✓ | — |
 | Read project metadata (available options) | ✓ | ✓ |
 | Grant "support" access to a project | ✓ | — |
-| Run data-retention purge jobs | ✓ | *service account only* |
+| Run data-retention purge jobs (`REGISTRY_JOB_C`) | ✓ | — |
 | Anonymize **their own** account | ✓ | ✓ |
 
 The important onboarding consequence: **any signed-in user can create a project**, and the creator automatically becomes its `PROJECT_ADMINISTRATOR`. That is how ordinary users get project-scoped power without a platform administrator being involved.
@@ -58,34 +58,48 @@ Assigned per project when a user is invited (or when they create the project). E
 | ---- | ----- | -------------- |
 | **`PROJECT_ADMINISTRATOR`** | 0 | Full control of one event, including its membership. The creator gets this automatically. |
 | **`PROJECT_COORDINATOR`** | 10 | Runs the event's operations end to end, but cannot manage membership or delete the event. |
-| **`PROJECT_PARTICIPANT`** | 20 | Ground-level staff: register people and record movements, with limited edit rights. |
+| **`PROJECT_PARTICIPANT`** | 20 | Ground-level staff: register people and record movements, and correct their own entries — but never delete, and no standing access to vehicles or activities. |
 
 ### Project access matrix
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — plus *History* (view a resource's movement history). A dash means no access. Rows marked *(option)* only apply when the project has that module enabled (see [Project options](#project-options-gating)).
+Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. A dash means no access. Rows marked *(option)* only apply when the project has that module enabled (see [Project options](#project-options-gating)).
 
 | Resource | `PROJECT_ADMINISTRATOR` | `PROJECT_COORDINATOR` | `PROJECT_PARTICIPANT` |
 | -------- | :---: | :---: | :---: |
-| Project settings | R U D | R U | R |
+| Project settings (name, dates, options, enable/disable) | R U D | R | R |
 | Members / profiles (invite, edit, block, remove) | C R U D | R | — |
-| Participants | C R U D · History | C R U D · History | C R |
-| Groups | C R U D | C R U D | C R |
-| Movements (check-in / check-out) | C R U D | C R U D | C R |
-| Vehicles *(option)* | C R U D · History | C R U D · History | — |
-| Activities *(option)* | C R U D · History | C R U D · History | — |
-| Communications *(option)* | C R U D | C R U D | C R |
-| Alerts *(option)* | C R U D | C R U D | C R |
+| Participants | C R U D | C R U | C R U |
+| Groups | C R U D | C R U | C R U |
+| Movements (check-in / check-out) | C R U D | C R U D ² | C R U |
+| Vehicles *(option)* | C R U D | C R U | — ¹ |
+| Activities *(option)* | C R U D | C R U | — ¹ |
+| Communications *(option)* | C R U D | C R U | C R U |
+| Alerts *(option)* | C R U D | C R U | C R U |
 | Live presence dashboard | R | R | R |
 
-Reading between the lines:
+*History* is a separate capability — the ability to view a resource's own movement history — and is listed on its own row below rather than folded into a resource's CRUD, for readability. It is **always read-only**: history is a derived view of movements already recorded, not an editable resource in its own right, so there is no create/update/delete operation on it for any role.
+
+| History of | `PROJECT_ADMINISTRATOR` | `PROJECT_COORDINATOR` | `PROJECT_PARTICIPANT` |
+| ---------- | :---: | :---: | :---: |
+| Participant movements | R | R | — |
+| Vehicle movements *(option)* | R | R | — |
+| Activity movements *(option)* | R | R | — |
+
+¹ A participant has no direct read access to the vehicle or activity registries, but may still select an *eligible* vehicle or activity while recording a movement, via the movement's own scoped search — see [Movements](/registry/functional/features/movements) and [Technical → API Reference](/registry/technical/api-reference).
+
+² Movements are the one resource where the coordinator keeps full **D**elete rights alongside the administrator — everywhere else, only the administrator can delete.
+
+Reading between the lines — and this is less tidy than a first read suggests, so take the table as the source of truth over any summary of it:
 
 - **Only the administrator manages membership.** Coordinators can see who is in the event but cannot invite, edit, block or remove members. Participants cannot see the member list at all.
-- **Coordinators run everything else.** Their operational rights match the administrator's for participants, groups, movements and the optional modules — they simply cannot delete the project or touch membership.
-- **Participants are check-in staff.** They create and read the operational resources they need (people, groups, movements, communications, alerts) but do not edit or delete them, and they do not touch vehicles or activities.
+- **Only the administrator changes the project itself.** Coordinators are read-only on project settings — they cannot rename it, change its dates or options, enable/disable it, or delete it.
+- **Delete is the administrator's alone almost everywhere.** For participants, groups, vehicles, activities, communications and alerts, only the administrator can permanently delete — the coordinator has full create/read/update (including disable/enable and, for alerts, status changes) but never delete. **Movements are the single exception**: the coordinator keeps delete there too.
+- **Coordinators and participants are closer than the role names suggest.** Below the administrator, both roles share the same create/read/update floor on participants, groups, movements, communications and alerts — participants are *not* limited to create-and-read. What actually separates a coordinator from a participant is: visibility into membership (coordinator only), movement history (coordinator only), any access at all to vehicles or activities (coordinator only, beyond what a participant can select inside a movement), and delete on movements (coordinator only, alongside the administrator).
+- **Vehicles and activities are the coordinator's private territory.** A participant has no standing access to either — not even read — beyond selecting an eligible one while recording a movement.
 
 ## Project options (gating)
 
-Four **optional modules** are enabled per project. A module that is off is invisible and its API is closed — regardless of a user's role. Modules also have dependencies:
+Four **optional modules** are enabled per project. A module that is off is invisible and its API is closed — regardless of a user's role. **Turning a module off never deletes data:** rows already created, and references already recorded inside movements (a vehicle assignment, an activity used as a reason), are kept in the database — they simply stop being reachable through the module's endpoints and drop out of the UI until the module is re-enabled. Modules also have dependencies:
 
 | Option | Adds | Requires |
 | ------ | ---- | -------- |
@@ -99,10 +113,10 @@ So enabling alerts implies enabling communications and activities. The core — 
 ## Rules that shape access over time
 
 - **Profile lifecycle.** A membership (profile) moves through `INVITED` → `ACCEPTED` or `REJECTED`, and can be `BLOCKED`. Only an `ACCEPTED` profile grants any project permission.
-- **Access window.** Each profile carries a start/end access window. Outside that window the profile is *unavailable* and grants nothing, even if accepted.
+- **Access window is optional.** Each profile *may* carry a start/end access window. Outside that window the profile is *unavailable* and grants nothing, even if accepted. A profile with **no window is permanent** — it never expires on its own.
 - **Visibility gating (disabled events).** When a project is disabled (made invisible), non-administrators lose **all** authority on it. The administrator keeps only the ability to read, re-enable or delete the project — everything inside stays locked until it is re-enabled.
-- **Role-level safety.** A user may only assign roles at or below their own level, and the system refuses to remove or demote the **last** level-0 administrator — of a project *or* of the platform. You can never orphan an event or lock everyone out.
-- **Support access.** A platform administrator can mint a temporary, one-hour administrator profile on any project ("support") to intervene without permanently joining it.
+- **Role-level safety.** A user may only assign roles at or below their own level, and the system refuses to remove or demote the **last permanent** level-0 administrator — the last one with **no end date** — of a project *or* of the platform. A temporary administrator (one with an end date, e.g. a support profile) never counts toward this safeguard, so it can never be used to strand an event with only expiring administrators. You can never orphan an event or lock everyone out of it for good.
+- **Support access.** A platform administrator can mint a temporary, one-hour administrator profile on any project ("support" / assistance profile) to intervene without permanently joining it. Being temporary, it never blocks — and is never protected by — the last-permanent-administrator safeguard above.
 
 ## Adding a new role (reciprocity rule)
 

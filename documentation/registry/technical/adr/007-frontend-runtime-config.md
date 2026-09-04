@@ -1,8 +1,8 @@
-# ADR 008 — Runtime configuration injection for the frontend
+# ADR 007 — Runtime configuration injection for the frontend
 
 ## Status
 
-Accepted — **revised by [ADR 023](/registry/technical/adr/023-nuxt-runtime-config)** for the Nuxt/SSR stack (server-side loading, a public/server-only split, secrets and the backend URL moved server-side) when the Vue rewrite lands (pending the Phase-0 spike). The one-immutable-image principle below is retained.
+<Badge type="tip" text="Accepted" />
 
 ## Context
 
@@ -25,7 +25,7 @@ The application fetches both files first, then bootstraps with those values alre
 
 ### Positive
 
-- **One image targets every environment.** The same built artifact runs in dev, staging, and prod; only the injected JSON differs. What you tested is literally what you promote — no rebuild between environments. This pairs directly with the immutable-image delivery model in [ADR 010](/registry/technical/adr/010-container-delivery-semantic-release).
+- **One image targets every environment.** The same built artifact runs in dev, staging, and prod; only the injected JSON differs. What you tested is literally what you promote — no rebuild between environments. This pairs directly with the immutable-image delivery model in [ADR 009](/registry/technical/adr/009-container-delivery-semantic-release).
 - **12-factor configuration.** Config lives in the environment, not in the code. Backend URLs and environment flags are never baked into the JavaScript bundle.
 - **Presentation is reconfigurable without a release.** Theme, logos, enabled actions, and languages are data. Retheming or toggling a UI action for one environment is a config change, not a code change and rebuild.
 - **Clean separation of concerns.** `env.json` (wiring) and `config.json` (presentation) are separate files with separate audiences — an operator tweaks one, a designer the other.
@@ -38,4 +38,4 @@ The application fetches both files first, then bootstraps with those values alre
 
 ### Why not build-time `environment.ts` files
 
-The Angular-native approach is simpler to reason about and gives compile-time checking of the values. But it fundamentally requires **one build per environment**: the environment identity is compiled in, so the staging and production artifacts are different builds, and the promote-what-you-tested property is lost. For a system that delivers immutable container images ([ADR 010](/registry/technical/adr/010-container-delivery-semantic-release)), that is the wrong trade — we accept runtime failure modes and an extra fetch in exchange for a single, environment-agnostic artifact.
+The Angular-native approach is simpler to reason about and gives compile-time checking of the values. But it fundamentally requires **one build per environment**: the environment identity is compiled in, so the staging and production artifacts are different builds, and the promote-what-you-tested property is lost. For a system that delivers immutable container images ([ADR 009](/registry/technical/adr/009-container-delivery-semantic-release)), that is the wrong trade — we accept runtime failure modes and an extra fetch in exchange for a single, environment-agnostic artifact.

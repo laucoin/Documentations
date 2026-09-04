@@ -2,8 +2,8 @@
 
 ## 1. Overview
 
-- **Goal:** A project is the event a user came to Registry to manage — a camp, a trip, a gathering — and the tenant boundary that owns everything else. Creating one gives a user a private workspace with a name, a start and an end, and a set of optional modules they turn on; from there they invite staff, register people, and track presence. Because any signed-in user can create a project and instantly becomes its administrator, teams get running without a platform operator in the loop.
-- **Who uses it:** Every signed-in user can create a project. Once created, it is run by its `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR`, read by its `PROJECT_PARTICIPANT`, and — for support — visible to a global `USER_ADMINISTRATOR`.
+- **Goal:** A project is the event a user came to Registry to manage — a camp, a trip, a gathering — and the tenant boundary that owns everything else. Creating one gives a user a private workspace with a name, an optional start and end, and a set of optional modules they turn on; from there they invite staff, register people, and track presence. Because any signed-in user can create a project and instantly becomes its administrator, teams get running without a platform operator in the loop.
+- **Who uses it:** Every signed-in user can create a project. Once created, its settings (name, dates, options, enable/disable, delete) are owned solely by its `PROJECT_ADMINISTRATOR`; the `PROJECT_COORDINATOR` and `PROJECT_PARTICIPANT` are read-only on the project itself while running its day-to-day operations. For support, it is also visible to a global `USER_ADMINISTRATOR`.
 - **Option required:** None — always available. Projects are the core; options are configured *on* a project rather than gating access to it.
 
 ## 2. Roles & Permissions
@@ -14,16 +14,16 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 | ---- | ----------------- | ------------------ |
 | `USER` (global) | **C** | Any signed-in user may create a project (`REGISTRY_PROJECT_C`); the creator automatically becomes its `PROJECT_ADMINISTRATOR`. Also reads project metadata (available options). |
 | `USER_ADMINISTRATOR` (global) | **R** | May read *any* project on the platform (`REGISTRY_PROJECT_R` global), independent of a profile — used for support. |
-| `PROJECT_ADMINISTRATOR` | **R U D** + enable/disable | Scoped to the project (`REGISTRY_PROJECT_R/U/D`). Only role that may delete a project. |
-| `PROJECT_COORDINATOR` | **R U** + enable/disable | Scoped to the project (`REGISTRY_PROJECT_R/U`). Cannot delete. |
+| `PROJECT_ADMINISTRATOR` | **R U D** + enable/disable | Scoped to the project (`REGISTRY_PROJECT_R/U/D`). Only role with any write access to the project itself — including enable/disable and delete. |
+| `PROJECT_COORDINATOR` | **R** | Scoped to the project (`REGISTRY_PROJECT_R`). No `REGISTRY_PROJECT_U`: cannot update, enable/disable or delete. Read-only on project settings, despite running its operations. |
 | `PROJECT_PARTICIPANT` | **R** | Scoped to the project (`REGISTRY_PROJECT_R`). Read-only on project settings. |
 
 ## 3. Business rules
 
 - **Name** is required and at most **150 characters**.
-- **`begin`** and **`end`** are each a date with an optional time; `begin` must be **strictly before** `end` (`@StartBeforeEnd`).
+- **`begin`** and **`end`** are optional; each, if set, is a date with an optional time. When both are set, `begin` must be **strictly before** `end` (`@StartBeforeEnd`). With neither set, the project is permanently available.
 - **Enabled options** are a subset of `VEHICLE`, `ACTIVITY`, `COMMUNICATION`, `ALERT`, subject to dependencies (`@ProjectOptionDependencies`): `COMMUNICATION` requires `ACTIVITY`; `ALERT` requires `ACTIVITY` **and** `COMMUNICATION`. A request that breaks a dependency is rejected with error `PROJECT_OPTIONS_MISSING`, listing the missing options.
-- **Availability is derived, not stored.** A project is `AVAILABLE` when the current moment is within the `begin`–`end` window, otherwise `UNAVAILABLE`.
+- **Availability is derived, not stored.** A project is `AVAILABLE` when the current moment is within the `begin`–`end` window, otherwise `UNAVAILABLE`. A project with no `begin`/`end` is permanently `AVAILABLE`.
 - **Disabling is a soft, reversible action** (`visibility = false`). While a project is disabled, non-administrators lose **all** authority on it; the administrator keeps only read, re-enable and delete. See [Roles & Permissions → Visibility gating](/registry/functional/roles-and-permissions#rules-that-shape-access-over-time).
 - **The project list is scoped to the caller.** A user sees only the projects they hold a profile on; a global `USER_ADMINISTRATOR` sees them all.
 
@@ -32,8 +32,9 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 ```gherkin
 Scenario: Any signed-in user creates a project and becomes its administrator
   Given I am a signed-in user
+  And the current date is 2026-09-02
   When I create a project named "Summer Gathering 2026" beginning 2026-07-10 and ending 2026-07-24
-  Then the project is created with derived status UNAVAILABLE
+  Then the project is created with derived status UNAVAILABLE, because 2026-09-02 is past its end date
   And I am granted a PROJECT_ADMINISTRATOR profile on it
   And the project appears in my project list
 ```
@@ -91,15 +92,4 @@ Scenario: A platform administrator can read any project for support
 
 ## 5. API surface
 
-REST endpoints backing this feature. Project-scoped endpoints live under `/api/v2/projects/{projectId}/...` and are secured by the holder's project-scoped permission. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/projects` | List the projects the caller can access | Authenticated (scoped to caller's profiles) |
-| `GET` | `/projects/{id}` | Read a single project | `REGISTRY_PROJECT_R` (global or scoped) |
-| `GET` | `/projects/options` | Read available options (metadata) | `REGISTRY_PROJECT_METADATA_R` |
-| `POST` | `/projects` | Create a project (creator becomes administrator) | `REGISTRY_PROJECT_C` (global) |
-| `PATCH` | `/projects/{id}` | Update name, dates or options | scoped `REGISTRY_PROJECT_U` |
-| `POST` | `/projects/{id}/disable` | Soft-disable (hide) the project | scoped `REGISTRY_PROJECT_U` |
-| `POST` | `/projects/{id}/enable` | Re-enable a disabled project | scoped `REGISTRY_PROJECT_U` |
-| `DELETE` | `/projects/{id}` | Permanently delete the project | scoped `REGISTRY_PROJECT_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

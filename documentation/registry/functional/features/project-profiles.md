@@ -3,7 +3,7 @@
 ## 1. Overview
 
 - **Goal:** A profile is a user's membership of one project — the link that says *this person may access this event, in this role, during this window*. The feature has two sides that share one entity: administrators build and maintain their event's staff list, and every user manages their own invitations and memberships. Because only an `ACCEPTED` profile inside its access window grants permissions, profiles are also the switch that turns project-scoped access on and off over time.
-- **Who uses it:** `PROJECT_ADMINISTRATOR` manages the member list; `PROJECT_COORDINATOR` can view it; every signed-in user manages their own profiles; a platform `USER_ADMINISTRATOR` (holding `REGISTRY_PROFILE_C`) can mint temporary support access.
+- **Who uses it:** `PROJECT_ADMINISTRATOR` manages the member list; `PROJECT_COORDINATOR` can view it; every signed-in user manages their own profiles; a platform `USER_ADMINISTRATOR` (holding `REGISTRY_PROFILE_C`) can mint a **support profile** — a self-expiring administrator access whose real purpose is to leave an auditable trace of the intervention.
 - **Option required:** None — always available. Membership is part of the core.
 
 ## 2. Roles & Permissions
@@ -27,14 +27,14 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 
 ## 3. Business rules
 
-- **Inviting is a batch action.** Choose one or more users, **one** role, and an access window → the system creates an `INVITED` profile for each selected user.
+- **Inviting is a batch action.** Choose one or more users, **one** role, and an optional access window → the system creates an `INVITED` profile for each selected user.
 - **Editing a member** changes their **role** and/or their **access window**.
-- **Access window integrity.** `start` access must be **before** `end` access (`@StartBeforeEnd`).
+- **Access window is optional.** A profile with no window is **permanent**. When both `start` and `end` are set, `start` must be **before** `end` (`@StartBeforeEnd`).
 - **Role ceiling.** A user may only assign roles **at or below their own level** — administrator (0) > coordinator (10) > participant (20). A coordinator can never mint an administrator.
-- **Last-administrator safety.** The system refuses to remove or demote the **last** `PROJECT_ADMINISTRATOR` (the last level-0 profile). A project can never be orphaned.
+- **Last-permanent-administrator safety.** The system refuses to remove or demote the **last permanent** `PROJECT_ADMINISTRATOR` — the last level-0 profile with **no end date**. A temporary administrator (one with an end date, e.g. a support profile) does not count toward this safeguard. A project can never be left with only expiring administrators.
 - **Accept/reject is constrained.** A user may only accept or reject a profile while it is `INVITED`, and the new value must be `ACCEPTED` or `REJECTED` (`@ProfileAcceptOrReject`).
 - **Permissions require an accepted, in-window profile.** Only an `ACCEPTED` profile whose current moment sits inside its access window grants any project permission. `INVITED`, `REJECTED` and `BLOCKED` profiles grant nothing.
-- **Support access is temporary.** A support profile is a full administrator profile that expires after one hour, letting platform staff intervene without permanently joining the event.
+- **Support access is about traceability, not gate-keeping.** A `USER_ADMINISTRATOR` can already read *any* project at any moment (global `REGISTRY_PROJECT_R`) and can mint a support profile whenever they choose — so the profile is not what *grants* the ability to intervene. Its point is to **leave an auditable trace**: it is a full `PROJECT_ADMINISTRATOR` profile, recorded like any other membership (who, when), that **auto-expires after one hour** so the elevated write access never lingers. It stays visible on the member list afterwards as the record that the intervention happened.
 
 ## 4. Behavioral scenarios (BDD)
 
@@ -56,10 +56,11 @@ Scenario: A coordinator cannot manage membership
 
 ```gherkin
 Scenario: A user accepts an invitation and gains access
-  Given I have an INVITED profile on a project, valid from 2026-07-10 to 2026-07-24
+  Given the current date is 2026-09-02
+  And I have an INVITED profile on a project, valid from 2026-08-15 to 2026-12-20
   When I accept the invitation
   Then my profile status becomes ACCEPTED
-  And I hold my role's permissions while the current date is within the access window
+  And I hold my role's permissions, because 2026-09-02 sits inside the access window
 ```
 
 ```gherkin
@@ -77,10 +78,18 @@ Scenario: A coordinator cannot promote someone above their own level
 ```
 
 ```gherkin
-Scenario: The last administrator cannot be removed
-  Given I am the only PROJECT_ADMINISTRATOR of a project
+Scenario: The last permanent administrator cannot be removed
+  Given I am the only PROJECT_ADMINISTRATOR of a project, with no end date on my profile
   When I try to remove my own profile or demote it to PROJECT_COORDINATOR
   Then the request is refused to avoid orphaning the project
+```
+
+```gherkin
+Scenario: A temporary support administrator does not block demoting the permanent one
+  Given a project has one permanent PROJECT_ADMINISTRATOR and a temporary support PROJECT_ADMINISTRATOR (with an end date)
+  When the permanent administrator tries to demote their own profile to PROJECT_COORDINATOR
+  Then the request is still refused
+  Because the temporary support profile does not count as a permanent administrator
 ```
 
 ```gherkin
@@ -96,32 +105,10 @@ Scenario: Platform staff mints temporary support access
   Given I am a global USER_ADMINISTRATOR with no profile on project C
   When I create a support profile on project C
   Then I receive a PROJECT_ADMINISTRATOR profile that expires after one hour
+  And the profile is recorded on project C's member list as a trace of the intervention
+  And that record remains visible after the profile has expired
 ```
 
 ## 5. API surface
 
-Project-scoped endpoints live under `/api/v2/projects/{projectId}/...`; self-service endpoints under `/api/v2/users/profiles/...`. See [Technical → API Reference](/registry/technical/api-reference).
-
-### Admin side
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/projects/{projectId}/profiles` | List the project's members | scoped `REGISTRY_PROJECT_PROFILE_R` |
-| `GET` | `/projects/{projectId}/profiles/{id}` | Read one member's profile | scoped `REGISTRY_PROJECT_PROFILE_R` |
-| `GET` | `/projects/{projectId}/profiles/assignable-users?q=` | Search users to invite | scoped `REGISTRY_PROJECT_PROFILE_METADATA_R` |
-| `GET` | `/projects/{projectId}/profiles/roles` | List assignable roles | scoped `REGISTRY_PROJECT_PROFILE_METADATA_R` |
-| `POST` | `/projects/{projectId}/profiles/invite` | Batch-invite users to the project | scoped `REGISTRY_PROJECT_PROFILE_C` |
-| `PATCH` | `/projects/{projectId}/profiles/{id}` | Change a member's role / access window | scoped `REGISTRY_PROJECT_PROFILE_U` |
-| `POST` | `/projects/{projectId}/profiles/{id}/block` | Block a member | scoped `REGISTRY_PROJECT_PROFILE_U` |
-| `POST` | `/projects/{projectId}/profiles/{id}/unblock` | Unblock a member | scoped `REGISTRY_PROJECT_PROFILE_U` |
-| `DELETE` | `/projects/{projectId}/profiles/{id}` | Remove a member | scoped `REGISTRY_PROJECT_PROFILE_D` |
-
-### Self side
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/users/profiles` | List my own profiles | Authenticated |
-| `POST` | `/users/profiles/{id}/accept` | Accept an invitation | Authenticated (own `INVITED` profile) |
-| `POST` | `/users/profiles/{id}/reject` | Reject an invitation | Authenticated (own `INVITED` profile) |
-| `POST` | `/users/profiles/{projectId}/support` | Mint a 1-hour support administrator profile | `REGISTRY_PROFILE_C` (global) |
-| `DELETE` | `/users/profiles/{id}` | Leave a project (delete my profile) | Authenticated (own profile) |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

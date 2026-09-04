@@ -10,12 +10,13 @@ Registry replaces the paper attendance sheet ("who is here right now?") with a s
 
 | Concept | What it means to a user |
 | ------- | ----------------------- |
-| **Project** | An event to manage — a camp, a trip, a gathering. It has a start and an end, and a set of optional modules the organizer turns on. Everything else lives inside a project. |
-| **Profile** | A person's membership of a project: which event they can access, in which role, and during which access window. |
-| **Participant** | Someone taking part in the event. Either *registered* (enrolled for the whole event) or a *guest* (a visitor). |
+| **Project** | An event to manage — a camp, a trip, a gathering. It optionally has a start and an end, and a set of optional modules the organizer turns on. Without dates, it is permanent. Everything else lives inside a project. |
+| **Profile** | A person's membership of a project: which event they can access, in which role, and during which optional access window. A profile with no window is permanent — and a registered profile doesn't necessarily cover the whole event. |
+| **Participant** | Someone taking part in the event. Either *registered* (enrolled, normally present) or a *guest* (a visitor, normally off-site). Their own availability window is optional and independent of the project's. |
 | **Group** | A named set of participants — a team, a unit, a tent — used to move and count people together. |
 | **Movement** | The core record: a check-in (`IN`) or check-out (`OUT`) event that changes who is present. |
 | **Presence** | The live status derived from movements: each participant and vehicle is *in*, *out*, or *unavailable*. |
+| **Availability** | The theoretical window during which an element (participant, group, activity, vehicle) may generate movements at all — effectively its "registration" period. It differs from presence: an element can be *available* yet currently *out*, or *unavailable* regardless of its last recorded movement. |
 
 ## Scope and non-goals
 

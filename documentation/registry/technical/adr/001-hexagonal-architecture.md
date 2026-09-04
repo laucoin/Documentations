@@ -2,21 +2,19 @@
 
 ## Status
 
-Accepted
+<Badge type="tip" text="Accepted" />
 
 ## Context
 
-The backend is a multi-tenant participant/event registry with non-trivial business rules: project-scoped permissions, visibility gating, participant lifecycle, auditing. That logic must outlive framework churn and stay testable without a running server or database.
+The backend is a multi-tenant participant/event registry with non-trivial business rules: project-scoped permissions, visibility gating, participant lifecycle, auditing.
 
-The natural failure mode of a Spring application is that business logic leaks into controllers, entities, and repositories — a `@RestController` reaches straight into a JPA entity, a service depends on an HTTP concern, and within a year the "domain" is inseparable from the framework. Conventions in a wiki do not prevent this; only something enforced at build time does.
-
-We needed a structure that keeps the business core framework-agnostic, and a mechanism that makes the boundaries a guarantee rather than a hope.
+When this project started, the goal for its structure was explicitly **to learn and apply ports-and-adapters properly on a real codebase** — with the boundaries enforced automatically rather than left to discipline — rather than to solve a pain already felt on a previous layered Spring app.
 
 ## Decision
 
 Organize the backend as a hexagonal (ports & adapters) architecture with three top-level layers:
 
-- **domain** — the core: models, port interfaces, services / use-cases, validators, enums. No Spring web or persistence types.
+- **domain** — the core: models, port interfaces, services / use-cases, validators, enums. No Spring-web or persistence types.
 - **config** — Spring wiring only (bean definitions, security config). No business logic.
 - **infrastructure** — adapters that implement the domain's ports: the REST/API layer, persistence, identity.
 
@@ -35,23 +33,19 @@ Controllers are **contract-first**: REST semantics — paths, `@PreAuthorize`, O
 
 ### Positive
 
-- **Boundaries are a build-time guarantee, not a convention.** A pull request that makes the REST layer reach into persistence, or puts a `@Service` in the wrong package, fails CI. The architecture cannot silently erode.
+- **Boundaries are a build-time guarantee.** A change that makes the REST layer reach into persistence, or puts a `@Service` in the wrong package, fails the build.
 - **The domain is testable in isolation.** Use-cases depend on port interfaces, so they can be unit-tested with in-memory fakes — no Spring context, no database.
 - **Framework churn is contained.** Swapping the web or persistence adapter (see [ADR 002](/registry/technical/adr/002-reactive-webflux-r2dbc)) touches infrastructure, not the core.
-- **Contract-first controllers separate the API surface from its implementation.** The interface is the single place where security and OpenAPI annotations live, which keeps the impl trivial and the generated docs honest.
-- **Naming conventions make the codebase navigable.** A `*Port` is always a boundary; a `*Service` is always a use-case. New contributors orient quickly.
+- **Naming conventions make the codebase navigable.** A `*Port` is always a boundary; a `*Service` is always a use-case.
 
 ### Negative
 
-- **More ceremony.** Every controller is an interface plus an implementation; every boundary is a port plus an adapter. For a small CRUD endpoint this feels like overhead.
-- **The ArchUnit test is itself a maintenance surface.** Legitimate refactors sometimes require updating the rules, and a poorly-worded rule can either wave through violations or block valid code.
-- **Indirection cost.** Following a request from controller → port → service → adapter is more hops than a flat MVC app, which raises the learning curve.
-- **Discipline required at design time.** Deciding what belongs in the domain versus an adapter is a judgement call the rules cannot make for you.
+- **A lot of ceremony.** Every controller is an interface plus an implementation; every boundary is a port plus an adapter; every entity needs a mapper to and from a domain model. For a CRUD endpoint this is pure overhead.
+- **The ArchUnit test is itself a maintenance surface.** Legitimate refactors sometimes require updating the rules.
+- **Indirection cost.** Controller → port → service → adapter is more hops than a flat MVC app.
 
-### Why not a conventional layered Spring app
+## Retrospective
 
-The default "controller → service → repository" layering is faster to start and familiar to every Spring developer. But it offers no protection against the domain depending on the framework: JPA entities routinely double as domain models, and controllers accumulate logic. Nothing fails when a boundary is crossed. For a system whose business rules are the whole point, we judged the up-front ceremony of ports & adapters — with the crossings actually enforced — a worthwhile trade against slow, invisible decay.
+Having built and lived with it, the honest assessment is that **hexagonal + ArchUnit is over-engineered for this codebase**. Registry has few external systems to adapt to — one database, one OIDC provider — so the port/adapter indirection multiplies code (interface + impl per controller, port + adapter + mapper per boundary) without buying the flexibility the pattern is meant to provide. The gain does not clearly justify the volume of code at this size.
 
-### Why not enforce boundaries by module/Gradle-subproject splits alone
-
-Splitting layers into separate Gradle modules enforces some dependency direction through the build graph, but it is coarse: it cannot express "a `@RestController` must implement a contract interface" or the naming conventions, and it fragments the build for a codebase of this size. ArchUnit expresses fine-grained rules within a single module and keeps the whole thing buildable as one unit.
+It is kept because it is in place, consistent, and enforced — not because it would be chosen again for a project of this shape. A simpler layered structure would very likely have been the better call here.

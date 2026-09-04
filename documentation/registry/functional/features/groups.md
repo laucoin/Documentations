@@ -3,7 +3,7 @@
 ## 1. Overview
 
 - **Goal:** A group is a named set of participants — a team, a unit, a tent — used to **move and count people together**. Instead of picking a dozen names one by one, staff select the group and a movement expands to its current members. Registry also tracks how many of a group's members are inside versus outside, turning the headcount into something teams can read at their own level of organization.
-- **Who uses it:** `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` create and maintain groups, including their membership; `PROJECT_PARTICIPANT` (check-in staff) can create and read them.
+- **Who uses it:** All three roles create, read, edit and maintain group membership (add/remove members); only `PROJECT_ADMINISTRATOR` can permanently delete a group.
 - **Option required:** None — always available. Groups are part of the core.
 
 ## 2. Roles & Permissions
@@ -12,18 +12,19 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + add/remove members | Full control, scoped to the project (`REGISTRY_...GROUP_C/R/U/D`). |
-| `PROJECT_COORDINATOR` | **C R U D** + add/remove members | Same operational rights as the administrator for groups. |
-| `PROJECT_PARTICIPANT` | **C R** | Create and read groups; cannot edit membership, disable or delete. |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + add/remove members | Only role that can permanently delete a group; also creates, edits and maintains membership (`REGISTRY_...GROUP_C/R/U/D`). |
+| `PROJECT_COORDINATOR` | **C R U** + add/remove members | Creates, edits, disables/enables and maintains membership, same as the administrator — but cannot delete a group. |
+| `PROJECT_PARTICIPANT` | **C R U** + add/remove members | Same floor as the coordinator: creates, edits, disables/enables and maintains membership — but cannot delete a group. |
 
 ## 3. Business rules
 
 - **Name** identifies the group.
 - **Members.** A group holds **at least one** member; members are chosen from the project's participants via multi-select.
-- **Availability window.** `start` must be **before** `end` (`@StartBeforeEnd`).
-- **Expansion in movements.** Selecting a group in a movement expands to its **current** members at that moment — later membership changes do not rewrite past movements. See [Domain Model → Movement](/registry/functional/domain-model#movement-the-core-record).
+- **Availability window is optional.** With no window of its own, a group inherits the project's window — see [Domain Model → Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution). When both `start` and `end` are set, `start` must be **before** `end` (`@StartBeforeEnd`).
+- **Expansion in movements.** Selecting a group in a movement expands to its **current** members at that moment — later membership changes do not rewrite past movements. Each participant added this way carries a **pool label** on their movement entry, set to the name of the group they were added through and snapshotted at that instant. See [Domain Model → Movement](/registry/functional/domain-model#movement-the-core-record) and [Technical → Data Model](/registry/technical/data-model) (`tb_movement_content.pool_name`).
 - **Inside/outside counts.** Registry tracks how many members are currently inside versus outside, derived from their movements.
 - **Disabling is a soft, reversible action.** A disabled group is hidden but can be re-enabled.
+- **Deleting a group removes only the grouping.** Its participants stay registered on the project and keep all their movement history; the group's name simply stops being available for future expansions, while past movements keep the pool labels they already recorded.
 
 ## 4. Behavioral scenarios (BDD)
 
@@ -54,22 +55,26 @@ Scenario: Selecting a group in a movement expands to its current members
   Given the group "Tent 1" currently has members "Ana", "Ben" and "Cora"
   When staff record a movement selecting the group "Tent 1"
   Then the movement includes Ana, Ben and Cora
+  And each of those three movement entries carries the pool label "Tent 1"
 ```
 
 ```gherkin
-Scenario: A participant can create and read but not edit membership
+Scenario: A participant adds and removes members, but cannot delete the group
   Given I am a PROJECT_PARTICIPANT on a project
-  When I add or remove a member on an existing group
-  Then the action is refused
-  But I can still create a new group and read existing ones
-```
-
-```gherkin
-Scenario: An administrator adds and removes members
-  Given I am the PROJECT_ADMINISTRATOR of a project
   And the group "Tent 1" has members "Ana" and "Ben"
   When I add "Cora" and remove "Ben"
   Then the group's members become "Ana" and "Cora"
+  When I then attempt to delete "Tent 1"
+  Then the request is refused for lack of permission
+```
+
+```gherkin
+Scenario: Only an administrator can delete a group
+  Given I am the PROJECT_ADMINISTRATOR of a project
+  And the group "Tent 1" exists with members "Ana" and "Ben"
+  When I delete "Tent 1"
+  Then the group is permanently removed
+  And "Ana" and "Ben" remain registered on the project — only the grouping is removed
 ```
 
 ```gherkin
@@ -81,18 +86,4 @@ Scenario: Registry reports a group's inside/outside split
 
 ## 5. API surface
 
-Project-scoped endpoints live under `/api/v2/projects/{projectId}/groups/...`, secured by the holder's project-scoped permission. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/groups` | List groups | scoped `REGISTRY_PROJECT_GROUP_R` |
-| `GET` | `/groups/{id}` | Read a single group | scoped `REGISTRY_PROJECT_GROUP_R` |
-| `GET` | `/groups/{id}/members` | List a group's members | scoped `REGISTRY_PROJECT_GROUP_R` |
-| `GET` | `/groups/assignable-participants?q=` | Search participants to add | scoped `REGISTRY_PROJECT_GROUP_METADATA_R` |
-| `POST` | `/groups` | Create a group | scoped `REGISTRY_PROJECT_GROUP_C` |
-| `PATCH` | `/groups/{id}` | Update a group | scoped `REGISTRY_PROJECT_GROUP_U` |
-| `POST` | `/groups/{id}/members` | Add members to a group | scoped `REGISTRY_PROJECT_GROUP_U` |
-| `DELETE` | `/groups/{id}/members/{memberId}` | Remove a member from a group | scoped `REGISTRY_PROJECT_GROUP_U` |
-| `POST` | `/groups/{id}/disable` | Soft-disable a group | scoped `REGISTRY_PROJECT_GROUP_U` |
-| `POST` | `/groups/{id}/enable` | Re-enable a group | scoped `REGISTRY_PROJECT_GROUP_U` |
-| `DELETE` | `/groups/{id}` | Delete a group | scoped `REGISTRY_PROJECT_GROUP_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-- **Goal:** A vehicle is a car, van or bus available to the event. Registering it lets staff record — inside a [movement](/registry/functional/features/movements) — who travelled in which vehicle and in which carpool, and derives a live **presence status** (`IN` / `OUT`) from the vehicle's latest movement. That status feeds the **vehicle-presence card** on the dashboard, so a coordinator can see at a glance which vehicles are on site and which are out.
+- **Goal:** A vehicle is a car, van or bus available to the event. Registering it lets staff record — inside a [movement](/registry/functional/features/movements) — who travelled in which vehicle, and derives a live **presence status** (`IN` / `OUT`) from the vehicle's latest movement. That status feeds the **vehicle-presence card** on the dashboard, so a coordinator can see at a glance which vehicles are on site and which are out.
 - **Who uses it:** `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` maintain the vehicle fleet and review each vehicle's movement history. `PROJECT_PARTICIPANT` has **no access** to vehicle management (though they may assign an existing vehicle while recording a movement).
 - **Option required:** **`VEHICLE`.** Every vehicle endpoint is gated by this option — if it is off, the whole feature is closed regardless of role.
 
@@ -12,8 +12,8 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — 
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Full control of vehicles (`REGISTRY_PROJECT_VEHICLE_C/R/U/D`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
-| `PROJECT_COORDINATOR` | **C R U D** + History | Same rights as the administrator (`REGISTRY_PROJECT_VEHICLE_C/R/U/D`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Only role that can permanently delete a vehicle; also registers, edits and views movement history (`REGISTRY_PROJECT_VEHICLE_C/R/U/D`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
+| `PROJECT_COORDINATOR` | **C R U** + History | Registers, edits, disables/enables and views movement history, same as the administrator — but cannot delete a vehicle (`REGISTRY_PROJECT_VEHICLE_C/R/U`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
 | `PROJECT_PARTICIPANT` | — | No access to vehicle management. May still assign an existing vehicle within a movement. |
 
 > **Option gating first.** All rows above assume the project has the `VEHICLE` option enabled. With the option off, the API is closed for every role — see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating).
@@ -21,21 +21,23 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — 
 ## 3. Business rules
 
 - **Identity fields.** A vehicle has a **licence plate** (formatted like `aa-999-aa`), a **brand** and a **model**.
-- **Availability window.** The availability **start must be before the end** (`@StartBeforeEnd`).
+- **Availability window is optional.** With no window of its own, a vehicle inherits the project's window — see [Domain Model → Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution). When both are set, availability **start must be before the end** (`@StartBeforeEnd`).
 - **Presence is derived, not stored.** A vehicle is `IN` or `OUT` depending on its **latest movement**; with no movement it is off-site. This status drives the dashboard vehicle-presence card.
-- **Assigned inside movements.** A vehicle is never "used" on its own — it is assigned to participants **inside a movement**, with an optional **carpool / pool label**, and only on `REGISTERED` content (see [Movements → Business rules](/registry/functional/features/movements#3-business-rules)).
+- **Assigned inside movements.** A vehicle is never "used" on its own — it is assigned to participants **inside a movement**, and only on `REGISTERED` content (see [Movements → Business rules](/registry/functional/features/movements#3-business-rules)). It is unrelated to the movement's **pool label** (a snapshot of the originating group's name), which any participant entry may carry regardless of vehicle assignment.
 - **Disabling is soft and reversible.** A vehicle can be disabled (hidden from selection) and later re-enabled without losing its history.
 
 ## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: A coordinator registers a vehicle
+Scenario: A coordinator registers a vehicle but cannot delete one
   Given the project has the VEHICLE option enabled
   And I hold the PROJECT_COORDINATOR role
   When I create a vehicle with plate "AA-123-BB", brand "Renault", model "Trafic"
   And an availability window from 2026-07-10 to 2026-07-24
   Then the vehicle is created
   And it is available for assignment in movements
+  When I then attempt to delete "AA-123-BB"
+  Then the request is refused for lack of REGISTRY_PROJECT_VEHICLE_D
 ```
 
 ```gherkin
@@ -61,6 +63,7 @@ Scenario: The feature is closed when the VEHICLE option is off
   When I attempt to list vehicles
   Then the request is refused because the feature is closed
   Regardless of my role
+  And any vehicles and past movement assignments recorded earlier are retained, not deleted — see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating)
 ```
 
 ```gherkin
@@ -90,15 +93,4 @@ Scenario: A coordinator reviews a vehicle's movement history
 
 ## 5. API surface
 
-REST endpoints backing this feature. All project-scoped endpoints live under `/api/v2/projects/{projectId}/...` and **require the `VEHICLE` option**. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/vehicles` | List vehicles | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_R` |
-| `GET` | `/vehicles/{id}` | Read a single vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_R` |
-| `GET` | `/vehicles/{id}/movements` | Read the vehicle's movement history | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_HISTORY_R` |
-| `POST` | `/vehicles` | Register a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_C` |
-| `PATCH` | `/vehicles/{id}` | Update a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_U` |
-| `POST` | `/vehicles/{id}/disable` | Soft-disable a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_U` |
-| `POST` | `/vehicles/{id}/enable` | Re-enable a disabled vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_U` |
-| `DELETE` | `/vehicles/{id}` | Permanently delete a vehicle | `VEHICLE` option + `REGISTRY_PROJECT_VEHICLE_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

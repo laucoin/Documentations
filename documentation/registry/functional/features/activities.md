@@ -12,8 +12,8 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — 
 
 | Role | Permitted actions | Conditions / Scope |
 | ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Full control of activities (`REGISTRY_PROJECT_ACTIVITY_C/R/U/D`, `REGISTRY_PROJECT_ACTIVITY_HISTORY_R`). Requires the `ACTIVITY` option. |
-| `PROJECT_COORDINATOR` | **C R U D** + History | Same rights as the administrator (`REGISTRY_PROJECT_ACTIVITY_C/R/U/D`, `REGISTRY_PROJECT_ACTIVITY_HISTORY_R`). Requires the `ACTIVITY` option. |
+| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Only role that can permanently delete an activity; also plans, edits and views movement history (`REGISTRY_PROJECT_ACTIVITY_C/R/U/D`, `REGISTRY_PROJECT_ACTIVITY_HISTORY_R`). Requires the `ACTIVITY` option. |
+| `PROJECT_COORDINATOR` | **C R U** + History | Plans, edits, disables/enables and views movement history, same as the administrator — but cannot delete an activity (`REGISTRY_PROJECT_ACTIVITY_C/R/U`, `REGISTRY_PROJECT_ACTIVITY_HISTORY_R`). Requires the `ACTIVITY` option. |
 | `PROJECT_PARTICIPANT` | — | No access to activity management. May still select an existing activity as a movement's justification. |
 
 > **Option gating first.** All rows above assume the project has the `ACTIVITY` option enabled. With the option off, the API is closed for every role — see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating).
@@ -21,7 +21,7 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — 
 ## 3. Business rules
 
 - **Name and description.** An activity has a required **name** and a **description** of at most **2000 characters**.
-- **Duration and availability.** It carries a **duration** and an availability window whose **start must be before the end** (`@StartBeforeEnd`).
+- **Duration and availability.** It carries a **duration** and an optional availability window; with no window of its own, an activity inherits the project's (see [Domain Model → Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution)). When both `start` and `end` are set, **start must be before the end** (`@StartBeforeEnd`).
 - **Allowed-participants range** (`@MinUpperMax`). The **minimum must be less than or equal to the maximum**, and the **minimum must be at least 1**.
 - **Used as a movement justification.** Selecting an activity in a movement is **mutually exclusive with a free reason** (`@BothCannotBeDefined`) — a movement is justified by an activity *or* a reason, never both. See [Movements → Business rules](/registry/functional/features/movements#3-business-rules).
 - **Disabling is soft and reversible.** An activity can be disabled (hidden from selection) and later re-enabled without losing its history.
@@ -29,13 +29,15 @@ Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — 
 ## 4. Behavioral scenarios (BDD)
 
 ```gherkin
-Scenario: A coordinator plans an activity
+Scenario: A coordinator plans an activity but cannot delete one
   Given the project has the ACTIVITY option enabled
   And I hold the PROJECT_COORDINATOR role
   When I create an activity "Mountain Hike" with a description under 2000 characters
   And an allowed-participants range of minimum 4 and maximum 12
   Then the activity is created
   And it can be selected as a movement justification
+  When I then attempt to delete "Mountain Hike"
+  Then the request is refused for lack of REGISTRY_PROJECT_ACTIVITY_D
 ```
 
 ```gherkin
@@ -106,15 +108,4 @@ Scenario: Disabling an activity hides it without losing history
 
 ## 5. API surface
 
-REST endpoints backing this feature. All project-scoped endpoints live under `/api/v2/projects/{projectId}/...` and **require the `ACTIVITY` option**. See [Technical → API Reference](/registry/technical/api-reference).
-
-| Method | Path | Purpose | Permission |
-| ------ | ---- | ------- | ---------- |
-| `GET` | `/activities` | List activities | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_R` |
-| `GET` | `/activities/{id}` | Read a single activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_R` |
-| `GET` | `/activities/{id}/movements` | Read the activity's movement history | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_HISTORY_R` |
-| `POST` | `/activities` | Plan an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_C` |
-| `PATCH` | `/activities/{id}` | Update an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
-| `POST` | `/activities/{id}/disable` | Soft-disable an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
-| `POST` | `/activities/{id}/enable` | Re-enable a disabled activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_U` |
-| `DELETE` | `/activities/{id}` | Permanently delete an activity | `ACTIVITY` option + `REGISTRY_PROJECT_ACTIVITY_D` |
+The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.

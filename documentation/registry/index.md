@@ -3,16 +3,16 @@ layout: home
 
 hero:
   name: "Registry"
-  text: "Multi-tenant participant & event registry platform"
-  tagline: "Plan events, manage groups and participants, coordinate movements and vehicles, and keep everyone informed — behind single sign-on with fine-grained, project-scoped permissions."
+  text: "Know who is present, and who is not"
+  tagline: "A multi-tenant presence platform for events and camps: register participants, organise them into groups, record every check-in and check-out, and read live presence at a glance — behind SSO, with per-project permissions."
 
 features:
   - title: Functional Documentation
-    details: What Registry does, who uses it, the roles and permissions model, and every feature described with business rules and BDD scenarios — from a user's point of view.
+    details: What Registry does, who uses it, the roles and permissions that gate every action, and the behaviour rules of each feature.
     link: /registry/functional/
     linkText: Explore
   - title: Technical Documentation
-    details: The reactive Kotlin/Spring hexagonal backend, the Angular frontend, the data model and API contracts, and the Architecture Decision Records that justify each choice.
+    details: How the reactive Kotlin backend and the Angular frontend are built — architecture, data model, API surface, security, and the decision records behind each choice.
     link: /registry/technical/
     linkText: Explore
 ---

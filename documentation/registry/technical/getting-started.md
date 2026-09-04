@@ -6,24 +6,24 @@ This is the guided procedure to run the whole Registry stack locally: PostgreSQL
 
 | Tool | Version | For |
 | ---- | ------- | --- |
-| **JDK** | 25+ | Building and running the backend |
+| **JDK** | 25 | Building and running the backend (Gradle toolchain) |
 | **Docker + Compose** | recent | Running PostgreSQL and the OIDC provider locally |
-| **Node.js** | ≥ 21 | Building and running the frontend |
-| **pnpm** | 11+ | Frontend package management |
+| **Node.js** | 22 (`^22.22` or `^24.15`) | Building and running the frontend; Angular 22's engine range, and CI builds on Node 22 |
+| **pnpm** | 11 | Frontend package management (`packageManager` pins the exact version) |
 
 The backend builds with the bundled Gradle wrapper (`./gradlew`), so a system Gradle is not required.
 
 ## 1 — Start the dependencies
 
-The backend repository ships a Compose file under `local-dev/` that brings up everything the backend needs: **PostgreSQL** (which initializes both a `registry` database and one for the identity provider) and an **OIDC provider** (the local setup uses Authentik; the backend is provider-agnostic — see [ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)).
+The backend repository ships `local-dev/compose.yml`, which brings up everything the backend needs: **PostgreSQL** (initializing a `registry` database and an `authentik` one) and an **OIDC provider** — the local setup uses **Authentik** (default `http://localhost:9000`); the backend is provider-agnostic, see [ADR 004](/registry/technical/adr/004-oidc-resource-server-auth).
 
 ```shell
 cd Registry-Backend/local-dev
-cp .example.env .env      # then fill in the required secrets
+cp .example.env .env      # then fill in PG_PASS, AU_SECRET_KEY, AU_EMAIL, AU_PASS
 docker compose up -d
 ```
 
-Once the provider is up, create a **realm/tenant**, an **application/client** for Registry (confidential client, with a client secret), and note the base URL, realm, client id and secret — the backend needs them below.
+Once Authentik is up, create an **OAuth2/OIDC provider + application** for Registry (confidential, with a client secret), and note its **issuer / JWKS / authorization / token / end-session URLs**, the **client id**, and the **client secret** — the backend needs them below.
 
 ## 2 — Run the backend
 
@@ -37,21 +37,24 @@ cd Registry-Backend
 Pass the settings as VM options. The essentials:
 
 ```
--Dregistry.datasource.base-url=localhost:5432        # host:port, no scheme
+-Dregistry.datasource.base-url=localhost:5432                        # host:port, no scheme
 -Dregistry.datasource.database=registry
 -Dregistry.datasource.schemas=public
 -Dregistry.datasource.username=postgres
--Dregistry.datasource.password=postgres
--Dexternal.keycloak.base-url=http://localhost:8080   # OIDC provider, with scheme
--Dexternal.keycloak.realm=<realm>
--Dexternal.keycloak.client-id=registry
--Dexternal.keycloak.client-secret=<secret>
--Dexternal.cors.urls=http://localhost:4200           # the frontend origin
+-Dregistry.datasource.password=<password>
+-Dexternal.oidc.jwks-uri=http://localhost:9000/application/o/registry/jwks/
+-Dexternal.oidc.authorization-uri=http://localhost:9000/application/o/authorize/
+-Dexternal.oidc.token-uri=http://localhost:9000/application/o/token/
+-Dexternal.oidc.end-session-uri=http://localhost:9000/application/o/registry/end-session/
+-Dexternal.oidc.client-id=<client-id>
+-Dexternal.oidc.client-secret=<client-secret>
+-Dexternal.cors.urls=http://localhost:4200                           # frontend origin(s), comma-separated
 -Dregistry.server.port=8081
--Dregistry.feature.documentation.enabled=true        # enable Swagger locally
+-Dregistry.server.logging-level=INFO
+-Dregistry.feature.documentation.enabled=true                        # enable Swagger locally
 ```
 
-On boot, **Flyway applies the migrations** to the `registry` database automatically. The API is then available at `http://localhost:8081/api/v2`, and — with documentation enabled — the OpenAPI UI at the root.
+The OIDC URLs above are the Authentik defaults for an application slug `registry`; take the exact values from the provider you configured. On boot, **Flyway applies the migrations** to the `registry` database automatically. The API is then available at `http://localhost:8081/api/v1`, and — with documentation enabled — Swagger UI at `/swagger-ui.html` (also served at the root).
 
 To produce a runnable artifact instead:
 
@@ -62,7 +65,7 @@ java -jar build/libs/<jar-name>.jar   # with the same -D options
 
 ## 3 — Configure and run the frontend
 
-The frontend is **environment-agnostic**: it loads its configuration at runtime from two JSON files under `public/settings/`, which are not committed ([ADR 008](/registry/technical/adr/008-frontend-runtime-config)). Create them before starting.
+The frontend is **environment-agnostic**: it loads its configuration at runtime from two JSON files under `public/settings/`, which are not committed ([ADR 007](/registry/technical/adr/007-frontend-runtime-config)). Create them before starting.
 
 `public/settings/env.json` — where the backend is and which paths skip auth:
 
@@ -72,10 +75,10 @@ The frontend is **environment-agnostic**: it loads its configuration at runtime 
   "backend": {
     "url": "http://localhost:8081",
     "noAuthPaths": [
-      "/api/v2/authentication/login/uri",
-      "/api/v2/authentication/logout/uri",
-      "/api/v2/authentication/token",
-      "/api/v2/authentication/token/refresh"
+      "/api/v1/authentication/login/uri",
+      "/api/v1/authentication/logout/uri",
+      "/api/v1/authentication/token",
+      "/api/v1/authentication/token/refresh"
     ]
   }
 }
@@ -88,7 +91,7 @@ Then install and run:
 ```shell
 cd Registry-Frontend
 pnpm install
-pnpm dev            # serves on http://localhost:4200
+pnpm start          # ng serve, on http://localhost:4200
 ```
 
 ## 4 — Verify
@@ -106,4 +109,4 @@ To make yourself a **platform administrator** (to reach the Users directory), ch
 | Backend | `./gradlew build` → JVM jar | Distroless Java 25, non-root, `:8081` |
 | Frontend | `pnpm build` → `dist/browser` | Unprivileged nginx serving the static bundle, `:8080` |
 
-Both images are produced and published by CI via semantic-release ([ADR 010](/registry/technical/adr/010-container-delivery-semantic-release)); you rarely build them by hand.
+Both images are produced and published by CI via semantic-release ([ADR 009](/registry/technical/adr/009-container-delivery-semantic-release)); you rarely build them by hand.

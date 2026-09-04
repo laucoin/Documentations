@@ -301,16 +301,6 @@ export default withMermaid(
           items: [
             { text: "Overview", link: "/registry/technical/" },
             {
-              text: "Migration Plan",
-              collapsed: true,
-              items: [
-                {
-                  text: "2026-07-25 - Plan",
-                  link: "/registry/technical/migration-plan/2026-07-25-plan",
-                },
-              ],
-            },
-            {
               text: "Getting Started",
               link: "/registry/technical/getting-started",
             },
@@ -348,72 +338,16 @@ export default withMermaid(
                   link: "/registry/technical/adr/006-flyway-trigram-search",
                 },
                 {
-                  text: "007 — Inverted Adapter Naming",
-                  link: "/registry/technical/adr/007-inverted-adapter-naming",
+                  text: "007 — Frontend Runtime Config",
+                  link: "/registry/technical/adr/007-frontend-runtime-config",
                 },
                 {
-                  text: "008 — Frontend Runtime Config",
-                  link: "/registry/technical/adr/008-frontend-runtime-config",
+                  text: "008 — NGXS State Management",
+                  link: "/registry/technical/adr/008-ngxs-state-management",
                 },
                 {
-                  text: "009 — NGXS State Management",
-                  link: "/registry/technical/adr/009-ngxs-state-management",
-                },
-                {
-                  text: "010 — Container Delivery",
-                  link: "/registry/technical/adr/010-container-delivery-semantic-release",
-                },
-                {
-                  text: "011 — Vue 3 on Nuxt",
-                  link: "/registry/technical/adr/011-vue-nuxt-frontend",
-                },
-                {
-                  text: "012 — SSR Rendering",
-                  link: "/registry/technical/adr/012-ssr-rendering",
-                },
-                {
-                  text: "013 — Ant Design Vue",
-                  link: "/registry/technical/adr/013-ant-design-vue",
-                },
-                {
-                  text: "014 — Pinia State Management",
-                  link: "/registry/technical/adr/014-pinia-state-management",
-                },
-                {
-                  text: "015 — Accessibility (WCAG 2.2 AA)",
-                  link: "/registry/technical/adr/015-accessibility",
-                },
-                {
-                  text: "017 — API v2 Conventions",
-                  link: "/registry/technical/adr/017-api-v2-conventions",
-                },
-                {
-                  text: "018 — Backend Caching & DB",
-                  link: "/registry/technical/adr/018-backend-caching-db",
-                },
-                {
-                  text: "019 — Backend Security Hardening",
-                  link: "/registry/technical/adr/019-backend-security-hardening",
-                },
-                {
-                  text: "020 — Frontend Observability",
-                  link: "/registry/technical/adr/020-frontend-observability",
-                },
-                {
-                  text: "021 — Test Strategy & Parity",
-                  link: "/registry/technical/adr/021-test-strategy-parity",
-                },
-                {
-                  text: "022 — SSR Auth (Full BFF)",
-                  link: "/registry/technical/adr/022-ssr-auth-bff",
-                },
-                {
-                  text: "023 — Nuxt Runtime Config",
-                  link: "/registry/technical/adr/023-nuxt-runtime-config",
-                },
-                {
-                  text: "024 — Frontend Security Headers",
-                  link: "/registry/technical/adr/024-frontend-security-headers",
+                  text: "009 — Container Delivery",
+                  link: "/registry/technical/adr/009-container-delivery-semantic-release",
                 },
               ],
             },

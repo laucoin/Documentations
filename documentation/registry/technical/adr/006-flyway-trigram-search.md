@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+<Badge type="tip" text="Accepted" />
 
 ## Context
 
@@ -18,7 +18,7 @@ The second is **search**. A registry of participants and their vehicles and acti
 
 Own the schema with **Flyway migrations**, and provide fuzzy search with PostgreSQL's **`pg_trgm`** extension — no separate search engine.
 
-**Flyway.** The schema is a set of versioned, forward-only migrations (`V1_0_0` … `V1_11_0`) applied on application boot over a plain JDBC connection, before the app starts serving traffic. Flyway is the single source of truth for the schema; the R2DBC runtime never issues DDL. This keeps the schema versioned, diffable in review, and reproducible everywhere from the same ordered set of scripts.
+**Flyway.** The schema is a set of versioned, forward-only migrations (`V1_0_0` … `V1_12_0`) applied on application boot over a plain JDBC connection, before the app starts serving traffic. Flyway is the single source of truth for the schema; the R2DBC runtime never issues DDL. This keeps the schema versioned, diffable in review, and reproducible everywhere from the same ordered set of scripts.
 
 **Trigram search.** The searchable tables — user, participant, vehicle, activity — each carry a `STORED GENERATED` `search_text` column that concatenates the fields worth searching (for a participant, first + last + email; for a vehicle, plate + brand + model). Each `search_text` column is backed by a **GIN index using `gin_trgm_ops`**, so PostgreSQL can answer fuzzy and substring queries against a precomputed, indexed blob rather than scanning rows. Result set sizes are capped by configuration so an over-broad term cannot return the whole table.
 
