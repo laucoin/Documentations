@@ -8,7 +8,7 @@ This is the guided procedure to run the whole Registry stack locally: PostgreSQL
 | ---- | ------- | --- |
 | **JDK** | 25 | Building and running the backend (Gradle toolchain) |
 | **Docker + Compose** | recent | Running PostgreSQL and the OIDC provider locally |
-| **Node.js** | 22 (`^22.22` or `^24.15`) | Building and running the frontend; Angular 22's engine range, and CI builds on Node 22 |
+| **Node.js** | 24 LTS (`^24.15`) | Building and running the frontend; Angular 22's engine range, and CI builds on Node 24 |
 | **pnpm** | 11 | Frontend package management (`packageManager` pins the exact version) |
 
 The backend builds with the bundled Gradle wrapper (`./gradlew`), so a system Gradle is not required.
