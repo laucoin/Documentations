@@ -11,7 +11,7 @@ actions, plus their forms, plus a dashboard. Building tables, paginators, multi-
 toasts and menus from scratch would be most of the frontend's cost, and none of it would be the product.
 
 The platform is also deployed under different brandings, so colours, logos and light/dark palettes must vary per
-deployment without rebuilding the bundle ([ADR 008](/registry/technical/adr/008-frontend-runtime-config)).
+deployment without rebuilding the bundle ([ADR 007](/registry/technical/adr/007-frontend-runtime-config)).
 
 ## Decision
 
