@@ -139,10 +139,9 @@ When a project is disabled (made invisible), the authority builder withholds pro
   non-human user of type `SERVICE_ACCOUNT` carries that role and is what a scheduler authenticates as to purge stale
   users, projects, contents and configurations past a configurable age threshold.
 
-  The sweeps can run **either** from calls to `/api/v1/purge/**` **or** from an in-process scheduler, which is
-  opt-in through `registry.feature.purge.scheduler.enabled` and off by default. When it is on, each sweep takes a
-  PostgreSQL advisory lock so that only one replica works. See
-  [ADR 011](/registry/technical/adr/011-scheduled-retention-purges).
+  The sweeps are driven by an **in-process scheduler**, one cron-triggered job each, and each takes a PostgreSQL
+  advisory lock so that only one replica does the work. The endpoints stay reachable for a manual run, but nothing
+  external is expected to call them. See [ADR 011](/registry/technical/adr/011-scheduled-retention-purges).
 
   A caller-supplied `dateThreshold` may only move the window backwards. A future threshold would make every record
   older than it and empty the table in one call, so it is rejected; a past threshold more recent than the configured

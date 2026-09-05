@@ -43,13 +43,17 @@ legitimate operational choice, and only the future date is always a mistake.
 
 ### Running the scheduler
 
-The in-process scheduler is **opt-in**: `registry.feature.purge.scheduler.enabled` defaults to `false`, and the
-sweeps then run only when something calls the endpoints — an external scheduler authenticating as the service
-account, for instance. Enabling the flag restores the cron-driven behaviour described above.
+The scheduler runs **in-process and unconditionally** — `@EnableScheduling` with one `@Scheduled` method per sweep.
+The endpoints stay reachable for a manual or ad-hoc run, but nothing external is expected to drive them, and no
+configuration switches the scheduler off.
 
-When it is enabled, each sweep takes a PostgreSQL advisory lock before doing any work and gives up its turn if
-another instance holds it. This closes the multi-replica hazard listed under *Cons* below: without it, every
-replica ran its own copy of every sweep, at the same cron minute, deleting the same rows concurrently.
+Making it opt-in was considered and rejected. A flag defaulting to `false` would silently stop retention the day it
+shipped: no error, no log, just data quietly no longer being purged. A flag defaulting to `true` would only be a
+switch nobody flips. Neither pays for the second code path it introduces.
+
+Each sweep takes a PostgreSQL advisory lock before doing any work and gives up its turn if another instance holds it.
+That is the actual fix for the multi-replica hazard listed under *Cons* below: without it, every replica ran its own
+copy of every sweep, at the same cron minute, deleting the same rows concurrently.
 
 ## Rationale & best practices
 
