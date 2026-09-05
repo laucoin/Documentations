@@ -1,6 +1,8 @@
 # API Reference
 
-The backend exposes a single REST API under **`/api/v1`** (`registry.server.prefix` = `/api`, version in the path). Responses are reactive JSON. Every call requires a bearer JWT except the four public authentication endpoints. Project-scoped endpoints live under `/api/v1/projects/{projectId}/…` and are guarded by a project-scoped permission — combined with an **option gate** when the resource belongs to an optional module.
+The backend exposes a single REST API under **`/api/v1`** (`registry.server.prefix` = `/api`, version in the path). Responses are reactive JSON. Every call requires an authenticated session — the `registry_token` cookie, or an
+`Authorization: Bearer` header for non-browser callers — except the four public authentication endpoints. Mutating
+calls made with the cookie also require an `X-XSRF-TOKEN` header. Project-scoped endpoints live under `/api/v1/projects/{projectId}/…` and are guarded by a project-scoped permission — combined with an **option gate** when the resource belongs to an optional module.
 
 ## Conventions
 
@@ -25,9 +27,14 @@ When `registry.feature.documentation.enabled` is true, springdoc serves the gene
 | ------ | ---- | ------- | ---------- |
 | `GET` | `/login/uri?redirectUri=` | Build the provider login URL | **public** |
 | `GET` | `/logout/uri?redirectUri=` | Build the provider logout URL | **public** |
-| `POST` | `/token` | Exchange an authorization code for tokens | **public** |
-| `POST` | `/token/refresh` | Exchange a refresh token | **public** |
+| `POST` | `/token` | Exchange an authorization code; sets the session cookies | **public** |
+| `POST` | `/token/refresh` | Renew the session from the refresh cookie | **public** |
 | `GET` | `/user/current` | Current user, authorities and preferences | authenticated |
+
+Neither token endpoint returns a token in its body: both set `registry_token` and `registry_refresh` as `HttpOnly`
+cookies and return only the expiry metadata the SPA needs to schedule its renewal. `/token/refresh` reads the
+refresh cookie and takes no request body, and — unlike `/token` — requires an `X-XSRF-TOKEN` header. See
+[Security → Session transport](/registry/technical/security#session-transport).
 
 ## Users — `/api/v1/users` *(global)*
 
