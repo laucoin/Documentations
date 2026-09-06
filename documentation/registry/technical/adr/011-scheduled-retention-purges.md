@@ -36,6 +36,25 @@ Every endpoint accepts an optional `dateThreshold` overriding the configured def
 **defaults to `true`** — it reports what would be removed and deletes nothing. Thresholds default to 12 months and are
 configuration, not code.
 
+`dateThreshold` may only move the window **backwards**. A threshold in the future makes every record older than it,
+so a single call would empty the table; it is rejected with `PURGE_DATE_THRESHOLD_IN_FUTURE`. A past threshold more
+recent than the configured default stays allowed — purging more aggressively than the retention policy is a
+legitimate operational choice, and only the future date is always a mistake.
+
+### Running the scheduler
+
+The scheduler runs **in-process and unconditionally** — `@EnableScheduling` with one `@Scheduled` method per sweep.
+The endpoints stay reachable for a manual or ad-hoc run, but nothing external is expected to drive them, and no
+configuration switches the scheduler off.
+
+Making it opt-in was considered and rejected. A flag defaulting to `false` would silently stop retention the day it
+shipped: no error, no log, just data quietly no longer being purged. A flag defaulting to `true` would only be a
+switch nobody flips. Neither pays for the second code path it introduces.
+
+Each sweep takes a PostgreSQL advisory lock before doing any work and gives up its turn if another instance holds it.
+That is the actual fix for the multi-replica hazard listed under *Cons* below: without it, every replica ran its own
+copy of every sweep, at the same cron minute, deleting the same rows concurrently.
+
 ## Rationale & best practices
 
 - **Security:** deletion is behind a permission no ordinary role holds, on an account that exists for nothing else. It
@@ -52,8 +71,7 @@ configuration, not code.
 - **Cons / trade-offs:** **the purge is irreversible and there is no export before deletion** — data that ages out is
   gone, and a badly set threshold destroys live data. The four sweeps are independently scheduled with no orchestration,
   so a slow content sweep can still be running when the configuration sweep starts, leaving records that refuse deletion
-  until the next night. Nothing warns a project owner before their project is purged. In a multi-replica deployment,
-  each replica runs its own scheduler unless one is configured to.
+  until the next night. Nothing warns a project owner before their project is purged.
 - **Alternatives rejected:** database-level scheduled jobs (no application-level dependency ordering and invisible to
   the audit log); a separate batch application (cleaner isolation, another artefact to build, deploy and secure);
   soft-delete only (fully reversible, but it does not discharge the data-protection obligation, which is what the

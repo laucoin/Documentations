@@ -96,7 +96,10 @@ Four cooperating tiers:
 
 1. **PostgreSQL** — the single source of truth; schema owned by Flyway.
 2. **OIDC provider** — issues and signs JWTs; configured generically (see [ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)).
-3. **Backend** — distroless Java 25 image, non-root, listening on `:8081`, exposing `/api/v1/**`, Prometheus metrics, and (optionally) OpenAPI. CORS is restricted to a configured allowlist.
+3. **Backend** — distroless Java 25 image, non-root, listening on **two** ports: `:8081` serves `/api/v1/**` and
+   nothing else, while `:8082` carries health probes, Prometheus metrics and (optionally) OpenAPI. Only the first
+   belongs on a public ingress ([ADR 014](/registry/technical/adr/014-separate-management-port)). CORS is restricted
+   to a configured allowlist.
 4. **Frontend** — the static bundle served by an unprivileged nginx on `:8080` with SPA fallback and hardening headers; parameterized per environment by the two runtime JSON files.
 
 Both services are versioned by semantic-release and published as container images with a retain-5 policy ([ADR 009](/registry/technical/adr/009-container-delivery-semantic-release)).

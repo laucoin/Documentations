@@ -17,7 +17,7 @@ that**, and it is **non-blocking end to end**, which constrains every line writt
 | Docs        | springdoc OpenAPI (feature-flagged)                    |
 | Metrics     | Micrometer → Prometheus (feature-flagged)              |
 | Build       | Gradle Kotlin DSL, Kover coverage, ArchUnit            |
-| Image       | Distroless Java 25, non-root, port 8081                |
+| Image       | Distroless Java 25, non-root, ports 8081 (API) and 8082 (management) |
 
 Indentation is **tabs**, per the repository's convention.
 
@@ -50,7 +50,7 @@ Most hexagonal codebases call the driving side
 (HTTP) *inbound* and the driven side (database) *outbound*. Registry names them from the **domain's** point of view:
 `in` is what the domain reaches *into*, `out` is what the world reaches the domain *through*. Read the packages with
 that in mind — `infrastructure/out/api` is the REST layer.
-See [ADR 007](/registry/technical/adr/007-inverted-adapter-naming).
+See [ADR 001](/registry/technical/adr/001-hexagonal-architecture).
 :::
 
 ### Rules the build enforces
