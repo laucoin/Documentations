@@ -44,9 +44,13 @@ Cookies are attached by the browser automatically, which is precisely the condit
 
 Because the SPA and the API sit on different origins, Angular's built-in XSRF support does not apply — it only attaches `X-XSRF-TOKEN` to same-origin requests. The interceptor reads the cookie and sets the header itself.
 
+Spring's default request handler masks the token to blunt BREACH, which assumes the token is rendered into a response body. Ours travels in a cookie the frontend echoes back verbatim, so the masked value never matches the raw one and **every mutating call is refused**. The plain handler is used instead; BREACH is not a concern precisely because the token is never in a body. Nothing in a contract test catches this — the framework's `csrf()` test mutator supplies a token that matches by construction — so it is covered by a test that echoes a real cookie into a real header.
+
 ### Token extraction
 
-A `ServerAuthenticationConverter` reads `registry_token` and falls back to the standard bearer-header converter when the cookie is absent. The fallback is what lets Swagger, server-to-server callers and the retention scheduler keep using a header, and it also makes the migration safe: a backend deployed before the frontend still accepts the old header-based traffic.
+A `ServerAuthenticationConverter` reads the `Authorization` header first and falls back to the `registry_token` cookie. The header path is what lets Swagger and any non-browser client keep working, and it also makes the migration safe: a backend deployed before the frontend still accepts the header traffic the old frontend sends.
+
+**The order matters, and it is the header that wins.** A header is set on purpose; a cookie is attached by the browser whether the caller meant it or not. Two things depend on this. Swagger's *Authorize* would otherwise be silently overridden by whatever session the developer has open in the same browser. More importantly, it is what keeps the CSRF exemption honest: that exemption skips CSRF for requests carrying an `Authorization` header, on the grounds that such a caller cannot be a CSRF victim — were the cookie to win, a request could carry a meaningless header to buy the exemption while still authenticating through the ambient cookie. With the header first, a bogus header authenticates as nothing and the request is refused.
 
 ### `state` and PKCE
 

@@ -17,7 +17,7 @@ that**, and it is **non-blocking end to end**, which constrains every line writt
 | Docs        | springdoc OpenAPI (feature-flagged)                    |
 | Metrics     | Micrometer → Prometheus (feature-flagged)              |
 | Build       | Gradle Kotlin DSL, Kover coverage, ArchUnit            |
-| Image       | Distroless Java 25, non-root, port 8081                |
+| Image       | Distroless Java 25, non-root, ports 8081 (API) and 8082 (management) |
 
 Indentation is **tabs**, per the repository's convention.
 

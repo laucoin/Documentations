@@ -12,7 +12,13 @@ There is **no local password store**. The backend plays two OAuth2 roles at once
   it looks: every client of the same provider realm is signed by the same keys and published at the same JWKS
   endpoint, so without it a token minted for a *different* application would verify here perfectly well.
 
-Only four API endpoints are public: `GET /authentication/login/uri`, `GET /authentication/logout/uri`, `POST /authentication/token`, and `POST /authentication/token/refresh`. The security chain also permits, unauthenticated, `GET /`, the Swagger UI / `api-docs` paths, and `/actuator/**` — but Swagger only serves content when `registry.feature.documentation.enabled` is set, and Actuator exposes only the Prometheus endpoint. Everything else requires a valid JWT. CORS is restricted to a configured origin allowlist (`external.cors.urls`).
+Only four API endpoints are public: `GET /authentication/login/uri`, `GET /authentication/logout/uri`,
+`POST /authentication/token`, and `POST /authentication/token/refresh`. Everything else on the API port requires a
+valid JWT. CORS is restricted to a configured origin allowlist (`external.cors.urls`).
+
+Health, metrics and the API documentation are **not on the API port at all** — they listen on a separate management
+port, so the address published to users carries no operational surface. See
+[ADR 014](/registry/technical/adr/014-separate-management-port).
 
 ### Login sequence
 
