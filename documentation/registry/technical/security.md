@@ -161,10 +161,41 @@ When a project is disabled (made invisible), the authority builder withholds pro
   applications rather than by the web server: Spring Security's `headers` DSL for API responses, and a
   `Content-Security-Policy` declared in the Angular `index.html` for the SPA document.
 
-  ::: warning `frame-ancestors` cannot be delivered this way
+  | | API port | Management port | SPA document |
+  | --- | --- | --- | --- |
+  | `Content-Security-Policy` | `default-src 'none'` | `frame-ancestors 'none'` | `default-src 'self'`, see below |
+  | `X-Frame-Options` | `DENY` (Spring) | `DENY` (Spring) | `SAMEORIGIN` (nginx) |
+  | `Referrer-Policy`, `Permissions-Policy` | ✅ | ✅ | — |
+  | `nosniff`, HSTS, `Cache-Control` | Spring defaults | Spring defaults | nginx |
+
+  The API answers JSON, so it is allowed to load nothing at all. The **management port is deliberately looser**: the
+  Swagger UI calls two origins no static header can know — the API, which is on another port, so `'self'` would exclude
+  it and *try it out* would stop working, and the provider's token endpoint, which the PKCE exchange calls directly.
+  Reconstructing both from configuration would encode the deployment topology in a header in order to constrain a
+  first-party page on a port that is internal by design, so only `frame-ancestors` is set there.
+
+  The SPA policy is fixed at build time while the backend origin is read from `settings/env.json` at runtime, so
+  `connect-src` uses a subdomain wildcard — `https://*.registry.<tenant>` — which covers `backend.registry.<tenant>`
+  without hard-coding a host and never widens to a registrable domain. A **development variant** of `index.html`,
+  selected by the `development` configuration in `angular.json`, allows the local backend instead; production origins
+  and development origins therefore never appear in the same policy. One consequence to plan for: the wildcard cannot
+  be exercised locally and is first proven at the initial real deployment — check it there first, since a CSP mistake
+  breaks the whole application rather than one feature.
+
+  ::: warning NGXS needs a flag to live without `unsafe-eval`
+  NGXS compiles its selectors with `new Function(...)`. Under `script-src 'self'` every selector throws and the
+  application renders nothing, so the store is configured with `compatibility.strictContentSecurityPolicy: true`.
+  This is worth knowing before adding a library: anything that evaluates strings at runtime will fail the same way,
+  and the failure appears as a blank page rather than as a policy error.
+  :::
+
+  ::: tip `frame-ancestors` is not deliverable in `<meta>`
   A CSP in a `<meta>` tag ignores `frame-ancestors`, `report-uri` and `sandbox` — that is the CSP specification, not
-  an oversight. The SPA therefore has no clickjacking defence of its own; the API keeps one through Spring's
-  `frameOptions`. Closing the gap means either one header back in nginx, or serving the SPA from the backend so that
-  everything is same-origin.
+  an oversight. The SPA's clickjacking defence is therefore the one header kept in nginx, `X-Frame-Options:
+  SAMEORIGIN`; it is the reason that file still sets any header at all. `X-XSS-Protection`, `X-Download-Options` and
+  `X-Permitted-Cross-Domain-Policies` were removed as obsolete.
+
+  Note that `add_header` does not merge across nginx contexts: a single `add_header` added inside a `location` would
+  silently discard every header set at the `server` level, including this one.
   :::
 - Secrets (database credentials, OIDC client secret) are supplied through environment configuration, never baked into an image.
