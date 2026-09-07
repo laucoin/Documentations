@@ -51,6 +51,11 @@ This is worth knowing before changing it, because the management context is a *c
 - **Two ports to configure and route.** A deployment that forwards only `8081` gets no health checks and will be reported unhealthy by anything expecting them on the API port; one that forwards both undoes the whole decision.
 - **The management port is a new way to get it wrong.** Mapping it in an ingress is a single line, and nothing in the application will complain.
 - **The Swagger callback moved with the UI**, so the provider's registered redirect URI has to follow: `/actuator/swagger-ui/oauth2-redirect.html` on the management port.
+- **Swagger's calls to the API became cross-origin.** The UI now sits on a different port from the API it exercises, so *try it out* is refused by CORS unless that origin is allowed. The backend adds `external.documentation.url` to the allowlist while documentation is enabled, defaulting to `http://localhost:<management-port>`.
+
+  ::: warning Not an entry in `external.cors.urls`
+  That list is also the allowlist the OAuth `redirectUri` is validated against, so adding the documentation origin to it would silently turn a permission to *call* the API into a permission to *receive an authorization code*. The two are kept apart deliberately, and a test in `KeycloakAuthenticationAdapterTest` fails if they are merged.
+  :::
 
 ### Alternatives rejected
 
