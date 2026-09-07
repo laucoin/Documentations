@@ -13,6 +13,10 @@ Each ADR captures one significant technical decision — its context, what was d
 | [007](/registry/technical/adr/007-frontend-runtime-config) | Frontend runtime configuration injection (one immutable image) | Frontend delivery | <Badge type="tip" text="Accepted" /> |
 | [008](/registry/technical/adr/008-ngxs-state-management) | NGXS for frontend state management | Frontend state | <Badge type="tip" text="Accepted" /> |
 | [009](/registry/technical/adr/009-container-delivery-semantic-release) | Distroless container delivery with semantic-release | Build & release | <Badge type="tip" text="Accepted" /> |
+| [011](/registry/technical/adr/011-scheduled-retention-purges) | Retention purges as scheduled, permission-gated endpoints | Data protection | <Badge type="tip" text="Accepted" /> |
+| [012](/registry/technical/adr/012-primeng-runtime-theming) | PrimeNG runtime theming | Frontend styling | <Badge type="tip" text="Accepted" /> |
+| [013](/registry/technical/adr/013-cookie-session-transport) | Session tokens in HttpOnly cookies, with CSRF protection | Security | <Badge type="warning" text="Proposed" /> |
+| [014](/registry/technical/adr/014-separate-management-port) | Health, metrics and documentation on a separate management port | Operations | <Badge type="warning" text="Proposed" /> |
 
 ## Format
 

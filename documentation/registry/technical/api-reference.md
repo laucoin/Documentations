@@ -1,6 +1,8 @@
 # API Reference
 
-The backend exposes a single REST API under **`/api/v1`** (`registry.server.prefix` = `/api`, version in the path). Responses are reactive JSON. Every call requires a bearer JWT except the four public authentication endpoints. Project-scoped endpoints live under `/api/v1/projects/{projectId}/…` and are guarded by a project-scoped permission — combined with an **option gate** when the resource belongs to an optional module.
+The backend exposes a single REST API under **`/api/v1`** (`registry.server.prefix` = `/api`, version in the path). Responses are reactive JSON. Every call requires an authenticated session — the `registry_token` cookie, or an
+`Authorization: Bearer` header for non-browser callers — except the four public authentication endpoints. Mutating
+calls made with the cookie also require an `X-XSRF-TOKEN` header. Project-scoped endpoints live under `/api/v1/projects/{projectId}/…` and are guarded by a project-scoped permission — combined with an **option gate** when the resource belongs to an optional module.
 
 ## Conventions
 
@@ -17,17 +19,29 @@ The contract grew feature by feature and applies these conventions unevenly:
 
 > **List query grammar.** List endpoints accept `pageNumber` (≥ 0, default 0) and `pageSize` (1–200, default 20), returning a page envelope (`content` + page metadata). Free-text search is `textSearched` (trigram-backed, [ADR 006](/registry/technical/adr/006-flyway-trigram-search)); other filters are flat typed params per endpoint (`visibilitySearched`, `withProfile`, `availabilitySearched`, `dateTimeSearched`, …). There is no general `sort` parameter. `/search/*` picker endpoints return a **capped list** (configured maximum, default 10), not a page. Bodies and query params are `camelCase`.
 
-When `registry.feature.documentation.enabled` is true, springdoc serves the generated OpenAPI at `/api-docs` and Swagger UI at `/swagger-ui.html` (also at the root). The generated document is authoritative on payload shapes.
+When `registry.feature.documentation.enabled` is true, springdoc serves the generated OpenAPI and Swagger UI from the
+**management port**, at `/actuator/openapi/{group}` and `/actuator/swagger-ui/index.html` — never from the API port.
+The generated document is authoritative on payload shapes.
 
 ## Authentication — `/api/v1/authentication`
 
 | Method | Path | Purpose | Permission |
 | ------ | ---- | ------- | ---------- |
-| `GET` | `/login/uri?redirectUri=` | Build the provider login URL | **public** |
-| `GET` | `/logout/uri?redirectUri=` | Build the provider logout URL | **public** |
-| `POST` | `/token` | Exchange an authorization code for tokens | **public** |
-| `POST` | `/token/refresh` | Exchange a refresh token | **public** |
+| `GET` | `/login/uri?redirectUri=` | Start a sign-in: returns the provider URL and sets the challenge cookies | **public** |
+| `GET` | `/logout/uri?redirectUri=` | End the session: expires the session cookies and returns the provider URL | **public** |
+| `POST` | `/token` | Exchange an authorization code; sets the session cookies | **public** |
+| `POST` | `/token/refresh` | Renew the session from the refresh cookie | **public** |
 | `GET` | `/user/current` | Current user, authorities and preferences | authenticated |
+
+Neither token endpoint returns a token in its body: both set `registry_token` and `registry_refresh` as `HttpOnly`
+cookies and return only the expiry metadata the SPA needs to schedule its renewal. `/token/refresh` reads the
+refresh cookie and takes no request body, and — unlike `/token` — requires an `X-XSRF-TOKEN` header.
+
+`POST /token` takes `{ authorizationCode, redirectUri, state }`. The `state` is the one the provider echoed back to
+the callback; it is matched against the value held in the challenge cookie set by `/login/uri`, and a mismatch is
+`401 STATE_MISMATCH`. `redirectUri` on both `/login/uri` and `/logout/uri` must fall inside the configured origin
+allowlist, or the answer is `400 REDIRECT_URI_NOT_ALLOWED`. See
+[Security → Session transport](/registry/technical/security#session-transport).
 
 ## Users — `/api/v1/users` *(global)*
 

@@ -4,6 +4,9 @@
 
 <Badge type="tip" text="Accepted" />
 
+Amended by [ADR 013](/registry/technical/adr/013-cookie-session-transport), which changes how the browser carries
+the issued tokens and adds `state` and PKCE to the authorization request. Everything below still holds.
+
 ## Context
 
 The registry is multi-tenant and needs authentication. Building a local auth system — password store, hashing, resets, MFA, brute-force protection, session security — is a large, security-sensitive surface with no product value here.
@@ -22,7 +25,14 @@ The provider is configured **generically** (JWKS / authorization / token / end-s
 ### Why delegate, and why server-side brokering
 
 - **Not worth building or owning.** An IdP does credential storage, MFA, and session security better than this codebase would, and removes the highest-risk area from it.
-- **Keep the secret off the browser.** Brokering the code/refresh exchange in the backend (confidential client) keeps the client secret server-side — a better posture than a public SPA client holding it, which is the main reason a public PKCE client was not used.
+- **Keep the secret off the browser.** Brokering the code/refresh exchange in the backend (confidential client) keeps the client secret server-side — a better posture than a public SPA client holding it.
+
+::: warning This ADR originally read PKCE as the alternative to a confidential client
+It is not. PKCE binds an authorization code to the client that requested it, protecting the code between the
+redirect and the exchange; the client secret does nothing about that. The two are complementary, and
+[ADR 013](/registry/technical/adr/013-cookie-session-transport) adds PKCE **alongside** the confidential client
+kept here.
+:::
 
 ## Consequences
 
