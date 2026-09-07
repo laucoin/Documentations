@@ -60,10 +60,12 @@ The rule matches on **the port a request arrived on**, not on a path prefix. Tha
 - **Two ports to configure and route.** A deployment that forwards only `8081` gets no health checks and will be reported unhealthy by anything expecting them on the API port; one that forwards both undoes the whole decision.
 - **The management port is a new way to get it wrong.** Mapping it in an ingress is a single line, and nothing in the application will complain.
 - **The Swagger callback moved with the UI**, so the provider's registered redirect URI has to follow: `/swagger-ui/oauth2-redirect.html` on the management port.
-- **Swagger's calls to the API became cross-origin.** The UI now sits on a different port from the API it exercises, so *try it out* is refused by CORS unless that origin is allowed. The backend adds `external.documentation.url` to the allowlist while documentation is enabled, defaulting to `http://localhost:<management-port>`.
+- **Swagger's calls to the API became cross-origin.** The UI now sits on a different port from the API it exercises, so *try it out* is refused by CORS until the management origin joins `external.cors.urls` alongside the SPA's.
 
-  ::: warning Not an entry in `external.cors.urls`
-  That list is also the allowlist the OAuth `redirectUri` is validated against, so adding the documentation origin to it would silently turn a permission to *call* the API into a permission to *receive an authorization code*. The two are kept apart deliberately, and a test in `KeycloakAuthenticationAdapterTest` fails if they are merged.
+  ::: warning That list grants two different things
+  `external.cors.urls` is also the allowlist the OAuth `redirectUri` is validated against, so an entry is permitted both to **call the API** and to **receive an authorization code** — a larger permission than the name suggests.
+
+  For the management port this is harmless: the origin is this application's own, and the provider checks `redirect_uri` against the client's registered URIs regardless. It is worth a second thought before adding an origin we do not control, and separating the two into distinct keys remains the way out if that becomes necessary.
   :::
 
 ### Alternatives rejected
