@@ -19,14 +19,14 @@ flowchart LR
     DB[("PostgreSQL")]
 
     Browser --> SPA
-    SPA -- "REST /api/v1 (Bearer JWT)" --> API
+    SPA -- "REST /api/v1 (HttpOnly cookies + CSRF header)" --> API
     Browser -. "login redirect" .-> IdP
     SPA -- "code / refresh exchange" --> API
     API -- "validate JWT (JWKS) · code/refresh grants" --> IdP
     API -- "R2DBC (runtime) · JDBC (Flyway)" --> DB
 ```
 
-The browser loads the SPA from nginx, which calls the backend over REST with a bearer JWT. Authentication is delegated to an external OIDC provider; the backend both validates JWTs (as a resource server) and brokers the code/refresh exchanges (as a confidential client). All state lives in a single PostgreSQL database.
+The browser loads the SPA from nginx, which calls the backend over REST, authenticating via `HttpOnly` cookies rather than a token held in JavaScript. Authentication is delegated to an external OIDC provider; the backend both validates JWTs (as a resource server) and brokers the code/refresh exchanges (as a confidential client). All state lives in a single PostgreSQL database. See [Security](/registry/technical/security) for the cookie/CSRF mechanics and the separate, unauthenticated management port that carries health/metrics/docs.
 
 ## Documentation map
 
@@ -50,7 +50,7 @@ Versions are given to the major only; the source repositories hold the exact pin
 | Architecture | Hexagonal (ports & adapters), ArchUnit-enforced     | Domain-driven folders, per-route lazy state |
 | State / data | R2DBC (reactive) + Flyway migrations                | NGXS (`selectSignal`) behind per-domain facades |
 | UI | —                                                   | PrimeNG + `@primeuix/themes` + Bootstrap grid |
-| Auth | OAuth2 resource server + confidential client (OIDC) | Bearer token in session storage, HTTP interceptor, route guards |
+| Auth | OAuth2 resource server + confidential client (OIDC), HttpOnly cookies, stateless HMAC CSRF | `withCredentials` HTTP interceptor relaying the CSRF header, route guards |
 | API docs | springdoc OpenAPI (feature-flagged)                 | — |
 | i18n | Spring `MessageSource` (en, fr)                     | `@ngx-translate` (en, fr) |
 | Observability | Actuator + Micrometer/Prometheus                    | — |

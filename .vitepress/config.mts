@@ -349,6 +349,18 @@ export default withMermaid(
                   text: "009 — Container Delivery",
                   link: "/registry/technical/adr/009-container-delivery-semantic-release",
                 },
+                {
+                  text: "010 — Scheduled Retention Purges",
+                  link: "/registry/technical/adr/010-scheduled-retention-purges",
+                },
+                {
+                  text: "011 — PrimeNG Runtime Theming",
+                  link: "/registry/technical/adr/011-primeng-runtime-theming",
+                },
+                {
+                  text: "012 — Per-instance Rate Limit (Caffeine)",
+                  link: "/registry/technical/adr/012-per-instance-rate-limit-caffeine",
+                },
               ],
             },
           ],

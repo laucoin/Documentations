@@ -58,7 +58,7 @@ The frontend is a **standalone-component Angular 22 SPA** (no `NgModule`), organ
 - **Bootstrap & runtime config.** Before the app bootstraps, `AppConfig.load()` fetches two JSON files — `settings/config.json` (theme tokens, logos, enabled UI actions, languages, notification durations) and `settings/env.json` (backend URL, production flag, no-auth paths). The repo ships only placeholders; the real files are injected per environment, so one built image serves any environment ([ADR 007](/registry/technical/adr/007-frontend-runtime-config)).
 - **Folder taxonomy.** `domains/project/**` and `domains/user/**` hold the feature domains, each with its own `data/` (NGXS state, DTOs, models). `shell/` holds the app frame (navbar, auth-callback). `shared/util-*` libraries provide UI components, models/enums, the central state, tools, config, and authentication.
 - **State management.** NGXS (`@State`/`@Action`/`@Selector`) exposed to components as **Signals** through facade classes. Feature state is **provided per route** — scoped to the lazy-loaded subtree and code-split with it — while a root state holds the current user, preferences (theme, language), and cross-cutting UI (notifications, online status, screen width) ([ADR 008](/registry/technical/adr/008-ngxs-state-management)). The "active project" is simply `currentUser.preferences.selectedProfile.project`; selecting a profile updates preferences server-side and resets dependent feature states.
-- **HTTP & auth.** A functional interceptor attaches the bearer token, substitutes URL placeholders (current user id, selected project id), refreshes the token on `401`, and normalizes transport errors into user-facing notifications.
+- **HTTP & auth.** A functional interceptor sends every backend request with `withCredentials` (the `HttpOnly` auth cookies travel automatically), relays the `X-XSRF-TOKEN` header captured from the previous response, substitutes URL placeholders (current user id, selected project id), refreshes the token on `401`, and normalizes transport errors into user-facing notifications.
 - **Routing & guards.** Lazy `loadChildren` for `projects` and `users` behind an `authGuard`; nested guards enforce that a profile is selected (`selectedProfileGuard`) and that the project has the relevant option enabled — one guard per gated module (`vehicle-option`, `activity-option`, `activity-communication-option`, `activity-alert-option`; the last two also assert the option's dependency chain) — mirroring the backend's per-project option authorities.
 
 ## Request flow, end to end
@@ -80,8 +80,8 @@ sequenceDiagram
     B->>A: POST /api/v1/authentication/token {code}
     A->>I: exchange code (confidential client)
     I-->>A: access + refresh tokens
-    A-->>B: tokens
-    B->>A: GET /api/v1/... (Authorization: Bearer)
+    A-->>B: Set-Cookie: HttpOnly access + refresh tokens
+    B->>A: GET /api/v1/... (cookie + X-XSRF-TOKEN)
     A->>I: validate JWT via JWKS (cached)
     A->>D: R2DBC query (permission-checked)
     D-->>A: rows
@@ -96,7 +96,7 @@ Four cooperating tiers:
 
 1. **PostgreSQL** — the single source of truth; schema owned by Flyway.
 2. **OIDC provider** — issues and signs JWTs; configured generically (see [ADR 004](/registry/technical/adr/004-oidc-resource-server-auth)).
-3. **Backend** — distroless Java 25 image, non-root, listening on `:8081`, exposing `/api/v1/**`, Prometheus metrics, and (optionally) OpenAPI. CORS is restricted to a configured allowlist.
+3. **Backend** — distroless Java 25 image, non-root, exposing `/api/v1/**` on `:8081` (JWT/cookie-authenticated, CORS-restricted to a configured allowlist) and health, Prometheus metrics, and (optionally) OpenAPI on a separate, unauthenticated **management port** `:8082` — see [Security → Network exposure](/registry/technical/security#network-exposure-the-management-port).
 4. **Frontend** — the static bundle served by an unprivileged nginx on `:8080` with SPA fallback and hardening headers; parameterized per environment by the two runtime JSON files.
 
 Both services are versioned by semantic-release and published as container images with a retain-5 policy ([ADR 009](/registry/technical/adr/009-container-delivery-semantic-release)).

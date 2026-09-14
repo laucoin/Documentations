@@ -17,7 +17,7 @@ that**, and it is **non-blocking end to end**, which constrains every line writt
 | Docs        | springdoc OpenAPI (feature-flagged)                    |
 | Metrics     | Micrometer → Prometheus (feature-flagged)              |
 | Build       | Gradle Kotlin DSL, Kover coverage, ArchUnit            |
-| Image       | Distroless Java 25, non-root, port 8081                |
+| Image       | Distroless Java 25, non-root, API on 8081, management port 8082 |
 
 Indentation is **tabs**, per the repository's convention.
 
@@ -40,18 +40,10 @@ domain/           The business core
 infrastructure/
   in/             Inbound adapters — things the domain calls out to
     postgres/     R2DBC repositories, entities, mappers
-    keycloak/     The OIDC provider adapter
+    idp/          The OIDC provider adapter
   out/            Outbound adapters — things that call into the domain
     api/          Controllers, DTOs, mappers
 ```
-
-::: info The `in` / `out` naming is inverted from the usual convention
-Most hexagonal codebases call the driving side
-(HTTP) *inbound* and the driven side (database) *outbound*. Registry names them from the **domain's** point of view:
-`in` is what the domain reaches *into*, `out` is what the world reaches the domain *through*. Read the packages with
-that in mind — `infrastructure/out/api` is the REST layer.
-See [ADR 007](/registry/technical/adr/007-inverted-adapter-naming).
-:::
 
 ### Rules the build enforces
 
@@ -146,9 +138,10 @@ across environments.
 | Group      | Keys                                                                                                             |
 |------------|------------------------------------------------------------------------------------------------------------------|
 | Datasource | `registry.datasource.base-url`, `.database`, `.schemas`, `.username`, `.password`                                |
-| OIDC       | `external.oidc.jwks-uri`, `.authorization-uri`, `.token-uri`, `.end-session-uri`, `.client-id`, `.client-secret` |
+| IdP        | `external.idp.jwks-uri`, `.authorization-uri`, `.token-uri`, `.end-session-uri`, `.revocation-uri`, `.client-id`, `.client-secret`, `.connect-timeout-millis`, `.response-timeout-millis`, `.max-connections` |
 | CORS       | `external.cors.urls` — a comma-separated allow-list, never `*`                                                   |
-| Server     | `registry.server.port`, `registry.server.logging-level`                                                          |
+| Server     | `registry.server.port` (API, default 8081), `registry.server.management-port` (health/metrics/docs, default 8082), `registry.server.logging-level` |
+| Security   | `registry.security.cookie.secure` (auth cookies, default `true`), `registry.security.rate-limit.auth.capacity`/`.window-seconds`, `registry.security.oauth2.cache.principal.ttl-seconds` |
 | Features   | `registry.feature.documentation.enabled`, `registry.feature.observability.enabled`                               |
 
 Secrets — the datasource password and the OIDC client secret — are referenced as placeholders in `application.yml`, so a

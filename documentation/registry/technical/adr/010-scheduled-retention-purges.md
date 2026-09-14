@@ -1,4 +1,4 @@
-# ADR 011 — Retention purges as scheduled, permission-gated endpoints
+# ADR 010 — Retention purges as scheduled, permission-gated endpoints
 
 ## Status
 

@@ -13,11 +13,11 @@ The registry is multi-tenant and needs authentication. Building a local auth sys
 Delegate authentication to an **external OIDC provider** and keep **no local password store**. The provider issues JWTs; the backend plays two OAuth2 roles:
 
 - **Resource server** — every request's JWT is validated against the provider's JWKS. Only four endpoints are public (login URL, logout URL, token, token refresh); everything else requires a valid JWT. CORS is restricted to a configured allowlist (`external.cors.urls`).
-- **Confidential client** — for the login/refresh endpoints, the backend brokers the authorization-code and refresh-token exchanges **server-side**, so the **client secret never reaches the browser**.
+- **Confidential client** — for the login/refresh endpoints, the backend brokers the authorization-code and refresh-token exchanges **server-side**, so the **client secret never reaches the browser**. The issued tokens are handed to the browser as `HttpOnly` cookies, and a stateless HMAC-derived CSRF token guards the state-changing calls that ride on them — see [Security](/registry/technical/security#cookie-based-session-csrf-protection).
 
 On successful JWT validation, a custom converter maps the token to the local user: it looks the user up by OIDC subject, **refuses blocked and anonymized accounts**, **syncs changed profile fields** from the token, and **auto-provisions (JIT)** a new local user on first login, guarding against a duplicate email.
 
-The provider is configured **generically** (JWKS / authorization / token / end-session URIs, client id, secret). The identity adapter package is named `keycloak`, but the provider is provider-agnostic — local development runs **Authentik**. The `keycloak` name is a known wart.
+The provider is configured **generically** (JWKS / authorization / token / end-session / revocation URIs, client id, secret). The identity adapter package is `idp` — the provider is provider-agnostic — local development runs **Authentik**.
 
 ### Why delegate, and why server-side brokering
 
@@ -35,8 +35,7 @@ The provider is configured **generically** (JWKS / authorization / token / end-s
 
 ### Negative
 
-- **Hard dependency on the IdP.** If it is down, nobody can log in — an accepted single point of failure.
-- **The `keycloak` package name is misleading** — the provider is actually Authentik in dev and abstract in principle.
+- **Hard dependency on the IdP.** If it is down, nobody can log in — an accepted single point of failure, bounded on the backend side by connect/response timeouts on every outbound call so a stalled provider fails fast instead of hanging the request.
 - **JIT provisioning needs care** — the converter must not create a second account for an existing email, or provision a blocked/anonymized identity.
 - **Profile data is a copy** synced at login, so it can lag the provider between logins.
 
