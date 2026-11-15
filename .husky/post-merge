@@ -1,0 +1,1 @@
+sh .husky/scripts/install-deps.sh ORIG_HEAD HEAD

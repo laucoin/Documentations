@@ -83,10 +83,21 @@ pnpm lint          # ESLint check (pnpm lint:fix to auto-fix)
 pnpm format        # Prettier write (pnpm format:check to verify only)
 ```
 
+#### Git hooks
+
+[Husky](https://typicode.github.io/husky/) installs the Git hooks from `.husky/` on `pnpm install`:
+
+- **commit-msg** — enforces [Conventional Commits](https://www.conventionalcommits.org/). A bare message is prefixed
+  from the branch name (`laucoin/chore/deps` → `chore(deps): …`); a message starting with `wip` gets `[skip ci]`.
+- **pre-push** — asks for confirmation before pushing to `main`, force-pushing or deleting a remote branch.
+- **post-checkout / post-merge / post-rewrite** — run `pnpm install` when `package.json`, the lockfile or the pnpm
+  config changed.
+
 ## Project structure 🗂️
 
 ```text
 .
+├── .husky/                     # Git hooks (commit message, push guard, auto install)
 ├── .vitepress/
 │   └── config.mts              # VitePress config (nav, sidebar, footer, search)
 ├── documentation/
