@@ -1,83 +1,31 @@
+---
+title: 'Feature: Preferences'
+description: 'A user’s personal settings: theme, language and refresh frequency.'
+---
+
 # Feature: Preferences
 
 ## 1. Overview
 
-- **Goal:** Preferences are the small set of personal settings that shape how Registry looks and behaves for one signed-in user: the **theme**, the interface **language**, and the **active project profile** — the event the user is currently "inside". Because preferences are stored server-side, they follow the user to any device: sign in elsewhere and the same theme, language and active event are already applied.
-- **Who uses it:** Every signed-in user, over **their own** preferences only. There is no cross-user administration here.
-- **Option required:** None. This is a **global**, per-user feature, governed by global roles rather than project options.
+- **Goal:** Preferences are the small set of personal settings that shape how Registry looks and behaves for a signed-in user: the **theme**, the interface **language**, and the **refresh mode** — how often the displayed data reloads on its own. Since preferences are stored server-side, they follow the user on any device: sign in elsewhere and the same theme, language and refresh mode are already applied.
+- **Who uses it:** Every signed-in user, on **their own** preferences only. There is no cross-user administration here.
+- **Option required:** None. It is a **global**, per-user feature, governed by global roles rather than by project options.
 
-## 2. Roles & Permissions
+## 2. Roles and permissions
 
-This is a **global**, per-user feature: it uses the platform-wide roles `USER_ADMINISTRATOR` and `USER`. Both have **identical** rights here — each acting only on their own preferences. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → User](/registry/functional/domain-model#user) for where preferences live.
+This is a **global**, per-user feature: it uses the `USER_ADMINISTRATOR` and `USER` platform roles. Both have **identical** rights here — each acting only on their own preferences. See [Roles and permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain model → User](/registry/functional/domain-model#user) for where preferences live.
 
-| Role | Permitted actions | Conditions / Scope |
-| ---- | ----------------- | ------------------ |
-| `USER` (global, default) | **R U** (own) | May read and update **their own** theme, language and active profile. No special permission needed — authenticated is enough. |
-| `USER_ADMINISTRATOR` (global) | **R U** (own) | Identical rights, and only over their **own** preferences. Being a platform administrator grants **no** access to another user's preferences. |
+| Role | Permitted actions | Conditions / scope |
+| --- | --- | --- |
+| `USER` (global, default) | **R U** (their own) | Can read and change **their own** theme, language and refresh mode. No special permission needed — being authenticated is enough. |
+| `USER_ADMINISTRATOR` (global) | **R U** (their own) | Identical rights, and only on their **own** preferences. Being a platform administrator grants **no** access to another user's preferences. |
 
 ## 3. Business rules
 
-- **Per-user and server-side.** Preferences belong to one user and are stored on the server, so they **follow the user to any device** rather than living in a single browser.
-- **Theme.** One of `SYSTEM`, `LIGHT` or `DARK` (see [Domain Model → Theme](/registry/functional/domain-model#status-vocabulary)). `SYSTEM` follows the device's own light/dark setting.
-- **Language.** English (`en`) or French (`fr`). Switching language **re-localizes** the interface labels immediately.
-- **Active project profile.** Selecting an active profile switches **which event the user is "inside"** and **resets the in-app project context** to that event. The profile can be chosen directly by its id, or by naming a project (the user's profile on that project is selected).
-- **Own scope only.** Every operation acts on the caller's own preferences; there is no endpoint to read or change someone else's.
-
-## 4. Behavioral scenarios (BDD)
-
-```gherkin
-Scenario: A user switches to dark theme
-  Given I am a signed-in user
-  When I set my theme to DARK
-  Then my preference is saved server-side
-  And the interface renders in dark mode on every device I sign in from
-```
-
-```gherkin
-Scenario: The system theme follows the device
-  Given I am a signed-in user
-  When I set my theme to SYSTEM
-  Then the interface follows my device's own light/dark setting
-```
-
-```gherkin
-Scenario: A user switches the interface language
-  Given I am a signed-in user with the interface in English
-  When I set my language to fr
-  Then the interface labels are re-localized to French
-  And the preference is saved server-side
-```
-
-```gherkin
-Scenario: Selecting an active profile switches the current event
-  Given I am a signed-in user with accepted profiles on project A and project B
-  And project A is my active profile
-  When I select my profile on project B as active
-  Then project B becomes the event I am "inside"
-  And the in-app project context is reset to project B
-```
-
-```gherkin
-Scenario: Selecting an active profile by project
-  Given I am a signed-in user with an accepted profile on project B
-  When I select the active profile by naming project B
-  Then my profile on project B becomes active
-```
-
-```gherkin
-Scenario: Preferences follow the user to another device
-  Given I set my theme to DARK and my language to fr on one device
-  When I sign in from a different device
-  Then the interface is already in dark mode and French
-```
-
-```gherkin
-Scenario: An administrator cannot change another user's preferences
-  Given I am a global USER_ADMINISTRATOR
-  When I attempt to change another user's theme
-  Then there is no such capability — preferences act only on the caller's own account
-```
-
-## 5. API surface
-
-The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.
+- **Per user and server-side.** Preferences belong to a user and are stored on the server, so they **follow the user on any device** rather than living in a single browser.
+- **Copy in the browser.** The theme and the language are also kept in two browser cookies, `registry-theme` and `locale` (valid for one year, readable by the application, `SameSite=Lax`, `Secure` over HTTPS). They are used as long as the server preferences are not known — before sign-in and while the application loads — to show the sign-in page in the right language and avoid a visible theme switch at startup. Without a cookie, the language is the browser's if it is supported, otherwise the default language. As soon as the user is loaded, their preferences saved on the server win and the cookies are updated. The refresh mode has no cookie, and the cookies are not cleared on sign-out.
+- **Theme.** One of `SYSTEM`, `LIGHT` or `DARK` (see [Domain model → Theme](/registry/functional/domain-model#status-vocabulary)). `SYSTEM` follows the device's light/dark setting.
+- **Language.** French (`fr`) or English (`en`) — only a supported language code is accepted. Changing the language immediately **re-localizes** the interface labels and the backend's error messages.
+- **Refresh mode.** One of `OFF`, `ECO`, `NORMAL` (default) or `FAST`. It sets how often the "live" parts of the interface (movements, alerts, statuses, counters) reload in the background while they are on screen: never, about every 3 minutes, every minute, or every 30 seconds. Data that only applies to the current day reloads when the day changes.
+- **No remembered active event.** The event a user is in is simply the project they are viewing; nothing about it is saved in the preferences.
+- **Personal scope only.** Each operation acts on the caller's preferences; there is no endpoint to read or change someone else's.

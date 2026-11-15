@@ -242,15 +242,15 @@ export default withMermaid(
               link: "/registry/functional/roles-and-permissions",
             },
             { text: "Domain Model", link: "/registry/functional/domain-model" },
-            { text: "Workflows", link: "/registry/functional/workflows" },
+            {
+              text: "Screens & Common Behaviors",
+              link: "/registry/functional/screens",
+            },
             {
               text: "Features",
               collapsed: false,
               items: [
-                {
-                  text: "Projects",
-                  link: "/registry/functional/features/projects",
-                },
+                { text: "Projects", link: "/registry/functional/features/projects" },
                 {
                   text: "Members & Profiles",
                   link: "/registry/functional/features/project-profiles",
@@ -259,18 +259,12 @@ export default withMermaid(
                   text: "Participants",
                   link: "/registry/functional/features/participants",
                 },
-                {
-                  text: "Groups",
-                  link: "/registry/functional/features/groups",
-                },
+                { text: "Groups", link: "/registry/functional/features/groups" },
                 {
                   text: "Movements",
                   link: "/registry/functional/features/movements",
                 },
-                {
-                  text: "Vehicles",
-                  link: "/registry/functional/features/vehicles",
-                },
+                { text: "Vehicles", link: "/registry/functional/features/vehicles" },
                 {
                   text: "Activities",
                   link: "/registry/functional/features/activities",
@@ -279,14 +273,16 @@ export default withMermaid(
                   text: "Communications",
                   link: "/registry/functional/features/communications",
                 },
+                { text: "Alerts", link: "/registry/functional/features/alerts" },
                 {
-                  text: "Alerts",
-                  link: "/registry/functional/features/alerts",
+                  text: "Data Retention",
+                  link: "/registry/functional/features/data-retention",
                 },
                 {
-                  text: "Users",
-                  link: "/registry/functional/features/users",
+                  text: "Audit & Traceability",
+                  link: "/registry/functional/features/audit",
                 },
+                { text: "Users", link: "/registry/functional/features/users" },
                 {
                   text: "Preferences",
                   link: "/registry/functional/features/preferences",
@@ -300,14 +296,19 @@ export default withMermaid(
           collapsed: false,
           items: [
             { text: "Overview", link: "/registry/technical/" },
-            {
-              text: "Getting Started",
-              link: "/registry/technical/getting-started",
-            },
+            { text: "Getting Started", link: "/registry/technical/getting-started" },
             { text: "Architecture", link: "/registry/technical/architecture" },
+            { text: "Backend", link: "/registry/technical/backend" },
+            { text: "Frontend", link: "/registry/technical/frontend" },
+            { text: "E2E Tests", link: "/registry/technical/e2e" },
+            {
+              text: "Development Conventions",
+              link: "/registry/technical/conventions",
+            },
             { text: "Security", link: "/registry/technical/security" },
             { text: "Data Model", link: "/registry/technical/data-model" },
-            { text: "API Reference", link: "/registry/technical/api-reference" },
+            { text: "API Contract", link: "/registry/technical/api-reference" },
+            { text: "Glossary", link: "/registry/technical/glossary" },
             {
               text: "ADRs",
               collapsed: true,
@@ -342,7 +343,7 @@ export default withMermaid(
                   link: "/registry/technical/adr/007-frontend-runtime-config",
                 },
                 {
-                  text: "008 — NGXS State Management",
+                  text: "008 — NGXS State Management (superseded)",
                   link: "/registry/technical/adr/008-ngxs-state-management",
                 },
                 {
@@ -354,12 +355,40 @@ export default withMermaid(
                   link: "/registry/technical/adr/010-scheduled-retention-purges",
                 },
                 {
-                  text: "011 — PrimeNG Runtime Theming",
+                  text: "011 — PrimeNG Runtime Theming (superseded)",
                   link: "/registry/technical/adr/011-primeng-runtime-theming",
                 },
                 {
-                  text: "012 — Per-instance Rate Limit (Caffeine)",
+                  text: "012 — Per-instance Rate Limiting (Caffeine)",
                   link: "/registry/technical/adr/012-per-instance-rate-limit-caffeine",
+                },
+                {
+                  text: "013 — Signal Stores & Facades",
+                  link: "/registry/technical/adr/013-signal-stores-and-facades",
+                },
+                {
+                  text: "014 — @sgdf/ui Design System",
+                  link: "/registry/technical/adr/014-sgdf-ui-design-system",
+                },
+                {
+                  text: "015 — Uniform API v2 Contract",
+                  link: "/registry/technical/adr/015-api-v2-uniform-contract",
+                },
+                {
+                  text: "016 — Optimistic Concurrency & Row Locks",
+                  link: "/registry/technical/adr/016-optimistic-concurrency-and-row-locks",
+                },
+                {
+                  text: "017 — Soft Delete & Restore Permissions",
+                  link: "/registry/technical/adr/017-soft-delete-and-restore-permissions",
+                },
+                {
+                  text: "018 — Log History Versioning",
+                  link: "/registry/technical/adr/018-log-history-versioning",
+                },
+                {
+                  text: "019 — Personal Data Access Audit",
+                  link: "/registry/technical/adr/019-personal-data-access-audit",
                 },
               ],
             },

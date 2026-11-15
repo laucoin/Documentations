@@ -1,89 +1,66 @@
+---
+title: 'Feature: Groups'
+description: 'Group participants to move them, count them and give them shared dates.'
+---
+
 # Feature: Groups
 
 ## 1. Overview
 
-- **Goal:** A group is a named set of participants — a team, a unit, a tent — used to **move and count people together**. Instead of picking a dozen names one by one, staff select the group and a movement expands to its current members. Registry also tracks how many of a group's members are inside versus outside, turning the headcount into something teams can read at their own level of organization.
-- **Who uses it:** All three roles create, read, edit and maintain group membership (add/remove members); only `PROJECT_ADMINISTRATOR` can permanently delete a group.
-- **Option required:** None — always available. Groups are part of the core.
+- **Goal:** A group is a named set of participants — a team, a unit, a tent — to **move and count people together**. Instead of ticking a dozen names, one selects the group in a movement and it expands into its members. Its dates also serve as default dates for its members.
+- **Who uses it:** all three project roles create, edit, delete and manage members; RP_A and RP_C restore; RP_A permanently deletes.
+- **Option required:** none.
 
-## 2. Roles & Permissions
+## 2. Roles and permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) and [Domain Model → Group](/registry/functional/domain-model#group).
-
-| Role | Permitted actions | Conditions / Scope |
-| ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + add/remove members | Only role that can permanently delete a group; also creates, edits and maintains membership (`REGISTRY_...GROUP_C/R/U/D`). |
-| `PROJECT_COORDINATOR` | **C R U** + add/remove members | Creates, edits, disables/enables and maintains membership, same as the administrator — but cannot delete a group. |
-| `PROJECT_PARTICIPANT` | **C R U** + add/remove members | Same floor as the coordinator: creates, edits, disables/enables and maintains membership — but cannot delete a group. |
+| Role | Permitted actions | Conditions / scope |
+| --- | --- | --- |
+| RP_A | Create, read, update, manage members, delete, restore, permanently delete | — |
+| RP_C | Create, read, update, manage members, delete, restore | Sees deleted groups. |
+| RP_P | Create, read, update, manage members, delete | Does not see deleted groups. |
 
 ## 3. Business rules
 
-- **Name** identifies the group.
-- **Members.** A group holds **at least one** member; members are chosen from the project's participants via multi-select.
-- **Availability window is optional.** With no window of its own, a group inherits the project's window — see [Domain Model → Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution). When both `start` and `end` are set, `start` must be **before** `end` (`@StartBeforeEnd`).
-- **Expansion in movements.** Selecting a group in a movement expands to its **current** members at that moment — later membership changes do not rewrite past movements. Each participant added this way carries a **pool label** on their movement entry, set to the name of the group they were added through and snapshotted at that instant. See [Domain Model → Movement](/registry/functional/domain-model#movement-the-core-record) and [Technical → Data Model](/registry/technical/data-model) (`tb_movement_content.pool_name`).
-- **Inside/outside counts.** Registry tracks how many members are currently inside versus outside, derived from their movements.
-- **Disabling is a soft, reversible action.** A disabled group is hidden but can be re-enabled.
-- **Deleting a group removes only the grouping.** Its participants stay registered on the project and keep all their movement history; the group's name simply stops being available for future expansions, while past movements keep the pool labels they already recorded.
+- **Name** required, 150 characters maximum.
+- **Members**: a group can have **zero, one or several participants** — it can be created empty and its last member can be removed. **Guests are excluded** from groups.
+- **Availability dates** optional; without dates, the group is permanently available. They apply to members who have no dates of their own (see [Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution)).
+- **Expansion in a movement**: selecting a group adds its **current** members, recorded one by one; each receives the group's name as a **pool label**. This label is plain text, not a link to the group: Registry does not check that a pool's participants really belong to the group — that would be costly for no benefit, an inconsistency there having no consequence (see [Domain model](/registry/functional/domain-model#movement-the-core-record)).
+- **Counters**: the group's headcount, with the present · absent breakdown.
+- **Deleting a group only removes the grouping**: its participants stay registered with all their history.
 
-## 4. Behavioral scenarios (BDD)
+## 4. Screens
 
-```gherkin
-Scenario: A coordinator creates a group with members
-  Given I am a PROJECT_COORDINATOR on a project
-  And the participants "Ana", "Ben" and "Cora" are registered
-  When I create a group "Tent 1" with those three members
-  Then the group is created with three members
-```
+### 4.1 "Groups" list {#groups-list}
 
-```gherkin
-Scenario: A group must have at least one member
-  Given I am creating a group
-  When I submit the group with no members
-  Then the request is rejected because a group requires at least one member
-```
+Shared behaviors: see [Lists](/registry/functional/screens#common-list-behaviors).
 
-```gherkin
-Scenario: The availability start must be before its end
-  Given I am creating a group
-  When I set the availability start after its end
-  Then the request is rejected by the @StartBeforeEnd validator
-```
+- **Filters** [RP_A, RP_C, RP_P]: text, date/time, presence; [RP_A, RP_C] deleted / not deleted.
+- [RP_A, RP_C, RP_P] The "Create" button opens the creation form.
+- **Each row** [RP_A, RP_C, RP_P] shows:
+  - the name, truncated with "…";
+  - the headcount, with the breakdown (inside · outside);
+  - the availability range;
+  - the primary button, which leads to the group's members.
+- [RP_A, RP_C] A deleted group is grayed out and carries the "Deleted" tag.
+- **Actions menu**: [RP_A, RP_C, RP_P] "Edit", "Delete" (if not deleted); [RP_A, RP_C] "Restore" (if deleted); [RP_A] "Permanently delete" — deletions and restoration with confirmation.
 
-```gherkin
-Scenario: Selecting a group in a movement expands to its current members
-  Given the group "Tent 1" currently has members "Ana", "Ben" and "Cora"
-  When staff record a movement selecting the group "Tent 1"
-  Then the movement includes Ana, Ben and Cora
-  And each of those three movement entries carries the pool label "Tent 1"
-```
+### 4.2 A group's participants {#group-members}
 
-```gherkin
-Scenario: A participant adds and removes members, but cannot delete the group
-  Given I am a PROJECT_PARTICIPANT on a project
-  And the group "Tent 1" has members "Ana" and "Ben"
-  When I add "Cora" and remove "Ben"
-  Then the group's members become "Ana" and "Cora"
-  When I then attempt to delete "Tent 1"
-  Then the request is refused for lack of permission
-```
+- [RP_A, RP_C, RP_P] The header recalls the group, truncated with "…".
+- **Filters** [RP_A, RP_C, RP_P]: text, status; [RP_A, RP_C] deleted / not deleted.
+- [RP_A, RP_C, RP_P] "Add members" lets you select existing participants.
+- [RP_A, RP_C, RP_P] "Create a member" opens the [participant form](/registry/functional/features/participants#participant-form) in a panel; the created participant is attached to the group.
+- The rows are those of the [participant list](/registry/functional/features/participants#participants-list), plus the [RP_A, RP_C, RP_P] "Remove from group" action, with confirmation.
 
-```gherkin
-Scenario: Only an administrator can delete a group
-  Given I am the PROJECT_ADMINISTRATOR of a project
-  And the group "Tent 1" exists with members "Ana" and "Ben"
-  When I delete "Tent 1"
-  Then the group is permanently removed
-  And "Ana" and "Ben" remain registered on the project — only the grouping is removed
-```
+### 4.3 Group form {#group-form}
 
-```gherkin
-Scenario: Registry reports a group's inside/outside split
-  Given the group "Tent 1" has three members, two of whom are currently on site
-  When I read the group
-  Then it reports two members inside and one outside
-```
+[RP_A, RP_C, RP_P] Shared rules: see [Forms](/registry/functional/screens#common-form-behaviors).
 
-## 5. API surface
+- **Name**: required, 150 characters maximum.
+- **Participants**: optional (a group can be created empty), no guests.
+- **Availability start** and **end**: optional.
 
-The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.
+### 4.4 Adding members
+
+- At least one participant must be selected.
+- No guests; a participant who is already a member is not offered.

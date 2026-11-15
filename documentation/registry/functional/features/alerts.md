@@ -1,84 +1,53 @@
+---
+title: 'Feature: Alerts'
+description: 'Report, track and resolve incidents, with their communication thread and statistics.'
+---
+
 # Feature: Alerts
 
 ## 1. Overview
 
-- **Goal:** An alert is an **incident** the team needs to act on — a title, a timestamp, and a status. Alerts are typically **raised from a movement's discussion thread**: a note about a problem is escalated into a tracked item, then followed to resolution. Each alert carries its own [communication](/registry/functional/features/communications) thread and a live *"in progress since"* timer, so anyone can see what is open, for how long, and what has been said about it. The status lifecycle records whether the incident is being handled, has been dealt with, or was called off.
-- **Who uses it:** Everyone on the project. All three roles raise, read, edit and change the status of alerts — including resolving one; only `PROJECT_ADMINISTRATOR` can permanently remove one.
-- **Option required:** `ALERT`. The module is enabled per project and requires both `ACTIVITY` and `COMMUNICATION` (see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating)). While the option is off, every endpoint below is closed regardless of role.
+- **Goal:** An alert is an **incident** the team must act on: a title, a timestamp, a status and its own [communication](/registry/functional/features/communications) thread. Everyone sees what is open, for how long, and what has been said about it. Statistics then measure the team's responsiveness.
+- **Who uses it:** all three project roles report, edit, resolve, cancel and delete; RP_A and RP_C restore; RP_A permanently deletes.
+- **Option required:** **O_E `ALERT`**, which requires O_C and O_A.
 
-## 2. Roles & Permissions
+## 2. Roles and permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. Status changes are an **U**pdate. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Alert](/registry/functional/domain-model#alert-option) for the entity.
-
-| Role | Permitted actions | Conditions / Scope |
-| ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + status changes | Scoped to the project. Only role that can permanently delete an alert; also raises, edits, resolves/cancels/reopens and disables/enables. Requires the `ALERT` option. |
-| `PROJECT_COORDINATOR` | **C R U** + status changes | Scoped to the project. Raises, edits, resolves/cancels/reopens and disables/enables an alert, same as the administrator — but cannot delete. Requires the `ALERT` option. |
-| `PROJECT_PARTICIPANT` | **C R U** + status changes | Scoped to the project. Raises, reads (with threads), edits, resolves/cancels/reopens and disables/enables an alert — same floor as the coordinator — but cannot delete. Requires the `ALERT` option. |
+| Role | Permitted actions | Conditions / scope |
+| --- | --- | --- |
+| RP_A | Create, read, update, resolve, cancel, delete, restore, permanently delete | — |
+| RP_C | Create, read, update, resolve, cancel, delete, restore | Sees deleted alerts. |
+| RP_P | Create, read, update, resolve, cancel, delete | Does not see deleted alerts. |
 
 ## 3. Business rules
 
-- **Title ≤ 50 characters.** A longer title is rejected.
-- **Timestamped.** Each alert carries a creation timestamp; the dashboard derives a live *"in progress since"* duration from it while the status is `IN_PROGRESS`.
-- **Status lifecycle.** An alert is `IN_PROGRESS`, `RESOLVED` or `CANCELED`. From `IN_PROGRESS` it can be **resolved** (→ `RESOLVED`) or **canceled** (→ `CANCELED`); a closed alert can be **reopened** (→ `IN_PROGRESS`). See [Domain Model → Alert status](/registry/functional/domain-model#status-vocabulary).
-- **Own discussion thread.** Every alert has an attached [communication](/registry/functional/features/communications) thread; alerts are commonly escalated from a movement's thread.
-- **Disabling is a soft, reversible action, open to all three roles.** Disabling hides an alert without deleting it; it can be re-enabled. Deletion is permanent and **administrator only**.
-- **Gated by the option.** If the `ALERT` option is disabled on the project, the whole feature is invisible and its API is closed.
+- **Creation**: the "New alert" button opens the communication form in alert mode — **title** required (not blank, 50 characters maximum) and **message** required (not blank, 250 characters maximum).
+- **Status**: in progress, resolved or canceled. From "in progress", one can **resolve** or **cancel**, each time with confirmation. Only an in-progress alert can be edited.
+- **Criticality**: it increases with the age of an in-progress alert (reinforced after 6 h, high after 18 h by default).
+- **Displayed durations**: since creation and, while it is in progress, since the last associated communication.
+- **History**: _log_-type item — each change and each status change keeps the previous version.
+- **Deletion** soft and reversible. Permanent deletion is refused while communications are attached to it.
+- **Application home**: projects with alerts in progress are highlighted, by descending number of alerts.
 
-## 4. Behavioral scenarios (BDD)
+## 4. Screens
 
-```gherkin
-Scenario: A participant raises an alert from a movement thread
-  Given I am a PROJECT_PARTICIPANT on a project with the ALERT option enabled
-  And a movement thread contains a message reporting a problem
-  When I raise an alert titled "Missing participant at checkpoint"
-  Then the alert is created with status IN_PROGRESS and a timestamp
-  And it has its own communication thread
-```
+### 4.1 "Alerts" list {#alerts-list}
 
-```gherkin
-Scenario: An alert title longer than 50 characters is rejected
-  Given I am a PROJECT_COORDINATOR on a project with the ALERT option enabled
-  When I raise an alert with a 51-character title
-  Then the request is rejected for exceeding the maximum length
-  And no alert is created
-```
+Shared behaviors: see [Lists](/registry/functional/screens#common-list-behaviors).
 
-```gherkin
-Scenario: A coordinator resolves an alert
-  Given I am a PROJECT_COORDINATOR on a project with the ALERT option enabled
-  And an alert is IN_PROGRESS
-  When I change its status to RESOLVED
-  Then the alert's status becomes RESOLVED
-  And the "in progress since" timer stops
-```
-
-```gherkin
-Scenario: A resolved alert can be reopened
-  Given I am a PROJECT_ADMINISTRATOR on a project with the ALERT option enabled
-  And an alert is RESOLVED
-  When I change its status to IN_PROGRESS
-  Then the alert is reopened with status IN_PROGRESS
-```
-
-```gherkin
-Scenario: A participant resolves an alert, but cannot delete it
-  Given I am a PROJECT_PARTICIPANT on a project with the ALERT option enabled
-  And an alert is IN_PROGRESS
-  When I change its status to RESOLVED
-  Then the alert's status becomes RESOLVED
-  And the "in progress since" timer stops
-  When I then attempt to delete that alert
-  Then the request is refused for lack of permission
-```
-
-```gherkin
-Scenario: The feature is closed when the option is disabled
-  Given I am a PROJECT_ADMINISTRATOR on a project with the ALERT option disabled
-  When I attempt to list the project's alerts
-  Then the request is refused because the option is not enabled
-```
-
-## 5. API surface
-
-The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.
+- **Statistics** above the list:
+  - **average resolution time** of an alert;
+  - **real alert rate**: the share of resolved alerts among resolved or canceled alerts.
+- **Filters** [RP_A, RP_C, RP_P]: text, status, from / to; [RP_A, RP_C] visibility.
+- **Each row** [RP_A, RP_C, RP_P] shows:
+  - the title, or placeholder text, truncated with "…";
+  - the status;
+  - the time since creation;
+  - the time since the last communication, if the alert is in progress;
+  - O_C the "Communicate" button, which opens the communications drawer.
+- [RP_A, RP_C] A deleted alert is grayed out and carries the "Deleted" tag.
+- **Actions menu**:
+  - [RP_A, RP_C, RP_P] "Resolve" and "Cancel" if the alert is in progress, with confirmation;
+  - [RP_A, RP_C, RP_P] "Delete" if not deleted, with confirmation;
+  - [RP_A, RP_C] "Restore" if deleted, with confirmation;
+  - [RP_A] "Permanently delete", with confirmation.

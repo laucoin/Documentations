@@ -1,173 +1,158 @@
+---
+title: 'Backend'
+description: 'How the reactive Kotlin backend is structured, validated, configured and tested.'
+---
+
 # Backend
 
-`Registry-Backend` — a fully reactive Kotlin API. Two properties define it: it is **hexagonal, and a test enforces
-that**, and it is **non-blocking end to end**, which constrains every line written in it.
+`Registry-Backend` — a fully reactive Kotlin API. Three properties define it: it is **hexagonal, and a test checks it**; it is **non-blocking end to end**; and **security is declarative**, set on each endpoint's contract rather than scattered through the code.
 
-## Stack
+## Tech stack
 
-| Concern     | Choice                                                 |
-|-------------|--------------------------------------------------------|
-| Language    | Kotlin 2.4, JVM toolchain 25, `-Xjsr305=strict`        |
-| Framework   | Spring Boot 4.1, WebFlux (`Mono` / `Flux`)             |
-| Persistence | Spring Data R2DBC, PostgreSQL, pooled connections      |
-| Migrations  | Flyway, forward-only, over JDBC at boot                |
-| Security    | OAuth2 resource server (JWT), reactive method security |
-| Validation  | Jakarta Bean Validation plus custom domain constraints |
-| i18n        | Spring `MessageSource`, `en` and `fr`                  |
-| Docs        | springdoc OpenAPI (feature-flagged)                    |
-| Metrics     | Micrometer → Prometheus (feature-flagged)              |
-| Build       | Gradle Kotlin DSL, Kover coverage, ArchUnit            |
-| Image       | Distroless Java 25, non-root, API on 8081, management port 8082 |
+| Concern | Choice |
+| --- | --- |
+| Language | Kotlin, JVM toolchain pinned by Gradle, strict nullability |
+| Framework | Spring Boot, WebFlux (`Mono` / `Flux`) |
+| Persistence | Spring Data R2DBC (connection pool), PostgreSQL |
+| Migrations | Flyway, forward-only, via JDBC at startup |
+| Security | OAuth2 resource server (JWT), reactive method security |
+| Mapping | MapStruct (DTOs ↔ models ↔ entities), unmapped field = compilation error |
+| Serialization | Jackson, Kotlin module |
+| Validation | Jakarta Bean Validation plus custom constraints |
+| i18n | Spring `MessageSource`, `fr` and `en` |
+| Cache | Caffeine (principal, rate limiters, audit deduplication) |
+| Docs | springdoc OpenAPI 3 (can be enabled) |
+| Metrics | Micrometer → Prometheus (can be enabled) |
+| Build | Gradle Kotlin DSL, Kover coverage, ArchUnit |
+| Image | Distroless Java, non-root |
 
-Indentation is **tabs**, per the repository's convention.
+The exact versions are in the repository.
 
-## Hexagonal layering
+## Hexagonal layout
 
-Root package `fr.laucoin.registry.backend`, four top-level packages and nothing else:
+The domain is at the center and knows neither HTTP, nor the database, nor the identity provider ([ADR 001](/registry/technical/adr/001-hexagonal-architecture)):
 
-```
-config/           Spring wiring — security, R2DBC, i18n, Swagger, logging, Gson
-domain/           The business core
-  service/        Interfaces + impl/
-  port/           Interfaces the domain needs infrastructure to satisfy
-  model/          Business models
-  validator/      Custom constraint validators
-  annotation/     The constraints those validators implement
-  enumeration/    Domain enums
-  constant/       Permission names, error codes, translation keys
-  extension/      Kotlin extensions, notably reactive helpers
-  handler/        Cross-cutting request handling
+```text
+config/            Spring wiring only (security, CORS, R2DBC, JWT, clock, i18n, Swagger, logging)
+domain/
+  model/           Business models, exceptions, pagination
+  port/            Interfaces the infrastructure must implement
+  service/
+    core/          A resource's rules (participants, movements, alerts…)
+    usecase/       Orchestrations spanning several resources (project creation, support profile, purges…)
+    support/       Cross-cutting services (audit, translation, principal cache, features)
+  helper/          Reusable rules extracted from services (movement content, conflicts…)
+  enumeration/ constant/ annotation/ extension/
 infrastructure/
-  in/             Inbound adapters — things the domain calls out to
-    postgres/     R2DBC repositories, entities, mappers
-    idp/          The OIDC provider adapter
-  out/            Outbound adapters — things that call into the domain
-    api/          Controllers, DTOs, mappers
+  driving/         What calls the domain
+    api/           Controllers (contract + implementation), DTOs, mappers, validation
+    security/      Filter chain, limiters, CSRF, cookies, token conversion, read auditing
+    scheduler/     Purge scheduler
+  driven/          What the domain calls
+    postgres/      R2DBC repositories, entities, query criteria, mappers
+    idp/           OIDC provider adapter
 ```
 
-### Rules the build enforces
+### Rules enforced by the build
 
-`HexagonalArchitectureTest` runs ArchUnit against the whole package on every `./gradlew build`. A violation fails the
-build:
+An ArchUnit test runs on every build and fails it on any violation. In particular, it guarantees that:
 
-| Rule                                                                                        | Effect                                                                            |
-|---------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------|
-| Infrastructure must not depend on `config`                                                  | Wiring stays one-directional                                                      |
-| `infrastructure.out` must not depend on `infrastructure.in`                                 | The REST layer cannot reach the database directly — it must go through the domain |
-| Postgres `entity` classes are only accessible inside the postgres package                   | Persistence types cannot leak upward                                              |
-| Every `@RestController` must implement a contract interface from `infrastructure.out.api`   | The OpenAPI contract and the security annotations cannot be bypassed              |
-| Every `@Repository` must live in `infrastructure.in.postgres`                               | —                                                                                 |
-| Every `@Service` must live in `domain.service`, the postgres package, or an adapter package | —                                                                                 |
-| Every `@Service` must implement a contract interface                                        | —                                                                                 |
-| The root package contains only the declared sub-packages                                    | The structure cannot drift                                                        |
+- the **domain** depends neither on the infrastructure, nor on the configuration, nor on Spring's web types;
+- the **REST layer** cannot reach the database directly: it goes through the domain;
+- persistence **entities** do not leave the PostgreSQL package;
+- each **controller** implements a contract interface, and each service an interface;
+- names and locations follow the conventions (`…Config`, `…Handler`, repositories in the PostgreSQL package…).
 
-The domain reaches infrastructure **only through `port` interfaces**. It contains no Spring web or persistence types.
+## The controller pattern {#controller-pattern}
 
-## The controller pattern
-
-Every endpoint is declared **twice**, on purpose: an interface that carries the contract, and an implementation that
-carries none.
+Each endpoint is declared **twice**, on purpose: an **interface** carries the contract (path, `@PreAuthorize` access rule, validation, OpenAPI documentation); the **implementation** only maps DTOs and delegates to the domain.
 
 ```kotlin
-@Tag(name = "Movements management", description = "API for Movements-related operations")
-@RequestMapping("/api/v1/projects/{projectId}/movements")
-interface IMovementV1Controller {
-	@Operation(summary = "Find Movements", description = "…")
-	@PreAuthorize("hasPermission(#projectId, '\$REGISTRY_PROJECT_MOVEMENT_R')")
+@RequestMapping("/api/v2/projects/{projectId}/vehicles")
+interface IVehicleV2Controller {
+	@PreAuthorize("hasPermission(#projectId, '\$REGISTRY_PROJECT_OPTION_VEHICLE') && hasPermission(#projectId, '\$REGISTRY_PROJECT_VEHICLE_R')")
 	@GetMapping
-	fun findMovements(
-		@PathVariable projectId: UUID,
-		@RequestParam(defaultValue = "0") @Valid @Min(0, message = PAGE_NUMBER_IS_LOWER_THAN_ZERO) pageNumber: Int,
-		…
-	): Mono<PageModel<MovementReaderDto>>
+	fun findVehicles(@PathVariable projectId: UUID, …): Mono<PageModel<VehicleReaderDto>>
 }
 ```
 
-The interface owns the OpenAPI annotations, the `@PreAuthorize` expression and the validation constraints; the
-implementation only maps DTOs and delegates to a domain service. ArchUnit guarantees no controller escapes the pattern,
-which in turn guarantees no endpoint can quietly ship without an authorisation rule.
+Since ArchUnit rejects any controller outside this pattern, **no endpoint can ship without an authorization rule**. Rules that depend on data (export right, role ceiling, last administrator, visibility) live in the services. Endpoint details are in the OpenAPI document ([API contract](/registry/technical/api-reference)).
 
-### Conventions the interfaces follow
+## The security chain
 
-- **Versioned, resource-oriented URLs** — `/api/v1/...`, plural nouns, nested for ownership:
-  `/api/v1/projects/{projectId}/activities`.
-- **DTOs at the boundary, never entities** — separate `reader` (response) and `writer` (request) types, with mappers in
-  `infrastructure/out/api/mapper`.
-- **Pagination by default** — `pageNumber` (`@Min(0)`) and `pageSize` (`@Min(1)`, `@Max(200)`), returning a `PageModel`.
-  No unbounded collection is ever returned.
-- **Search endpoints are capped, not paginated** — the pickers under `/search/**` return a small configured maximum,
-  because they feed autocompletes.
-- **Errors are i18n message keys**, resolved through `ErrorConst` and the bundles in `resources/i18n`, never hardcoded
-  English.
+The main filter chain is assembled from small ordered building blocks, each responsible for a single concern: language, security headers, rate limiting, read auditing, CSRF, public/authenticated access, then the OAuth2 resource server. A second chain, reserved for the management port, serves the documentation. The role of each block is explained in [Security](/registry/technical/security).
 
 ## Reactive discipline
 
-The event loop is small and shared, so **blocking it is the one unforgivable mistake**. The rules:
+The event loop is small and shared: **blocking it is the unforgivable mistake**.
 
-- No `.block()`, no `Thread.sleep`, no blocking JDBC or file IO on a request path.
-- Compose with `map` / `flatMap` / `switchIfEmpty` and the helpers in `domain/extension/ReactiveExt.kt`.
-- Choose `flatMap` for concurrency and `concatMap` when order matters — deliberately, not by habit.
-- Push filtering, sorting and pagination **into SQL**. Loading a page and filtering it in memory defeats the point.
-- Multi-step writes are wrapped with `transactionalOperator::transactional` — visible on project creation, profile
-  creation, movement creation and movement updates.
+- No `.block()`, `Thread.sleep`, JDBC or blocking file I/O on a request path.
+- Compose with `map` / `flatMap` / `switchIfEmpty`; `concatMap` when order matters.
+- Filtering, sorting and pagination **in SQL**, never in memory. Repositories write SQL by hand with bound parameters, assembled from **criteria** and **page** objects.
+- Multi-step writes are transactional; the rows a rule depends on are **locked** before the check ([ADR 016](/registry/technical/adr/016-optimistic-concurrency-and-row-locks)).
+- Non-critical work (audit) goes through an in-memory queue consumed in the background, so as not to delay the response.
 
 ## Validation, in two layers
 
-**Declarative** constraints live on the writer DTOs, including a set of custom ones in `domain/annotation`:
+- **Declarative**, on DTOs and parameters: length and size bounds everywhere, and custom constraints for cross-field rules — date consistency (start before end, time without date forbidden), min/max ranges, reason compatible with a movement's direction and type, guest movement content, mutually exclusive fields, a project's option dependencies, invitation reply.
+- **Imperative**, in services, for what needs the database: membership of the same project, item not deleted, adult driver, definitive departure placed before other movements, conflict with existing items…
 
-| Constraint                                               | Enforces                                                                    |
-|----------------------------------------------------------|-----------------------------------------------------------------------------|
-| `@MovementReason`                                        | The reason matches the movement's direction and content type                |
-| `@MovementGuestContent`                                  | A guest entrance supplies identities; a guest exit references existing ones |
-| `@ProjectOptionDependencies`                             | An option's prerequisites are present                                       |
-| `@ProfileAcceptOrReject`                                 | An invitation is answered only with `ACCEPTED` or `REJECTED`                |
-| `@BothCannotBeDefined`                                   | Mutually exclusive fields — reason *or* activity                            |
-| `@AtLeastOneIsDefined`                                   | A communication attaches to a movement or an alert                          |
-| `@StartBeforeEnd`, `@MinUpperMax`, `@DateDefinedForTime` | Range coherence                                                             |
+Each refusal throws an exception carrying an HTTP status and a **stable error code**; a single handler turns it into a translated response. Internal messages and stack traces never reach the client.
 
-**Imperative** rules that need the database live in the domain services as explicit chains — `validateMovementDate` →
-`validateActivity` → `saveGuestsIfNecessary` → `validateParticipants` → `validateVehicles`. Each step raises a
-`RegistryException` carrying an HTTP status and a message key, and `RegistryControllerAdvice` shapes the response.
-Internal messages and stack traces never reach the client.
+## Derived data and histories
+
+- **Presence**: a participant's or a vehicle's status is computed from its movements and its dates, never stored.
+- **Effective presence dates**: a participant's effective arrival and departure, on the other hand, are stored and **recomputed** on every creation, edit, deletion or restoration of a movement, under lock (see [Movements](/registry/functional/features/movements)).
+- **_Log_ history**: the previous state of a movement, an alert or a communication is archived before each change ([ADR 018](/registry/technical/adr/018-log-history-versioning)).
+- **Statistics**: average resolution time and real alert rate, planned/actual timelines of a participant or a vehicle, a vehicle's usage rate, an activity's participation and cumulative hours — all computed on demand.
 
 ## Configuration
 
-Everything environment-specific arrives as JVM options or environment variables — the image is immutable and identical
-across environments.
+Everything that depends on the environment comes in through **environment variables**: the image is identical everywhere. A missing required variable **makes startup fail**. The main families:
 
-| Group      | Keys                                                                                                             |
-|------------|------------------------------------------------------------------------------------------------------------------|
-| Datasource | `registry.datasource.base-url`, `.database`, `.schemas`, `.username`, `.password`                                |
-| IdP        | `external.idp.jwks-uri`, `.authorization-uri`, `.token-uri`, `.end-session-uri`, `.revocation-uri`, `.client-id`, `.client-secret`, `.connect-timeout-millis`, `.response-timeout-millis`, `.max-connections` |
-| CORS       | `external.cors.urls` — a comma-separated allow-list, never `*`                                                   |
-| Server     | `registry.server.port` (API, default 8081), `registry.server.management-port` (health/metrics/docs, default 8082), `registry.server.logging-level` |
-| Security   | `registry.security.cookie.secure` (auth cookies, default `true`), `registry.security.rate-limit.auth.capacity`/`.window-seconds`, `registry.security.oauth2.cache.principal.ttl-seconds` |
-| Features   | `registry.feature.documentation.enabled`, `registry.feature.observability.enabled`                               |
+| Family | Example settings |
+| --- | --- |
+| Database | host, database, schema, credentials, pool size, maximum lock wait |
+| Identity provider | OIDC addresses, confidential and public clients, timeouts and maximum connections, redirect allowlists |
+| Server | API and management ports, log level, CORS origins, `Secure` cookies |
+| Security | rate limits (authentication, export, search, project creation), trusted proxies, principal cache duration |
+| Audit | queue size, read deduplication window |
+| Features | documentation, observability, email invitation |
+| Business | tolerance on a movement's future time, alert criticality thresholds, search caps, purge schedule and thresholds |
 
-Secrets — the datasource password and the OIDC client secret — are referenced as placeholders in `application.yml`, so a
-missing one **fails startup loudly** rather than silently defaulting.
+The exhaustive list, with default values, is kept up to date in the **backend repository README** — it is the reference.
 
-Two more groups are configured in `application.yml` rather than per environment: the **search result caps** for each
-picker, and the **purge schedules and thresholds** (four cron expressions, four month thresholds, all defaulting to 12
-months).
+## Tests
 
-## Testing
+`./gradlew build` compiles, tests, checks coverage (enforced Kover threshold) and produces the report.
 
-`./gradlew build` compiles, tests, verifies coverage and produces the report. The pyramid:
+| Level | Tools and purpose |
+| --- | --- |
+| Unit | JUnit, `mockito-kotlin`, `StepVerifier`; behavior is checked, not just calls |
+| Parameterized | `@ParameterizedTest`, named cases |
+| Integration | Testcontainers PostgreSQL and `WebTestClient`: real database, real filter chain |
+| Security | access rules of every endpoint, alignment of injected permissions with constants, refusal without option, automatically generated cross-project isolation, CSRF/CORS/headers through the real chain, rate counters under concurrency |
+| Architecture | ArchUnit, as above |
 
-| Level         | Tools                                                                                                                              |
-|---------------|------------------------------------------------------------------------------------------------------------------------------------|
-| Unit          | JUnit 5, `mockito-kotlin` (`mock` / `whenever` / `verify`), `StepVerifier` for reactive flows                                      |
-| Parameterised | `@ParameterizedTest` + `@MethodSource`, with backtick-named cases                                                                  |
-| Integration   | `TestContext` — Testcontainers PostgreSQL and `WebTestClient`, including authorisation tests that assert the `@PreAuthorize` rules |
-| Architecture  | ArchUnit, as above                                                                                                                 |
+## Backend-specific conventions {#backend-specific-conventions}
 
-Tests run with `maxParallelForks` set to the available processors, and `koverVerify` plus `koverHtmlReport` are wired as
-finalisers, so coverage is checked on every build rather than on request.
+The shared rules are on the [Development conventions](/registry/technical/conventions) page. On top of them:
 
-## Related
+- **Dependencies between services.** A controller goes through a UseCase, or calls a `support/` service directly. A `core/` service (one per resource) never calls another `core/` service or a UseCase; a UseCase is injected nowhere but in a controller; a `support/` service depends on no business service. Each service has its `I…` interface and its implementation in `impl/`.
+- **Helpers in their place.** A reusable business rule goes in `domain/helper/`, a technical processing step in the `helper/` of the adapter it serves.
+- **Mapping through MapStruct only.** No hand-written object conversion; a complex transformation goes through a MapStruct method or decorator.
+- **Parameter objects.** Beyond seven parameters, they are grouped. A `@Query` receives its filters in a criteria object and its sorting and pagination in a `PageQuery`; only the project, the visibility and identifiers remain plain parameters. Pure data carriers (entities, DTOs, models) are exempt.
+- **One-line lambdas,** without a `{ … }` block, or replaced by a method reference (`::`).
+- **Typed permissions.** `@PreAuthorize` rules use the constants from `domain/constant`, never a string literal, and stay aligned with the migrations that inject the roles.
+- **Forward-only migrations.** Every schema change is a new `V…` migration; an applied migration is never modified.
+- **Typed, documented configuration.** Each setting goes through typed properties and appears in the repository README.
+- **A consistent API.** Plural resources, version in the URL, mandatory pagination on lists, ISO 8601 dates: see [API contract](/registry/technical/api-reference).
+- **Reactive tests.** `StepVerifier` for streams, Testcontainers for the database, `WebTestClient` for endpoints; the clock is injected (`Clock`) and no `Thread.sleep` appears in tests.
 
-- [Security](/registry/technical/security) — the authority model and the filter chain
-- [Data Model](/registry/technical/data-model) — schema, indexes and migrations
-- [API Reference](/registry/technical/api-reference) — every endpoint and its permission
-- [Getting Started](/registry/technical/getting-started) — running it locally
+## See also
+
+- [Development conventions](/registry/technical/conventions) — the rules shared by the repositories
+- [Security](/registry/technical/security) — each mechanism and its role
+- [Data model](/registry/technical/data-model) — schema and migrations
+- [API contract](/registry/technical/api-reference) — shared conventions
+- [Getting started](/registry/technical/getting-started) — run it locally

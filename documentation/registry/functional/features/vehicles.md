@@ -1,96 +1,59 @@
+---
+title: 'Feature: Vehicles'
+description: 'Manage the vehicle fleet, assign vehicles to check-outs and track their use.'
+---
+
 # Feature: Vehicles
 
 ## 1. Overview
 
-- **Goal:** A vehicle is a car, van or bus available to the event. Registering it lets staff record — inside a [movement](/registry/functional/features/movements) — who travelled in which vehicle, and derives a live **presence status** (`IN` / `OUT`) from the vehicle's latest movement. That status feeds the **vehicle-presence card** on the dashboard, so a coordinator can see at a glance which vehicles are on site and which are out.
-- **Who uses it:** `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` maintain the vehicle fleet and review each vehicle's movement history. `PROJECT_PARTICIPANT` has **no access** to vehicle management (though they may assign an existing vehicle while recording a movement).
-- **Option required:** **`VEHICLE`.** Every vehicle endpoint is gated by this option — if it is off, the whole feature is closed regardless of role.
+- **Goal:** A vehicle is a car, a van or a bus available to the event. It is assigned, with its driver, to registered check-outs; its presence (inside / outside) follows from that and feeds the vehicle status on the project home.
+- **Who uses it:** RP_A and RP_C manage the fleet and view the histories; RP_A permanently deletes. RP_P has no access to the list, but assigns vehicles in movements.
+- **Option required:** **O_V `VEHICLE`.** With the option disabled, the feature is closed to everyone (the data is kept).
 
-## 2. Roles & Permissions
+## 2. Roles and permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — plus *History* (a vehicle's movement history). See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Vehicle](/registry/functional/domain-model#vehicle-option) for the entity.
-
-| Role | Permitted actions | Conditions / Scope |
-| ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Only role that can permanently delete a vehicle; also registers, edits and views movement history (`REGISTRY_PROJECT_VEHICLE_C/R/U/D`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
-| `PROJECT_COORDINATOR` | **C R U** + History | Registers, edits, disables/enables and views movement history, same as the administrator — but cannot delete a vehicle (`REGISTRY_PROJECT_VEHICLE_C/R/U`, `REGISTRY_PROJECT_VEHICLE_HISTORY_R`). Requires the `VEHICLE` option. |
-| `PROJECT_PARTICIPANT` | — | No access to vehicle management. May still assign an existing vehicle within a movement. |
-
-> **Option gating first.** All rows above assume the project has the `VEHICLE` option enabled. With the option off, the API is closed for every role — see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating).
+| Role | Permitted actions | Conditions / scope |
+| --- | --- | --- |
+| RP_A | Create, read, update, delete, restore, permanently delete, history | Permanent deletion only without any recorded movement. |
+| RP_C | Create, read, update, delete, restore, history | — |
+| RP_P | — | Can only pick an available vehicle at a movement's "vehicles" step. |
 
 ## 3. Business rules
 
-- **Identity fields.** A vehicle has a **licence plate** (formatted like `aa-999-aa`), a **brand** and a **model**.
-- **Availability window is optional.** With no window of its own, a vehicle inherits the project's window — see [Domain Model → Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution). When both are set, availability **start must be before the end** (`@StartBeforeEnd`).
-- **Presence is derived, not stored.** A vehicle is `IN` or `OUT` depending on its **latest movement**; with no movement it is off-site. This status drives the dashboard vehicle-presence card.
-- **Assigned inside movements.** A vehicle is never "used" on its own — it is assigned to participants **inside a movement**, and only on `REGISTERED` content (see [Movements → Business rules](/registry/functional/features/movements#3-business-rules)). It is unrelated to the movement's **pool label** (a snapshot of the originating group's name), which any participant entry may carry regardless of vehicle assignment.
-- **Disabling is soft and reversible.** A vehicle can be disabled (hidden from selection) and later re-enabled without losing its history.
+- **License plate** required (not blank), 20 characters maximum; **make** and **model** required, 150 characters maximum.
+- **Availability** optional, within the project's period; without dates, the vehicle is permanently available.
+- **Presence derived** from its last movement; without any movement, it is off site.
+- **Assignment** only in a registered check-out or check-in, with an adult driver; never for guests.
+- **Deletion** soft and reversible; a deleted vehicle is no longer offered in movements. Permanent deletion is refused if it has been used in a movement.
 
-## 4. Behavioral scenarios (BDD)
+## 4. Screens
 
-```gherkin
-Scenario: A coordinator registers a vehicle but cannot delete one
-  Given the project has the VEHICLE option enabled
-  And I hold the PROJECT_COORDINATOR role
-  When I create a vehicle with plate "AA-123-BB", brand "Renault", model "Trafic"
-  And an availability window from 2026-07-10 to 2026-07-24
-  Then the vehicle is created
-  And it is available for assignment in movements
-  When I then attempt to delete "AA-123-BB"
-  Then the request is refused for lack of REGISTRY_PROJECT_VEHICLE_D
-```
+### 4.1 "Vehicles" list {#vehicles-list}
 
-```gherkin
-Scenario: The availability start must be before the end
-  Given the project has the VEHICLE option enabled
-  When I create a vehicle whose availability starts 2026-07-24 and ends 2026-07-10
-  Then the request is rejected by the @StartBeforeEnd validator
-  And no vehicle is created
-```
+Shared behaviors: see [Lists](/registry/functional/screens#common-list-behaviors). Everything is reserved for RP_A and RP_C.
 
-```gherkin
-Scenario: Vehicle presence is derived from its latest movement
-  Given a registered vehicle "AA-123-BB"
-  When its latest movement is an OUT
-  Then the dashboard shows "AA-123-BB" as OUT
-  When a later IN movement carries it back
-  Then the dashboard shows "AA-123-BB" as IN
-```
+- **Filters**: text, date/time, status; deleted / not deleted.
+- The "Create" button opens the creation form.
+- **Each row** shows the plate, the make and the model (truncated with "…"), the availability range, the status, and the "Movement history" primary button.
+- A deleted vehicle is grayed out and carries the "Deleted" tag.
+- **Actions menu**: "Edit", "Delete" (if not deleted), "Restore" (if deleted), [RP_A] "Permanently delete" — deletions and restoration with confirmation.
 
-```gherkin
-Scenario: The feature is closed when the VEHICLE option is off
-  Given the project does not have the VEHICLE option enabled
-  When I attempt to list vehicles
-  Then the request is refused because the feature is closed
-  Regardless of my role
-  And any vehicles and past movement assignments recorded earlier are retained, not deleted — see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating)
-```
+### 4.2 A vehicle's check-in/check-out history {#vehicle-history}
 
-```gherkin
-Scenario: A participant cannot manage vehicles
-  Given the project has the VEHICLE option enabled
-  And I hold the PROJECT_PARTICIPANT role
-  When I attempt to create a vehicle
-  Then the request is refused for lack of REGISTRY_PROJECT_VEHICLE_C
-```
+[RP_A, RP_C]
 
-```gherkin
-Scenario: Disabling a vehicle hides it without losing history
-  Given a registered vehicle "AA-123-BB" with recorded movements
-  When I disable it
-  Then it is no longer offered for assignment in new movements
-  And its movement history remains readable
-  When I enable it again
-  Then it can be assigned once more
-```
+- The header recalls the vehicle's identity, truncated with "…".
+- Same filters, rows and actions as the ["Check-ins & check-outs" list](/registry/functional/features/movements#movements-list), restricted to the vehicle's movements.
+- **Statistics** above the list:
+  - **planned timeline**: the project's duration with the vehicle's availability range(s);
+  - **actual timeline**: the project's duration with the ranges when the vehicle was out;
+  - the vehicle's **usage percentage**.
 
-```gherkin
-Scenario: A coordinator reviews a vehicle's movement history
-  Given a registered vehicle "AA-123-BB" that has carried participants
-  When I open its movement history
-  Then I see each movement it was assigned to, with direction and timestamp
-```
+### 4.3 Vehicle form
 
-## 5. API surface
+[RP_A, RP_C] Shared rules: see [Forms](/registry/functional/screens#common-form-behaviors).
 
-The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.
+- **License plate**: required, 20 characters maximum.
+- **Make**, **model**: required, 150 characters maximum.
+- **Availability start** and **end**: optional.
