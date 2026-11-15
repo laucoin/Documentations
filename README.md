@@ -2,8 +2,8 @@
 
 [![Deploy](https://github.com/laucoin/Documentations/actions/workflows/deploy.yml/badge.svg)](https://github.com/laucoin/Documentations/actions/workflows/deploy.yml)
 [![VitePress](https://img.shields.io/badge/VitePress-2.0.0--alpha-646cff?style=flat-square&logo=vite&logoColor=white)](https://vitepress.dev/)
-[![pnpm](https://img.shields.io/badge/pnpm-11-F69220?style=flat-square&logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![Node](https://img.shields.io/badge/Node-24+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-12-F69220?style=flat-square&logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![Node](https://img.shields.io/badge/Node-26+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License: CC BY-NC-ND 4.0](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-lightgrey.svg?style=flat-square)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
@@ -23,7 +23,7 @@ Live at [doc.laucoin.fr](https://doc.laucoin.fr).
 
 ### Prerequisites
 
-Install [Node.js 24 or later](https://nodejs.org/) and [pnpm 11 or later](https://pnpm.io/installation)
+Install [Node.js 26 or later](https://nodejs.org/) and [pnpm 12 or later](https://pnpm.io/installation)
 
 ### Build and run locally
 
