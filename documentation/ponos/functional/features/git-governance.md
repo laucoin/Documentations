@@ -17,10 +17,10 @@ Configures the user's global Git (`~/.gitconfig`) and points Git at the reposito
 
 **Template hooks** — because `init.templateDir` is set, every `git init` / `git clone` gets these hooks:
 
-| Hook | What it enforces |
-| ---- | ---------------- |
+| Hook             | What it enforces                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`commit-msg`** | Validates the message against Conventional-Commit keywords (`build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`, `BREAKING_CHANGE`). A `wip …` message is prefixed with `[skip ci]`. An off-convention message triggers an attempt to synthesise a valid one from the branch name; if that fails, the commit is rejected with guidance. |
-| **`pre-push`** | Requires interactive confirmation when pushing to a protected branch (`master`, `main`, `develop`) or when a **force push** is detected. |
+| **`pre-push`**   | Requires interactive confirmation when pushing to a protected branch (`master`, `main`, `develop`) or when a **force push** is detected.                                                                                                                                                                                                                                         |
 
 ## 4. Business rules
 

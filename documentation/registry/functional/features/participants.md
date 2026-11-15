@@ -13,12 +13,12 @@ description: 'Register participants, track their presence and history, and expor
 
 ## 2. Roles and permissions
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| RP_A | Create, read, update, delete, restore, permanently delete, history, GDPR export | Permanent deletion only without any recorded movement. |
-| RP_C | Create, read, update, delete, restore, history | Sees deleted participants. |
-| RP_P | Create, read, update, delete | Does not see deleted participants; no history. When editing, does not change the linked user, except to remove their own link. |
-| Linked user | GDPR export | For the participant linked to them. |
+| Role        | Permitted actions                                                               | Conditions / scope                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| RP_A        | Create, read, update, delete, restore, permanently delete, history, GDPR export | Permanent deletion only without any recorded movement.                                                                         |
+| RP_C        | Create, read, update, delete, restore, history                                  | Sees deleted participants.                                                                                                     |
+| RP_P        | Create, read, update, delete                                                    | Does not see deleted participants; no history. When editing, does not change the linked user, except to remove their own link. |
+| Linked user | GDPR export                                                                     | For the participant linked to them.                                                                                            |
 
 ## 3. Business rules
 

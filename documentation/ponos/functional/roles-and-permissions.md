@@ -1,6 +1,6 @@
 # Actors & Trust Boundary
 
-This is the security baseline for Ponos. It is a single-user tool with **no authentication and no multi-user permission model** — there is nothing to log in to. The meaningful security question is therefore not *"who is allowed to do what"* but *"what is this tool allowed to touch on my machine, with what privileges, and where does it reach out to the network"*. Every feature page references this boundary.
+This is the security baseline for Ponos. It is a single-user tool with **no authentication and no multi-user permission model** — there is nothing to log in to. The meaningful security question is therefore not _"who is allowed to do what"_ but _"what is this tool allowed to touch on my machine, with what privileges, and where does it reach out to the network"_. Every feature page references this boundary.
 
 ## Authentication model
 
@@ -8,24 +8,24 @@ This is the security baseline for Ponos. It is a single-user tool with **no auth
 
 ## Actors
 
-| Actor | Description | How it is recognised |
-| ----- | ----------- | -------------------- |
-| **Operator** | A human running the script at a terminal, answering prompts. | Standard input is a TTY (`[[ -t 0 ]]`). |
-| **Automation** | The same script running unattended (piped stdin, CI, provisioning). | Standard input is **not** a TTY — prompts are skipped and defaults/overrides are used. |
-| **Daily Driver** | The interactive shell using the installed aliases and Python CLI helpers after setup. | Runs as the logged-in user in an interactive zsh session. |
+| Actor            | Description                                                                           | How it is recognised                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Operator**     | A human running the script at a terminal, answering prompts.                          | Standard input is a TTY (`[[ -t 0 ]]`).                                                |
+| **Automation**   | The same script running unattended (piped stdin, CI, provisioning).                   | Standard input is **not** a TTY — prompts are skipped and defaults/overrides are used. |
+| **Daily Driver** | The interactive shell using the installed aliases and Python CLI helpers after setup. | Runs as the logged-in user in an interactive zsh session.                              |
 
 All three are the same operating-system user. The Operator/Automation distinction only changes **whether the tool asks questions**, never what it is permitted to do.
 
 ## Privilege boundary — what Ponos is allowed to touch
 
-| Domain | What Ponos does | Privilege required |
-| ------ | --------------- | ------------------ |
-| **Homebrew & packages** | Installs Homebrew if absent; runs `brew bundle` to install formulae and casks. | User-level. Homebrew itself may prompt for `sudo` when a **cask** installs into `/Applications`; that prompt comes from Homebrew, not from Ponos. |
-| **Home directory config** | Symlinks dotfiles into `$HOME` and `$HOME/.config`, `$HOME/.ssh`, VS Code's user directory, etc. | User-level, within `$HOME`. |
-| **Global Git config** | Rewrites `~/.gitconfig` and sets Git's template/hook directories. | User-level. |
-| **Language toolchains** | Installs pyenv/nvm/SDKMAN runtimes under `$HOME` (`~/.pyenv`, `~/.nvm`, `~/.sdkman`). | User-level. |
-| **Running applications** | Restarts `Finder`, `Dock`, `SystemUIServer` so changes take effect (`killall`). | User-level, targets the user's own processes. |
-| **The machine as a whole** | Guarded to **macOS only** — the script exits immediately on any non-Darwin OS. | — |
+| Domain                     | What Ponos does                                                                                  | Privilege required                                                                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Homebrew & packages**    | Installs Homebrew if absent; runs `brew bundle` to install formulae and casks.                   | User-level. Homebrew itself may prompt for `sudo` when a **cask** installs into `/Applications`; that prompt comes from Homebrew, not from Ponos. |
+| **Home directory config**  | Symlinks dotfiles into `$HOME` and `$HOME/.config`, `$HOME/.ssh`, VS Code's user directory, etc. | User-level, within `$HOME`.                                                                                                                       |
+| **Global Git config**      | Rewrites `~/.gitconfig` and sets Git's template/hook directories.                                | User-level.                                                                                                                                       |
+| **Language toolchains**    | Installs pyenv/nvm/SDKMAN runtimes under `$HOME` (`~/.pyenv`, `~/.nvm`, `~/.sdkman`).            | User-level.                                                                                                                                       |
+| **Running applications**   | Restarts `Finder`, `Dock`, `SystemUIServer` so changes take effect (`killall`).                  | User-level, targets the user's own processes.                                                                                                     |
+| **The machine as a whole** | Guarded to **macOS only** — the script exits immediately on any non-Darwin OS.                   | —                                                                                                                                                 |
 
 Ponos never writes outside the invoking user's account on its own. The only elevation that can occur is a `sudo` prompt raised **by Homebrew** during a cask install.
 
@@ -33,13 +33,13 @@ Ponos never writes outside the invoking user's account on its own. The only elev
 
 Bootstrapping is not hermetic — it deliberately fetches from the network:
 
-| Reaches out to | Why |
-| -------------- | --- |
-| `raw.githubusercontent.com/Homebrew/install` | Install Homebrew when it is missing. |
-| Homebrew's formulae/casks CDN | Download every package in the Brewfile. |
+| Reaches out to                                     | Why                                            |
+| -------------------------------------------------- | ---------------------------------------------- |
+| `raw.githubusercontent.com/Homebrew/install`       | Install Homebrew when it is missing.           |
+| Homebrew's formulae/casks CDN                      | Download every package in the Brewfile.        |
 | `github.com/zsh-users/*`, `github.com/dracula/vim` | Clone shell plugins and the Vim Dracula theme. |
-| `get.sdkman.io` | Install SDKMAN. |
-| pyenv / nvm / SDKMAN mirrors | Download the requested language runtimes. |
+| `get.sdkman.io`                                    | Install SDKMAN.                                |
+| pyenv / nvm / SDKMAN mirrors                       | Download the requested language runtimes.      |
 
 An air-gapped run is not supported. The Automation actor should have network egress to at least these hosts.
 

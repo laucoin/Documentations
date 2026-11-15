@@ -7,13 +7,13 @@
 
 Ponos ships five shell aliases backed by two Python/Click command groups. They are wired up in `.zshrc` and share a common coloured logger, so their output matches the rest of the tooling.
 
-| Alias | Backed by | Purpose |
-| ----- | --------- | ------- |
-| `bclean` | `git_ext.py bclean` | Delete stale local branches. |
-| `rfrom` | `git_ext.py rfrom` | Rebase the current (or a named) branch onto the default branch. |
+| Alias    | Backed by           | Purpose                                                                 |
+| -------- | ------------------- | ----------------------------------------------------------------------- |
+| `bclean` | `git_ext.py bclean` | Delete stale local branches.                                            |
+| `rfrom`  | `git_ext.py rfrom`  | Rebase the current (or a named) branch onto the default branch.         |
 | `rhooks` | `git_ext.py rhooks` | Re-deploy Git template hooks across all repositories under a directory. |
-| `uport` | `sys_ext.py uport` | Show which process is listening on a TCP port. |
-| `kport` | `sys_ext.py kport` | Terminate the process listening on a TCP port. |
+| `uport`  | `sys_ext.py uport`  | Show which process is listening on a TCP port.                          |
+| `kport`  | `sys_ext.py kport`  | Terminate the process listening on a TCP port.                          |
 
 The precise flags and defaults are documented in [Technical → CLI Reference](/ponos/technical/cli-reference).
 
@@ -24,7 +24,7 @@ These commands act on the current user's repositories and processes. `kport` sen
 ## 3. Behaviour
 
 - **`bclean [branch]`** — switches to the default branch, then deletes every local branch except the protected set (`develop`, `main`, `master`, plus the given/default branch). Reports the deleted branches, or that the repo is already clean.
-- **`rfrom [target]`** — pulls `target` (default: `GIT_DEFAULT_BRANCH`), switches back to the working branch, and rebases it onto `target`. If the working branch *is* the target, it just pulls.
+- **`rfrom [target]`** — pulls `target` (default: `GIT_DEFAULT_BRANCH`), switches back to the working branch, and rebases it onto `target`. If the working branch _is_ the target, it just pulls.
 - **`rhooks`** — finds every `.git/hooks` directory under the repositories directory and copies the template hooks into each; `--force` overwrites existing hooks, otherwise they are skipped.
 - **`uport <port>`** — runs `lsof` for listeners on the port and prints the matching PIDs (or reports the port is free).
 - **`kport <port>`** — resolves the listeners as `uport` does, then sends each PID a `SIGTERM`.

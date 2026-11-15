@@ -21,5 +21,5 @@ Each step degrades gracefully: if the manager is absent, it logs a warning and i
 ## Consequences
 
 - **Pros:** Per-project version switching is available out of the box. Everything installs under the user's home, needing no elevation. Fail-soft keeps a missing manager from aborting the run.
-- **Cons / trade-offs:** Three different managers mean three ecosystems, three init snippets in `.zshrc`, and slower shell startup. Python is intentionally *not* pinned (latest-stable), so two machines set up months apart may get different Python versions — deliberate for freshness, at the cost of strict reproducibility. SDKMAN's init script is incompatible with `set -eu`, requiring a local `set +eu` guard.
+- **Cons / trade-offs:** Three different managers mean three ecosystems, three init snippets in `.zshrc`, and slower shell startup. Python is intentionally _not_ pinned (latest-stable), so two machines set up months apart may get different Python versions — deliberate for freshness, at the cost of strict reproducibility. SDKMAN's init script is incompatible with `set -eu`, requiring a local `set +eu` guard.
 - **Alternatives rejected:** System/Homebrew installs of each runtime (one global version, awkward switching) and a single polyglot manager like `asdf`/`mise` (fewer moving parts, but a departure from the per-language managers already in muscle memory).

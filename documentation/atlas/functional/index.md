@@ -18,8 +18,8 @@ Atlas turns a single machine sitting in my home into a small, opinionated cloud.
 
 ## Documentation map
 
-| Page                     | Purpose                                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| Page                                     | Purpose                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | [Personas](/atlas/functional/personas)   | Who interacts with Atlas and what they need from it                                              |
 | [Services](/atlas/functional/services)   | The catalog of user-facing services and what each one is for                                     |
 | [Workflows](/atlas/functional/workflows) | End-to-end journeys: signing in, pushing an image, viewing a dashboard, recovering from a backup |

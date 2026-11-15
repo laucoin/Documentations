@@ -13,12 +13,12 @@ description: 'Record check-ins and check-outs of registered participants and gue
 
 ## 2. Roles and permissions
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| RP_A | Create, read, update, delete, restore, permanently delete | — |
-| RP_C | Create, read, update, delete, restore | Sees deleted movements. |
-| RP_P | Create, read, update, delete | Does not see deleted movements. |
-| All | Read live headcounts | On the project home. |
+| Role | Permitted actions                                         | Conditions / scope              |
+| ---- | --------------------------------------------------------- | ------------------------------- |
+| RP_A | Create, read, update, delete, restore, permanently delete | —                               |
+| RP_C | Create, read, update, delete, restore                     | Sees deleted movements.         |
+| RP_P | Create, read, update, delete                              | Does not see deleted movements. |
+| All  | Read live headcounts                                      | On the project home.            |
 
 The histories of a participant, a vehicle or an activity are reserved for RP_A and RP_C.
 
@@ -35,10 +35,10 @@ The histories of a participant, a vehicle or an activity are reserved for RP_A a
 - A **guest check-in** requires a reason; a **guest check-out** has none.
 - Each reason is only valid for a given direction and type:
 
-| Reason | Applies to | Type |
-| --- | --- | --- |
+| Reason                                         | Applies to                      | Type      |
+| ---------------------------------------------- | ------------------------------- | --------- |
 | Shopping, medical, definitive departure, other | Registered participants leaving | Check-out |
-| Emergency, logistics, partner activity, visit | Guests arriving | Check-in |
+| Emergency, logistics, partner activity, visit  | Guests arriving                 | Check-in  |
 
 - O_A The activities available at the movement's date appear among a check-out's reasons.
 

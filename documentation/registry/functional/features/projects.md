@@ -15,13 +15,13 @@ description: 'Create and configure a project, its dates and options, and browse 
 
 See the [legend](/registry/functional/roles-and-permissions#legend) and the [full matrix](/registry/functional/roles-and-permissions#project-access-matrix).
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| R_U, R_A | Create | The creator becomes the project's RP_A. At most 10 creations per hour and per user. |
-| R_A | Read all projects, join as support | Sees all projects ("with profile" filter), even without a profile. |
-| RP_A | Read, update, delete, restore, permanently delete | Only role that can edit the project itself. |
-| RP_C, RP_P | Read | Read-only access to settings; they run day-to-day operations. |
-| All | Add / remove favorites | On a project they can read. |
+| Role       | Permitted actions                                 | Conditions / scope                                                                  |
+| ---------- | ------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| R_U, R_A   | Create                                            | The creator becomes the project's RP_A. At most 10 creations per hour and per user. |
+| R_A        | Read all projects, join as support                | Sees all projects ("with profile" filter), even without a profile.                  |
+| RP_A       | Read, update, delete, restore, permanently delete | Only role that can edit the project itself.                                         |
+| RP_C, RP_P | Read                                              | Read-only access to settings; they run day-to-day operations.                       |
+| All        | Add / remove favorites                            | On a project they can read.                                                         |
 
 ## 3. Business rules
 

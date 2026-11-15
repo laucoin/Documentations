@@ -13,11 +13,11 @@ description: 'The messages attached to check-outs and alerts, displayed as a con
 
 ## 2. Roles and permissions
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| RP_A | Create, read, update, delete, restore, permanently delete | — |
-| RP_C | Create, read, update, delete, restore | — |
-| RP_P | Create, read, update, delete | Does not see deleted messages. |
+| Role | Permitted actions                                         | Conditions / scope             |
+| ---- | --------------------------------------------------------- | ------------------------------ |
+| RP_A | Create, read, update, delete, restore, permanently delete | —                              |
+| RP_C | Create, read, update, delete, restore                     | —                              |
+| RP_P | Create, read, update, delete                              | Does not see deleted messages. |
 
 ## 3. Business rules
 

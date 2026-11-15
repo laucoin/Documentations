@@ -6,22 +6,22 @@ Every meaningful component in Atlas has a corresponding ADR explaining why it wa
 
 ### Foundations
 
-| #                                 | Title                                    |
-| --------------------------------- | ---------------------------------------- |
+| #                                                    | Title                                    |
+| ---------------------------------------------------- | ---------------------------------------- |
 | [001](/atlas/technical/adr/001-kubernetes-vs-docker) | Kubernetes over Docker (Swarm / Compose) |
 | [002](/atlas/technical/adr/002-talos-vs-k3s-debian)  | Talos Linux over k3s on Debian           |
 
 ### IaC and GitOps
 
-| #                                            | Title                              |
-| -------------------------------------------- | ---------------------------------- |
+| #                                                               | Title                              |
+| --------------------------------------------------------------- | ---------------------------------- |
 | [003](/atlas/technical/adr/003-opentofu-vs-terraform-vs-pulumi) | OpenTofu over Terraform and Pulumi |
 | [004](/atlas/technical/adr/004-argocd-vs-flux)                  | Argo CD over Flux                  |
 
 ### Deployed solutions
 
-| #                                          | Title                                                        |
-| ------------------------------------------ | ------------------------------------------------------------ |
+| #                                                             | Title                                                        |
+| ------------------------------------------------------------- | ------------------------------------------------------------ |
 | [005](/atlas/technical/adr/005-traefik-ingress)               | Traefik as ingress controller                                |
 | [006](/atlas/technical/adr/006-cert-manager-tls)              | cert-manager for TLS certificates                            |
 | [007](/atlas/technical/adr/007-local-path-restic-storage)     | local-path-provisioner + Restic for storage and backup       |
@@ -34,6 +34,6 @@ Every meaningful component in Atlas has a corresponding ADR explaining why it wa
 
 ### Bootstrap orchestration
 
-| #                                                    | Title                                                                   |
-| ---------------------------------------------------- | ----------------------------------------------------------------------- |
+| #                                                                       | Title                                                                   |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | [012](/atlas/technical/adr/012-opentofu-owns-identity-secret-bootstrap) | In-cluster automation owns the identity/secret bootstrap handshake (L3) |

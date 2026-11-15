@@ -21,12 +21,12 @@ When documentation is enabled (`REGISTRY_DOCUMENTATION_ENABLED=true`, in develop
 
 ### Consistent verbs
 
-| Verb | Usage |
-| --- | --- |
-| `GET` | Read (a record, a list page, a capped search, statistics) |
-| `POST` | Create, and trigger a **state transition** (hide/show, block/unblock, accept an invitation, add to favorites…) |
-| `PATCH` | Change some fields |
-| `DELETE` | Permanently delete (or leave, for one's own profile) |
+| Verb     | Usage                                                                                                          |
+| -------- | -------------------------------------------------------------------------------------------------------------- |
+| `GET`    | Read (a record, a list page, a capped search, statistics)                                                      |
+| `POST`   | Create, and trigger a **state transition** (hide/show, block/unblock, accept an invitation, add to favorites…) |
+| `PATCH`  | Change some fields                                                                                             |
+| `DELETE` | Permanently delete                                                                                             |
 
 Each state transition is a separate endpoint, with its own access rule: (soft) delete, restore and permanently delete map to three distinct permissions ([ADR 017](/registry/technical/adr/017-soft-delete-and-restore-permissions)).
 
@@ -58,38 +58,38 @@ Reads and writes of an item return an `ETag` derived from its last change. Sendi
 
 ### Status codes to know
 
-| Code | Meaning in Registry |
-| --- | --- |
-| `400` | Invalid request (validation, parameter too long, inverted range…) |
-| `401` | Not authenticated or invalid token — the frontend tries a refresh then sends to sign-in |
-| `403` | Insufficient permission, project option disabled or failed CSRF check |
-| `404` | Item not found (or invisible to the caller) |
+| Code                  | Meaning in Registry                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------- |
+| `400`                 | Invalid request (validation, parameter too long, inverted range…)                           |
+| `401`                 | Not authenticated or invalid token — the frontend tries a refresh then sends to sign-in     |
+| `403`                 | Insufficient permission, project option disabled or failed CSRF check                       |
+| `404`                 | Item not found (or invisible to the caller)                                                 |
 | `408` / `409` / `412` | Concurrency: timeout, lock unavailable or business conflict, item changed since it was read |
-| `413` | Request body too large |
-| `422` | Business rule violated (incompatible reason, definitive departure before other movements…) |
-| `423` | Account blocked |
-| `424` | The identity provider is not responding correctly |
-| `429` | Rate limit exceeded |
+| `413`                 | Request body too large                                                                      |
+| `422`                 | Business rule violated (incompatible reason, definitive departure before other movements…)  |
+| `423`                 | Account blocked                                                                             |
+| `424`                 | The identity provider is not responding correctly                                           |
+| `429`                 | Rate limit exceeded                                                                         |
 
 ## The API by domain
 
-| Domain | What it covers | Access |
-| --- | --- | --- |
-| **Authentication** | Sign-in and sign-out URLs, token exchange and refresh, current user with their authorities and preferences | Public for the token exchange; the rest authenticated |
-| **Metadata** | Translated labels of the enumerations (statuses, types, project options…) and features enabled by configuration | Public, no sensitive data |
-| **Users** | Directory, application role, blocking, deletion, GDPR export; deletion and export of one's own account | Platform administrator; oneself |
-| **Preferences** | Theme, language, refresh frequency | Oneself |
-| **My profiles** | My memberships and invitations, accept/decline, leave a project, join as support | Oneself; support: platform administrator |
-| **Projects** | List with summary (profile, counters, alerts), CRUD, soft delete/restore, favorites | Depending on the profile; global read for the platform administrator |
-| **Members (project profiles)** | Bulk invitation, change of role and access window, blocking, removal, user search by exact email | Project administrator; read: coordinator |
-| **Participants** | CRUD, birthdays, movement history and presence timeline, GDPR export, selection searches | Project roles (history: administrator and coordinator) |
-| **Groups** | CRUD, members (list, add, remove) | Project roles |
-| **Movements** | Check-ins/check-outs of registered participants and guests, contents, live headcounts, planned arrivals and departures, selection searches | Project roles |
-| **Vehicles** _(option)_ | CRUD, history, timeline and usage rate | Administrator and coordinator |
-| **Activities** _(option)_ | CRUD, history and statistics | Administrator and coordinator |
-| **Communications** _(option)_ | Messages, threads of a movement or an alert | Project roles |
-| **Alerts** _(option)_ | CRUD, status change, thread, statistics | Project roles |
-| **Purges** | The five retention sweeps, as a dry run by default | Scheduled job permission |
+| Domain                         | What it covers                                                                                                                             | Access                                                               |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| **Authentication**             | Sign-in and sign-out URLs, token exchange and refresh, current user with their authorities and preferences                                 | Public for the token exchange; the rest authenticated                |
+| **Metadata**                   | Translated labels of the enumerations (statuses, types, project options…) and features enabled by configuration                            | Public, no sensitive data                                            |
+| **Users**                      | Directory, application role, blocking, deletion, GDPR export; deletion and export of one's own account                                     | Platform administrator; oneself                                      |
+| **Preferences**                | Theme, language, refresh frequency                                                                                                         | Oneself                                                              |
+| **My profiles**                | My memberships and invitations, accept/decline, join as support                                                                            | Oneself; support: platform administrator                             |
+| **Projects**                   | List with summary (profile, counters, alerts), CRUD, soft delete/restore, favorites                                                        | Depending on the profile; global read for the platform administrator |
+| **Members (project profiles)** | Bulk invitation, change of role and access window, blocking, removal, user search by exact email                                           | Project administrator; read: coordinator                             |
+| **Participants**               | CRUD, birthdays, movement history and presence timeline, GDPR export, selection searches                                                   | Project roles (history: administrator and coordinator)               |
+| **Groups**                     | CRUD, members (list, add, remove)                                                                                                          | Project roles                                                        |
+| **Movements**                  | Check-ins/check-outs of registered participants and guests, contents, live headcounts, planned arrivals and departures, selection searches | Project roles                                                        |
+| **Vehicles** _(option)_        | CRUD, history, timeline and usage rate                                                                                                     | Administrator and coordinator                                        |
+| **Activities** _(option)_      | CRUD, history and statistics                                                                                                               | Administrator and coordinator                                        |
+| **Communications** _(option)_  | Messages, threads of a movement or an alert                                                                                                | Project roles                                                        |
+| **Alerts** _(option)_          | List, creation, status change, soft delete/restore, permanent deletion, thread, statistics                                                 | Project roles                                                        |
+| **Purges**                     | The five retention sweeps, as a dry run by default                                                                                         | Scheduled job permission                                             |
 
 The full "who can do what" matrix is in [Roles and permissions](/registry/functional/roles-and-permissions).
 

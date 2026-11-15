@@ -6,18 +6,18 @@ rules precisely so that all pages remain visually and structurally consistent.
 ## General AI Rules & Workflow
 
 1. **Language:**
-    - **Conversation:** Reply to the user in whichever language they use to write to you.
-    - **Edits:** Every file written to this repository (functional, technical, landing pages, commit messages, code
-      comments) **must be strictly in English**, regardless of the language the user asked in or requested it in.
+   - **Conversation:** Reply to the user in whichever language they use to write to you.
+   - **Edits:** Every file written to this repository (functional, technical, landing pages, commit messages, code
+     comments) **must be strictly in English**, regardless of the language the user asked in or requested it in.
 2. **Interactive First:** Always guide the user interactively. Present structured choices/options and ALWAYS include an
    `"Other (please specify)"` choice.
 3. **Sequential Documentation Flow:**
-    - **Step 1 — Functional First:** Focus on complete business domain requirements, roles & permissions (RBAC), user
-      flows (BDD Gherkin scenarios), domain entities, and functional specs in
-      `documentation/[project-name]/functional/`.
-    - **Step 2 — Technical Second:** Never draft, complete, or make technical decisions
-      (`documentation/[project-name]/technical/`) before the functional specs and security baseline are completed and
-      fully established.
+   - **Step 1 — Functional First:** Focus on complete business domain requirements, roles & permissions (RBAC), user
+     flows (BDD Gherkin scenarios), domain entities, and functional specs in
+     `documentation/[project-name]/functional/`.
+   - **Step 2 — Technical Second:** Never draft, complete, or make technical decisions
+     (`documentation/[project-name]/technical/`) before the functional specs and security baseline are completed and
+     fully established.
 4. **Project Hub Context:** Remember this repository acts both as a central global documentation system and a hub to
    navigate between projects.
 5. **Technical Decision Protocol:** A technical choice is never a non-choice. When a decision has more than one viable
@@ -39,7 +39,7 @@ rules precisely so that all pages remain visually and structurally consistent.
 ## Commands
 
 | Command        | Purpose                                                       |
-|----------------|---------------------------------------------------------------|
+| -------------- | ------------------------------------------------------------- |
 | `pnpm dev`     | Start local dev server                                        |
 | `pnpm build`   | Build for production — also the dead-link checker (see below) |
 | `pnpm preview` | Preview production build                                      |
@@ -90,12 +90,12 @@ All in-repo links **must be root-absolute** — resolved from the VitePress sour
 never relative (`./`, `../`) to the current file. Relative links break the moment a file changes depth; root-absolute
 links survive moves and restructures.
 
-| Rule                          | Wrong                                               | Right                                                                                                         |
-|-------------------------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| Always start with `/`         | `./architecture`, `../technical/architecture`       | `/registry/technical/architecture`                                                                            |
-| Omit the `.md` extension      | `/registry/technical/adr/001-hexagonal-architecture.md` | `/registry/technical/adr/001-hexagonal-architecture`                                                        |
-| Trailing slash on index pages | `/registry/technical/adr`                           | `/registry/technical/adr/`                                                                                    |
-| Anchors appended as-is        | n/a                                                 | `/registry/functional/roles-and-permissions#project-options-gating` (same-page anchors stay bare: `#section`) |
+| Rule                          | Wrong                                                   | Right                                                                                                         |
+| ----------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Always start with `/`         | `./architecture`, `../technical/architecture`           | `/registry/technical/architecture`                                                                            |
+| Omit the `.md` extension      | `/registry/technical/adr/001-hexagonal-architecture.md` | `/registry/technical/adr/001-hexagonal-architecture`                                                          |
+| Trailing slash on index pages | `/registry/technical/adr`                               | `/registry/technical/adr/`                                                                                    |
+| Anchors appended as-is        | n/a                                                     | `/registry/functional/roles-and-permissions#project-options-gating` (same-page anchors stay bare: `#section`) |
 
 `pnpm build` is the authority: it fails on dead links. Run it after touching links or moving pages
 (see [Mandatory Pre-Task Validation](#mandatory-pre-task-validation)). `.vitepress/config.mts` sidebar links already
@@ -117,9 +117,9 @@ VitePress custom containers take their title from **the remainder of the marker 
 of the body up onto that line, so the whole paragraph becomes the title:
 
 |           | Markdown                                                         | Renders as                                                         |
-|-----------|------------------------------------------------------------------|--------------------------------------------------------------------|
-| **Right** | `::: tip Short title`<br>`Body text on the next line.`<br>`:::`  | Title: *Short title*                                               |
-| **Wrong** | `::: tip Short title Body text pulled up by the reflow`<br>`:::` | Title: *Short title Body text pulled up by the reflow*, body empty |
+| --------- | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **Right** | `::: tip Short title`<br>`Body text on the next line.`<br>`:::`  | Title: _Short title_                                               |
+| **Wrong** | `::: tip Short title Body text pulled up by the reflow`<br>`:::` | Title: _Short title Body text pulled up by the reflow_, body empty |
 
 **After any reformat, inspect every `:::` marker line and re-split any that swallowed its body.** The build does **not**
 catch this — the page compiles happily and renders wrong, so `pnpm build` passing is not evidence that the callouts
@@ -227,9 +227,9 @@ Must use `layout: home`. Minimum required frontmatter:
 layout: home
 
 hero:
-  name: "Project Name"
-  text: "One-line value proposition"
-  tagline: "Supporting tagline."
+  name: 'Project Name'
+  text: 'One-line value proposition'
+  tagline: 'Supporting tagline.'
 
 features:
   - title: Functional Documentation
@@ -268,9 +268,9 @@ Add a `<div class="card card--portal">` block to the `.portal-grid`. Structure:
 
 - `.card-icon` — emoji or icon
 - `.card-body` — flex column for text + actions
-    - `.card-title` — project name (`<h3>`)
-    - `.card-description` — short description (`<p>`)
-    - `.card-actions` — row of buttons
+  - `.card-title` — project name (`<h3>`)
+  - `.card-description` — short description (`<p>`)
+  - `.card-actions` — row of buttons
 
 Mandatory `.btn.btn--primary` → links to `/[project-name]/`
 

@@ -126,11 +126,11 @@ Existing repositories don't get template changes retroactively — [`rhooks`](/p
 
 ## Design properties
 
-| Property | How it is achieved |
-| -------- | ------------------ |
-| **Idempotent** | Check-then-act guards everywhere; symlink correctness is detected. |
-| **Non-destructive** | Real files are backed up with a timestamp before replacement. |
-| **Fail-soft** | Package and toolchain failures warn and continue rather than abort. |
-| **Unattended-capable** | TTY detection + `PONOS_*` overrides + persisted choices. |
-| **Consistent UX** | Shared colour palette across bash and Python output. |
-| **Single source of truth** | The repo declares state; the machine is reconciled to it. |
+| Property                   | How it is achieved                                                  |
+| -------------------------- | ------------------------------------------------------------------- |
+| **Idempotent**             | Check-then-act guards everywhere; symlink correctness is detected.  |
+| **Non-destructive**        | Real files are backed up with a timestamp before replacement.       |
+| **Fail-soft**              | Package and toolchain failures warn and continue rather than abort. |
+| **Unattended-capable**     | TTY detection + `PONOS_*` overrides + persisted choices.            |
+| **Consistent UX**          | Shared colour palette across bash and Python output.                |
+| **Single source of truth** | The repo declares state; the machine is reconciled to it.           |

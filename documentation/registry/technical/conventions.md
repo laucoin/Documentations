@@ -13,12 +13,12 @@ The detailed reference is in each repository: its `AGENTS.md` and its review ski
 
 ### Short functions
 
-| Measure | Limit | Beyond it |
-| --- | --- | --- |
-| Lines in a method | 25 | Split or extract (excluding signature, blank lines and comments) |
-| Parameters | 7 | Group them into a parameter object |
-| Nesting levels | 2 | Extract the block into a method or a helper |
-| Cyclomatic complexity | 6 | Flatten with early returns or polymorphism |
+| Measure               | Limit | Beyond it                                                        |
+| --------------------- | ----- | ---------------------------------------------------------------- |
+| Lines in a method     | 25    | Split or extract (excluding signature, blank lines and comments) |
+| Parameters            | 7     | Group them into a parameter object                               |
+| Nesting levels        | 2     | Extract the block into a method or a helper                      |
+| Cyclomatic complexity | 6     | Flatten with early returns or polymorphism                       |
 
 In the TypeScript projects, ESLint enforces these limits; in the backend, the review does. E2E tests are stricter (see [their page](/registry/technical/e2e#e2e-specific-conventions)).
 
@@ -62,12 +62,12 @@ Indentation uses tabs; each repository's `.editorconfig` sets their width.
 
 Each repository has a `code-review` skill that chains specialized reviews, from the big picture down to the details:
 
-| Repository | Review order |
-| --- | --- |
-| Backend | Architecture → cybersecurity → QA → techlead → peer review |
-| Frontend | Architecture and performance → cybersecurity → QA → techlead → design → peer review |
-| E2E | Architecture → cybersecurity → QA → techlead |
-| Documentation | Structure → parity with the code → writing → techlead → cybersecurity |
+| Repository    | Review order                                                                        |
+| ------------- | ----------------------------------------------------------------------------------- |
+| Backend       | Architecture → cybersecurity → QA → techlead → peer review                          |
+| Frontend      | Architecture and performance → cybersecurity → QA → techlead → design → peer review |
+| E2E           | Architecture → cybersecurity → QA → techlead                                        |
+| Documentation | Structure → parity with the code → writing → techlead → cybersecurity               |
 
 Each review starts from 100 points and removes **40** per `blocker`, **10** per `should-fix` and **2.5** per `nit`. Only the diff is scored: a defect in existing unchanged code is flagged as debt, without penalty. A category under 100 stops there: fix it, re-evaluate it, then move on to the next one.
 

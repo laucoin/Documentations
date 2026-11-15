@@ -17,10 +17,10 @@ The base `Brewfile` covers core tools (`git`, `zsh`, `starship`, `chezmoi`, `ans
 
 On top of the base file, `sync_mac.sh` appends the interactive selections into a temporary **effective Brewfile**:
 
-| Selection | Options | Appended packages |
-| --------- | ------- | ----------------- |
-| **Container runtime** | `docker-desktop` (default) / `colima` | `docker-desktop` + `docker-compose`, **or** `colima` + `docker` + `docker-compose` |
-| **Browser** | `google-chrome` (default) / `brave-browser` | the selected browser cask |
+| Selection             | Options                                     | Appended packages                                                                  |
+| --------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **Container runtime** | `docker-desktop` (default) / `colima`       | `docker-desktop` + `docker-compose`, **or** `colima` + `docker` + `docker-compose` |
+| **Browser**           | `google-chrome` (default) / `brave-browser` | the selected browser cask                                                          |
 
 ## 4. Business rules
 

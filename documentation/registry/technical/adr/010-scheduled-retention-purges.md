@@ -28,12 +28,12 @@ Implement retention as **four cron-scheduled sweeps** triggered by a `PurgeSched
 sweeps as authenticated HTTP endpoints under `/api/v2/purge` for manual and dry-run use. The endpoints require the
 `REGISTRY_JOB_C` permission, held by a dedicated `SERVICE_ACCOUNT` user and by user administrators.
 
-| Sweep | Deletes | Default schedule |
-| --- | --- | --- |
-| Users | Accounts with no sign-in since the threshold | 01:00 |
-| Projects | Projects not modified since the threshold | 01:30 |
-| Content | Movements, communications, alerts | 02:00 |
-| Configuration | Vehicles, activities, participants, then groups that became empty | 02:30 |
+| Sweep         | Deletes                                                           | Default schedule |
+| ------------- | ----------------------------------------------------------------- | ---------------- |
+| Users         | Accounts with no sign-in since the threshold                      | 01:00            |
+| Projects      | Projects not modified since the threshold                         | 01:30            |
+| Content       | Movements, communications, alerts                                 | 02:00            |
+| Configuration | Vehicles, activities, participants, then groups that became empty | 02:30            |
 
 The users sweep skips accounts whose deletion would violate the last-administrator safeguards (platform or project); it processes users one by one because those checks depend on previous deletions. The content and configuration sweeps each run in a transaction.
 

@@ -13,11 +13,11 @@ description: 'Manage the vehicle fleet, assign vehicles to check-outs and track 
 
 ## 2. Roles and permissions
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| RP_A | Create, read, update, delete, restore, permanently delete, history | Permanent deletion only without any recorded movement. |
-| RP_C | Create, read, update, delete, restore, history | — |
-| RP_P | — | Can only pick an available vehicle at a movement's "vehicles" step. |
+| Role | Permitted actions                                                  | Conditions / scope                                                  |
+| ---- | ------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| RP_A | Create, read, update, delete, restore, permanently delete, history | Permanent deletion only without any recorded movement.              |
+| RP_C | Create, read, update, delete, restore, history                     | —                                                                   |
+| RP_P | —                                                                  | Can only pick an available vehicle at a movement's "vehicles" step. |
 
 ## 3. Business rules
 

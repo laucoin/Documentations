@@ -7,6 +7,7 @@
 [![License: CC BY-NC-ND 4.0](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-lightgrey.svg?style=flat-square)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+
 [![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
@@ -29,21 +30,21 @@ Install [Node.js 24 or later](https://nodejs.org/) and [pnpm 11 or later](https:
 ##### Procedure
 
 1. Clone this repository with:
-    ```shell
-    git clone https://github.com/laucoin/Documentations.git
-    ```
+   ```shell
+   git clone https://github.com/laucoin/Documentations.git
+   ```
    OR
-    ```shell
-    git clone git@github.com:laucoin/Documentations.git
-    ```
+   ```shell
+   git clone git@github.com:laucoin/Documentations.git
+   ```
 2. Move into the project directory
-    ```shell
-    cd Documentations/
-    ```
+   ```shell
+   cd Documentations/
+   ```
 3. Install dependencies
-    ```shell
-    pnpm install
-    ```
+   ```shell
+   pnpm install
+   ```
 4. Enjoy the following commands 🎉
 
 #### Running the application in dev mode
@@ -70,6 +71,16 @@ To preview the production build locally:
 
 ```shell
 pnpm preview
+```
+
+#### Linting and formatting
+
+ESLint checks the theme and config code (`.vitepress/`); Prettier formats every file, Markdown included. Rules are
+defined in `eslint.config.js`, `.prettierrc` and `.editorconfig`.
+
+```shell
+pnpm lint          # ESLint check (pnpm lint:fix to auto-fix)
+pnpm format        # Prettier write (pnpm format:check to verify only)
 ```
 
 ## Project structure 🗂️

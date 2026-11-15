@@ -41,30 +41,30 @@ The orchestrator installs Homebrew and packages, symlinks the dotfiles, installs
 
 ## Documentation map
 
-| Page | Purpose |
-| ---- | ------- |
-| [Getting Started](/ponos/technical/getting-started) | Prerequisites and the exact procedure to run Ponos on a fresh Mac |
-| [Architecture](/ponos/technical/architecture) | The orchestrator's structure, the idempotency and backup model, and how a run flows end to end |
-| [CLI Reference](/ponos/technical/cli-reference) | Every alias, Click command, flag and Git alias, with defaults |
-| [Configuration](/ponos/technical/configuration) | Environment variables, the persisted choices file, the Brewfile, and managed paths |
-| [ADR index](/ponos/technical/adr/) | All Architecture Decision Records, in causal order |
+| Page                                                | Purpose                                                                                        |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [Getting Started](/ponos/technical/getting-started) | Prerequisites and the exact procedure to run Ponos on a fresh Mac                              |
+| [Architecture](/ponos/technical/architecture)       | The orchestrator's structure, the idempotency and backup model, and how a run flows end to end |
+| [CLI Reference](/ponos/technical/cli-reference)     | Every alias, Click command, flag and Git alias, with defaults                                  |
+| [Configuration](/ponos/technical/configuration)     | Environment variables, the persisted choices file, the Brewfile, and managed paths             |
+| [ADR index](/ponos/technical/adr/)                  | All Architecture Decision Records, in causal order                                             |
 
 ## Stack summary
 
-| Concern | Choice |
-| ------- | ------ |
-| Orchestrator | Bash (`set -euo pipefail`), idempotent, macOS-guarded |
-| Package manager | Homebrew + `brew bundle` (declarative `Brewfile`) |
-| Dotfiles | Symlinks with timestamped backups; optional chezmoi layer |
-| Python | pyenv (latest stable 3.x) + `click`, `colorlog` |
-| Node.js | nvm (LTS, default `lts/*`) |
-| Java | SDKMAN (pinned Temurin LTS) |
-| Shell | zsh + Starship prompt + autosuggestions + syntax-highlighting |
-| CLI extensions | Python 3 + Click command groups (`git_ext`, `sys_ext`) |
-| Git governance | Global config + `init.templateDir` hooks (`commit-msg`, `pre-push`) |
-| Font | Hack Nerd Font (Homebrew cask) |
-| Editors | Vim (+ Dracula), VS Code (curated extensions), Opencode |
-| Logging | ANSI-coloured, level-tagged, timestamped (bash `log` + Python `colorlog`) |
+| Concern         | Choice                                                                    |
+| --------------- | ------------------------------------------------------------------------- |
+| Orchestrator    | Bash (`set -euo pipefail`), idempotent, macOS-guarded                     |
+| Package manager | Homebrew + `brew bundle` (declarative `Brewfile`)                         |
+| Dotfiles        | Symlinks with timestamped backups; optional chezmoi layer                 |
+| Python          | pyenv (latest stable 3.x) + `click`, `colorlog`                           |
+| Node.js         | nvm (LTS, default `lts/*`)                                                |
+| Java            | SDKMAN (pinned Temurin LTS)                                               |
+| Shell           | zsh + Starship prompt + autosuggestions + syntax-highlighting             |
+| CLI extensions  | Python 3 + Click command groups (`git_ext`, `sys_ext`)                    |
+| Git governance  | Global config + `init.templateDir` hooks (`commit-msg`, `pre-push`)       |
+| Font            | Hack Nerd Font (Homebrew cask)                                            |
+| Editors         | Vim (+ Dracula), VS Code (curated extensions), Opencode                   |
+| Logging         | ANSI-coloured, level-tagged, timestamped (bash `log` + Python `colorlog`) |
 
 ## ADR format
 

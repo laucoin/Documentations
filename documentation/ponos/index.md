@@ -2,9 +2,9 @@
 layout: home
 
 hero:
-  name: "Ponos"
-  text: "Reproducible macOS developer environment as code"
-  tagline: "One idempotent script that turns a fresh Mac into a fully configured workstation — Homebrew packages, dotfiles, language toolchains, Git governance, and a set of developer CLI helpers."
+  name: 'Ponos'
+  text: 'Reproducible macOS developer environment as code'
+  tagline: 'One idempotent script that turns a fresh Mac into a fully configured workstation — Homebrew packages, dotfiles, language toolchains, Git governance, and a set of developer CLI helpers.'
 
 features:
   - title: Functional Documentation
