@@ -4,8 +4,8 @@ This section covers the engineering of Atlas: the high-level architecture, the b
 
 ## Documentation map
 
-| Page                                   | Purpose                                                                                                      |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Page                                                  | Purpose                                                                                                      |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | [Getting Started](/atlas/technical/getting-started)   | Full guided installation procedure, including the in-cluster identity/secret handshake                       |
 | [Architecture](/atlas/technical/architecture)         | Topology, component map, summary of the bootstrap chain                                                      |
 | [Bootstrap Orchestration](/atlas/technical/bootstrap) | The five-layer model that resolves the chicken-and-egg dependencies between Argo CD, Authentik and Infisical |

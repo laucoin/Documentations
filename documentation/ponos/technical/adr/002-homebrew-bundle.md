@@ -15,5 +15,5 @@ Declare the base package set in a **`Brewfile`** and install it with **`brew bun
 ## Consequences
 
 - **Pros:** The package set is a single declarative file, trivially diffable and reviewable. `brew bundle` is idempotent — already-installed packages are skipped. The effective-Brewfile pattern keeps machine-specific choices out of version control.
-- **Cons / trade-offs:** Homebrew is the single point of dependency for the whole toolset; a Homebrew outage or a renamed cask breaks a run (mitigated by fail-soft). Casks that install into `/Applications` can raise a `sudo` prompt outside Ponos's control. The base Brewfile already pins `docker-desktop`, so the container *choice* mainly adds `docker-compose`/`colima` rather than gating Docker itself.
+- **Cons / trade-offs:** Homebrew is the single point of dependency for the whole toolset; a Homebrew outage or a renamed cask breaks a run (mitigated by fail-soft). Casks that install into `/Applications` can raise a `sudo` prompt outside Ponos's control. The base Brewfile already pins `docker-desktop`, so the container _choice_ mainly adds `docker-compose`/`colima` rather than gating Docker itself.
 - **Alternatives rejected:** A shell loop over `brew install` (imperative, no idempotency guarantees) and MacPorts / manual `.dmg` installs (less declarative, no bundle concept).

@@ -26,11 +26,11 @@ Independently of the audit, _log_-type items — **check-ins/check-outs, alerts,
 
 ## Usage limits
 
-| Action | Default limit |
-| --- | --- |
-| GDPR exports (user or participant, combined) | 5 per hour and per user |
-| Searching for a user to invite | 30 per minute and per user |
-| Project creation | 10 per hour and per user |
+| Action                                       | Default limit              |
+| -------------------------------------------- | -------------------------- |
+| GDPR exports (user or participant, combined) | 5 per hour and per user    |
+| Searching for a user to invite               | 30 per minute and per user |
+| Project creation                             | 10 per hour and per user   |
 
 Beyond that, the request is refused with a message suggesting to try again later; for an export, the refusal is itself traced.
 

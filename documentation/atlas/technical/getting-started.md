@@ -834,20 +834,9 @@ Atlas keeps one Infisical folder per service, so a new app gets its own folder a
        infisical:
          auth:
            universalAuthCredentials:
-             clientId:
-               {
-                 name: infisical-credentials,
-                 key: clientId,
-                 namespace: external-secrets,
-               }
-             clientSecret:
-               {
-                 name: infisical-credentials,
-                 key: clientSecret,
-                 namespace: external-secrets,
-               }
-         secretsScope:
-           { projectSlug: atlas, environmentSlug: prod, secretsPath: /my-app }
+             clientId: { name: infisical-credentials, key: clientId, namespace: external-secrets }
+             clientSecret: { name: infisical-credentials, key: clientSecret, namespace: external-secrets }
+         secretsScope: { projectSlug: atlas, environmentSlug: prod, secretsPath: /my-app }
          hostAPI: http://infisical-infisical-standalone-infisical.infisical.svc.cluster.local:8080
    ```
 
@@ -902,7 +891,7 @@ metadata:
   name: my-dashboard
   namespace: monitoring
   labels:
-    grafana_dashboard: "1" # picked up by the sidecar
+    grafana_dashboard: '1' # picked up by the sidecar
 data:
   my-dashboard.json: |
     { ... Grafana dashboard JSON ... }

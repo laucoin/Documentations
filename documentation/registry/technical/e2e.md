@@ -15,13 +15,13 @@ The repository keeps a test plan (`docs/test-plan.md`) derived from the [functio
 
 ## Repository layout
 
-| Folder | Alias | Content |
-| --- | --- | --- |
-| `specs/` | — | The scenarios, sorted by domain |
-| `pages/` | `@pages/` | One _page object_ per screen, with business methods (`create`, `record`…) |
-| `components/` | `@components/` | What several screens share: item picker, confirmation dialog, form submission… |
-| `fixtures/` | `@fixtures/` | `test.extend`: injects the page objects and the data helper into tests |
-| `support/` | `@support/` | The tooling: accounts, sign-in, API client, test data, dates, permission matrix |
+| Folder        | Alias          | Content                                                                         |
+| ------------- | -------------- | ------------------------------------------------------------------------------- |
+| `specs/`      | —              | The scenarios, sorted by domain                                                 |
+| `pages/`      | `@pages/`      | One _page object_ per screen, with business methods (`create`, `record`…)       |
+| `components/` | `@components/` | What several screens share: item picker, confirmation dialog, form submission…  |
+| `fixtures/`   | `@fixtures/`   | `test.extend`: injects the page objects and the data helper into tests          |
+| `support/`    | `@support/`    | The tooling: accounts, sign-in, API client, test data, dates, permission matrix |
 
 A scenario never touches a selector: it calls page objects and checks the locators they expose. Page objects target the `data-test-id` attribute the frontend sets on every interactive element (configured as Playwright's `testIdAttribute`), or an accessible role and label.
 

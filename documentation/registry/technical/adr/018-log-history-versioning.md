@@ -26,7 +26,7 @@ the archiving date.
 
 - Archiving happens in the same transaction as the change, under a row lock: no version is lost in case of
   concurrent changes.
-- For an alert, the status change (resolved, canceled) is archived too; only an in-progress alert can be edited.
+- For an alert, only the status change (resolved, canceled) modifies it, and it is archived; its title and timestamp never change after creation.
 - A definitive departure and a guest check-out were first **immutable**, because the effective presence dates
   depend on them. Since the history makes any correction traceable, they can now be corrected: a registered participant's definitive
   departure like any movement, a guest check-out on its date only; the effective dates are recomputed and

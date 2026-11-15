@@ -2,9 +2,9 @@
 layout: home
 
 hero:
-  name: "Atlas"
-  text: "Self-hosted homelab platform on Talos Linux"
-  tagline: "A GitOps-driven, single-node Kubernetes platform delivering image registry, identity, secrets, ingress and observability for me and the people I share with."
+  name: 'Atlas'
+  text: 'Self-hosted homelab platform on Talos Linux'
+  tagline: 'A GitOps-driven, single-node Kubernetes platform delivering image registry, identity, secrets, ingress and observability for me and the people I share with.'
 
 features:
   - title: Functional Documentation

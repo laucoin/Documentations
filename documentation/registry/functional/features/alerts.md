@@ -8,24 +8,24 @@ description: 'Report, track and resolve incidents, with their communication thre
 ## 1. Overview
 
 - **Goal:** An alert is an **incident** the team must act on: a title, a timestamp, a status and its own [communication](/registry/functional/features/communications) thread. Everyone sees what is open, for how long, and what has been said about it. Statistics then measure the team's responsiveness.
-- **Who uses it:** all three project roles report, edit, resolve, cancel and delete; RP_A and RP_C restore; RP_A permanently deletes.
+- **Who uses it:** all three project roles report, resolve, cancel and delete; RP_A and RP_C restore; RP_A permanently deletes.
 - **Option required:** **O_E `ALERT`**, which requires O_C and O_A.
 
 ## 2. Roles and permissions
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| RP_A | Create, read, update, resolve, cancel, delete, restore, permanently delete | — |
-| RP_C | Create, read, update, resolve, cancel, delete, restore | Sees deleted alerts. |
-| RP_P | Create, read, update, resolve, cancel, delete | Does not see deleted alerts. |
+| Role | Permitted actions                                                  | Conditions / scope           |
+| ---- | ------------------------------------------------------------------ | ---------------------------- |
+| RP_A | Create, read, resolve, cancel, delete, restore, permanently delete | —                            |
+| RP_C | Create, read, resolve, cancel, delete, restore                     | Sees deleted alerts.         |
+| RP_P | Create, read, resolve, cancel, delete                              | Does not see deleted alerts. |
 
 ## 3. Business rules
 
 - **Creation**: the "New alert" button opens the communication form in alert mode — **title** required (not blank, 50 characters maximum) and **message** required (not blank, 250 characters maximum).
-- **Status**: in progress, resolved or canceled. From "in progress", one can **resolve** or **cancel**, each time with confirmation. Only an in-progress alert can be edited.
+- **Status**: in progress, resolved or canceled. From "in progress", one can **resolve** or **cancel**, each time with confirmation. The title and timestamp cannot be changed after creation.
 - **Criticality**: it increases with the age of an in-progress alert (reinforced after 6 h, high after 18 h by default).
 - **Displayed durations**: since creation and, while it is in progress, since the last associated communication.
-- **History**: _log_-type item — each change and each status change keeps the previous version.
+- **History**: _log_-type item — each status change keeps the previous version.
 - **Deletion** soft and reversible. Permanent deletion is refused while communications are attached to it.
 - **Application home**: projects with alerts in progress are highlighted, by descending number of alerts.
 

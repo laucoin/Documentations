@@ -77,19 +77,19 @@ The "Create a project" button leads to the [creation form](/registry/functional/
 
 Data refreshes automatically according to the user's refresh mode.
 
-| Block | Roles | Content |
-| --- | --- | --- |
-| Favorite star | RP_A, RP_C, RP_P | Before the project name in the title; a click adds to or removes from favorites, without navigating. |
-| Participant status | RP_A, RP_C, RP_P | Three numbers: registered present, registered absent, guests present. |
-| O_V Vehicle status | RP_A, RP_C, RP_P | Two numbers: present and absent. |
-| Presences to regularize | RP_A, RP_C | Participants whose planned departure date has passed and who have no effective definitive check-out. |
-| O_E Open alerts | RP_A, RP_C, RP_P | Title (or placeholder text), time since creation, time since the last associated communication (if any); "Communicate" opens the [communications drawer](#communications-drawer). |
-| Today's arrivals | RP_A, RP_C, RP_P | Participants and groups whose planned arrival is today. A click opens the movement form **at step 2**, prefilled: timestamp now, type check-in, people concerned (the group's members, or the participant). |
-| Today's departures | RP_A, RP_C, RP_P | Participants and groups whose planned departure is today. A click opens the form at step 2, prefilled: now, check-out, people concerned, reason "definitive departure". |
-| Today's birthdays | RP_A, RP_C | Participants whose birthday it is, who have arrived and have not yet definitively left. |
-| O_A Operational tracking: activities in progress | RP_A, RP_C, RP_P | Check-outs linked to an activity that are still the **last movement** of at least one participant. See the details below. |
-| Operational tracking: other check-ins/check-outs in progress | RP_A, RP_C, RP_P | Same behavior: for movements not linked to an activity if O_A is enabled, otherwise for all of them. The row shows the reason instead of the activity name. |
-| Buttons | RP_A, RP_C, RP_P | "+ Registered check-in/check-out", "+ Guest check-in/check-out", and O_E "New alert". |
+| Block                                                        | Roles            | Content                                                                                                                                                                                                     |
+| ------------------------------------------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Favorite star                                                | RP_A, RP_C, RP_P | Before the project name in the title; a click adds to or removes from favorites, without navigating.                                                                                                        |
+| Participant status                                           | RP_A, RP_C, RP_P | Three numbers: registered present, registered absent, guests present.                                                                                                                                       |
+| O_V Vehicle status                                           | RP_A, RP_C, RP_P | Two numbers: present and absent.                                                                                                                                                                            |
+| Presences to regularize                                      | RP_A, RP_C       | Participants whose planned departure date has passed and who have no effective definitive check-out.                                                                                                        |
+| O_E Open alerts                                              | RP_A, RP_C, RP_P | Title (or placeholder text), time since creation, time since the last associated communication (if any); "Communicate" opens the [communications drawer](#communications-drawer).                           |
+| Today's arrivals                                             | RP_A, RP_C, RP_P | Participants and groups whose planned arrival is today. A click opens the movement form **at step 2**, prefilled: timestamp now, type check-in, people concerned (the group's members, or the participant). |
+| Today's departures                                           | RP_A, RP_C, RP_P | Participants and groups whose planned departure is today. A click opens the form at step 2, prefilled: now, check-out, people concerned, reason "definitive departure".                                     |
+| Today's birthdays                                            | RP_A, RP_C       | Participants whose birthday it is, who have arrived and have not yet definitively left.                                                                                                                     |
+| O_A Operational tracking: activities in progress             | RP_A, RP_C, RP_P | Check-outs linked to an activity that are still the **last movement** of at least one participant. See the details below.                                                                                   |
+| Operational tracking: other check-ins/check-outs in progress | RP_A, RP_C, RP_P | Same behavior: for movements not linked to an activity if O_A is enabled, otherwise for all of them. The row shows the reason instead of the activity name.                                                 |
+| Buttons                                                      | RP_A, RP_C, RP_P | "+ Registered check-in/check-out", "+ Guest check-in/check-out", and O_E "New alert".                                                                                                                       |
 
 Each operational tracking row shows:
 
@@ -138,17 +138,17 @@ Each operational tracking row shows:
 
 The lists of each resource:
 
-| List | Page |
-| --- | --- |
-| My projects · Project settings | [Projects](/registry/functional/features/projects) |
-| Users | [Users](/registry/functional/features/users) |
-| Check-ins & check-outs · Histories (participant, vehicle, activity) | [Movements](/registry/functional/features/movements) |
-| Alerts | [Alerts](/registry/functional/features/alerts) |
-| Participants · A participant's history | [Participants](/registry/functional/features/participants) |
-| Groups · A group's participants | [Groups](/registry/functional/features/groups) |
-| Vehicles · A vehicle's history | [Vehicles](/registry/functional/features/vehicles) |
-| Activities · An activity's history | [Activities](/registry/functional/features/activities) |
-| Members | [Members and profiles](/registry/functional/features/project-profiles) |
+| List                                                                | Page                                                                   |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| My projects · Project settings                                      | [Projects](/registry/functional/features/projects)                     |
+| Users                                                               | [Users](/registry/functional/features/users)                           |
+| Check-ins & check-outs · Histories (participant, vehicle, activity) | [Movements](/registry/functional/features/movements)                   |
+| Alerts                                                              | [Alerts](/registry/functional/features/alerts)                         |
+| Participants · A participant's history                              | [Participants](/registry/functional/features/participants)             |
+| Groups · A group's participants                                     | [Groups](/registry/functional/features/groups)                         |
+| Vehicles · A vehicle's history                                      | [Vehicles](/registry/functional/features/vehicles)                     |
+| Activities · An activity's history                                  | [Activities](/registry/functional/features/activities)                 |
+| Members                                                             | [Members and profiles](/registry/functional/features/project-profiles) |
 
 ## 7. Behaviors shared by forms {#common-form-behaviors}
 

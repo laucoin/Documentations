@@ -11,19 +11,19 @@ the backend's authorization for the interface, and enforces nothing.
 
 ## Tech stack
 
-| Concern | Choice |
-| --- | --- |
-| Framework | Angular, standalone components, **zoneless**, client-side rendering only |
-| Language | TypeScript, `no-explicit-any` and explicit return types as errors |
-| UI | [`@sgdf/ui`](https://gitlab.com/sgdf/projets-benevoles/sgdf-ui/) (web components based on Web Awesome) |
-| Styling | Tailwind CSS for layout and spacing only; native CSS for the rest; no Bootstrap |
-| State | `@ngrx/signals` `signalStore`, exposed through facades ([ADR 013](/registry/technical/adr/013-signal-stores-and-facades)) |
-| Forms | Signal Forms (`@angular/forms/signals`) |
-| i18n | Transloco, `fr` and `en` bundles in `public/i18n` |
-| Tests | Vitest, Component Harnesses, coverage thresholds enforced in `angular.json` |
-| Package manager | pnpm |
-| Lint | ESLint with angular-eslint |
-| Serving | nginx-unprivileged, port 8080 |
+| Concern         | Choice                                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Framework       | Angular, standalone components, **zoneless**, client-side rendering only                                                  |
+| Language        | TypeScript, `no-explicit-any` and explicit return types as errors                                                         |
+| UI              | [`@sgdf/ui`](https://gitlab.com/sgdf/projets-benevoles/sgdf-ui/) (web components based on Web Awesome)                    |
+| Styling         | Tailwind CSS for layout and spacing only; native CSS for the rest; no Bootstrap                                           |
+| State           | `@ngrx/signals` `signalStore`, exposed through facades ([ADR 013](/registry/technical/adr/013-signal-stores-and-facades)) |
+| Forms           | Signal Forms (`@angular/forms/signals`)                                                                                   |
+| i18n            | Transloco, `fr` and `en` bundles in `public/i18n`                                                                         |
+| Tests           | Vitest, Component Harnesses, coverage thresholds enforced in `angular.json`                                               |
+| Package manager | pnpm                                                                                                                      |
+| Lint            | ESLint with angular-eslint                                                                                                |
+| Serving         | nginx-unprivileged, port 8080                                                                                             |
 
 ## Application shape
 
@@ -54,19 +54,19 @@ src/app/
 A domain that cuts across the whole application (authentication, configuration, language, theme) lives in `core/<domain>/`;
 a domain specific to a routed page's data lives in that page's `data/` folder.
 
-| Item | Location |
-| --- | --- |
-| Api, store and facade of a page's domain | `pages/<page>/data/state/` (`<domain>.api.ts`, `<domain>.store.ts`, `<domain>.facade.ts`); the store's state model in `data/model/` |
-| Api, store and facade of the core domains | `core/registry/state/` (session, UI, notifications, the user's profiles, shared apis) |
-| DTOs | responses in `shared/models/dto/response/` (`<name>.response.dto.ts`); requests in `shared/models/dto/`, or in `pages/<page>/data/dto/` when a single page sends them |
-| Models and enumerations | `shared/models/model/` and `shared/models/enumeration/` |
-| Mappers | `shared/mappers/`: a `<Name>Mapper`, an `as const` object exposing `toModel`, which only converts a DTO into a model (or the reverse); each `*.api.ts` passes its responses through it |
-| Helpers | `shared/helpers/`: `as const` objects that compute (dates, durations, ages, `ETag`…); the generic building blocks of apis, stores and facades are in `shared/helpers/api/`, `store/` and `facade/` |
-| Technical services | in the core domain they serve (`BrowserService`, `LanguageService`, `MenuService`), or in `shared/helpers/` when they are cross-cutting (`ClockService`, `RefreshService`, `ProfileResetService`) |
-| An item's action services | `<entity>-actions.service.ts`, next to the row or card component that triggers those actions (edit, delete, restore…) |
-| Directives | `shared/directives/` |
-| Reusable components | `shared/ui/common/` (pure presentation, no api, store or facade), `shared/ui/domain/` (entity cards and forms, which read the pages' facades), `shared/ui/base/` (form base classes) |
-| Test harnesses | a `testing/` folder next to the tested component |
+| Item                                      | Location                                                                                                                                                                                           |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Api, store and facade of a page's domain  | `pages/<page>/data/state/` (`<domain>.api.ts`, `<domain>.store.ts`, `<domain>.facade.ts`); the store's state model in `data/model/`                                                                |
+| Api, store and facade of the core domains | `core/registry/state/` (session, UI, notifications, the user's profiles, shared apis)                                                                                                              |
+| DTOs                                      | responses in `shared/models/dto/response/` (`<name>.response.dto.ts`); requests in `shared/models/dto/`, or in `pages/<page>/data/dto/` when a single page sends them                              |
+| Models and enumerations                   | `shared/models/model/` and `shared/models/enumeration/`                                                                                                                                            |
+| Mappers                                   | `shared/mappers/`: a `<Name>Mapper`, an `as const` object exposing `toModel`, which only converts a DTO into a model (or the reverse); each `*.api.ts` passes its responses through it             |
+| Helpers                                   | `shared/helpers/`: `as const` objects that compute (dates, durations, ages, `ETag`…); the generic building blocks of apis, stores and facades are in `shared/helpers/api/`, `store/` and `facade/` |
+| Technical services                        | in the core domain they serve (`BrowserService`, `LanguageService`, `MenuService`), or in `shared/helpers/` when they are cross-cutting (`ClockService`, `RefreshService`, `ProfileResetService`)  |
+| An item's action services                 | `<entity>-actions.service.ts`, next to the row or card component that triggers those actions (edit, delete, restore…)                                                                              |
+| Directives                                | `shared/directives/`                                                                                                                                                                               |
+| Reusable components                       | `shared/ui/common/` (pure presentation, no api, store or facade), `shared/ui/domain/` (entity cards and forms, which read the pages' facades), `shared/ui/base/` (form base classes)               |
+| Test harnesses                            | a `testing/` folder next to the tested component                                                                                                                                                   |
 
 The only accepted dependencies from `shared` or `core` to `pages` are the entity cards and forms of
 `shared/ui/domain`, plus `registry-route.enum.ts` (URL composition) and `registry.routes.ts` (on-demand
@@ -96,12 +96,12 @@ route's `seo.*` translation keys.
 
 ### Guards
 
-| Guard | Checks |
-| --- | --- |
-| `authGuard` | Fetches the current user — the `HttpOnly` authentication cookie travels automatically; every protected route waits for it |
-| `projectContextGuard` | Selects the `:projectId` project for the routes below it. If the user has no authority on it, or if it cannot be loaded, it answers a single generic "project not found" and redirects to the project list — the message never reveals which of the two cases applies. A deactivation guard clears the selection on exit |
-| `projectOptionGuard(option)` | The selected project has the given option enabled (vehicle, activity and alert pages) |
-| `userAuthorityGuard(authority)` | The user holds a global authority (for example the user directory, reserved for platform administrators); otherwise back to the home page |
+| Guard                           | Checks                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `authGuard`                     | Fetches the current user — the `HttpOnly` authentication cookie travels automatically; every protected route waits for it                                                                                                                                                                                                |
+| `projectContextGuard`           | Selects the `:projectId` project for the routes below it. If the user has no authority on it, or if it cannot be loaded, it answers a single generic "project not found" and redirects to the project list — the message never reveals which of the two cases applies. A deactivation guard clears the selection on exit |
+| `projectOptionGuard(option)`    | The selected project has the given option enabled (vehicle, activity and alert pages)                                                                                                                                                                                                                                    |
+| `userAuthorityGuard(authority)` | The user holds a global authority (for example the user directory, reserved for platform administrators); otherwise back to the home page                                                                                                                                                                                |
 
 The active project is therefore **the route's `:projectId`**, not a preference stored server-side (the backend removed
 the stored selected profile in `V1_14_0`).
@@ -145,12 +145,12 @@ Conventions that shape the code:
   is active and the browser is online. The interval depends on the data type (`live`, `counts`, `dayBound`) and on the
   **refresh mode** chosen by the user:
 
-  | Mode | Live data | Counters |
-  | --- | --- | --- |
-  | `OFF` | never | never |
-  | `ECO` | 180 s | 300 s |
-  | `NORMAL` (default) | 60 s | 120 s |
-  | `FAST` | 30 s | 60 s |
+  | Mode               | Live data | Counters |
+  | ------------------ | --------- | -------- |
+  | `OFF`              | never     | never    |
+  | `ECO`              | 180 s     | 300 s    |
+  | `NORMAL` (default) | 60 s      | 120 s    |
+  | `FAST`             | 30 s      | 60 s     |
 
   Day-specific data (arrivals, departures, birthdays, overdue participants) reloads when the day changes.
 
@@ -234,10 +234,7 @@ from `settings/` before Angular bootstraps ([ADR 007](/registry/technical/adr/00
       "/api/v2/authentication/token",
       "/api/v2/authentication/token/refresh"
     ],
-    "credentialFreePaths": [
-      "/api/v2/metadata/",
-      "/api/v2/authentication/login/uri"
-    ]
+    "credentialFreePaths": ["/api/v2/metadata/", "/api/v2/authentication/login/uri"]
   },
   "hosting": { "providerName": null, "providerAddress": null }
 }

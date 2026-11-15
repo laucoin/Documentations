@@ -9,22 +9,22 @@ description: 'How the reactive Kotlin backend is structured, validated, configur
 
 ## Tech stack
 
-| Concern | Choice |
-| --- | --- |
-| Language | Kotlin, JVM toolchain pinned by Gradle, strict nullability |
-| Framework | Spring Boot, WebFlux (`Mono` / `Flux`) |
-| Persistence | Spring Data R2DBC (connection pool), PostgreSQL |
-| Migrations | Flyway, forward-only, via JDBC at startup |
-| Security | OAuth2 resource server (JWT), reactive method security |
-| Mapping | MapStruct (DTOs ↔ models ↔ entities), unmapped field = compilation error |
-| Serialization | Jackson, Kotlin module |
-| Validation | Jakarta Bean Validation plus custom constraints |
-| i18n | Spring `MessageSource`, `fr` and `en` |
-| Cache | Caffeine (principal, rate limiters, audit deduplication) |
-| Docs | springdoc OpenAPI 3 (can be enabled) |
-| Metrics | Micrometer → Prometheus (can be enabled) |
-| Build | Gradle Kotlin DSL, Kover coverage, ArchUnit |
-| Image | Distroless Java, non-root |
+| Concern       | Choice                                                                   |
+| ------------- | ------------------------------------------------------------------------ |
+| Language      | Kotlin, JVM toolchain pinned by Gradle, strict nullability               |
+| Framework     | Spring Boot, WebFlux (`Mono` / `Flux`)                                   |
+| Persistence   | Spring Data R2DBC (connection pool), PostgreSQL                          |
+| Migrations    | Flyway, forward-only, via JDBC at startup                                |
+| Security      | OAuth2 resource server (JWT), reactive method security                   |
+| Mapping       | MapStruct (DTOs ↔ models ↔ entities), unmapped field = compilation error |
+| Serialization | Jackson, Kotlin module                                                   |
+| Validation    | Jakarta Bean Validation plus custom constraints                          |
+| i18n          | Spring `MessageSource`, `fr` and `en`                                    |
+| Cache         | Caffeine (principal, rate limiters, audit deduplication)                 |
+| Docs          | springdoc OpenAPI 3 (can be enabled)                                     |
+| Metrics       | Micrometer → Prometheus (can be enabled)                                 |
+| Build         | Gradle Kotlin DSL, Kover coverage, ArchUnit                              |
+| Image         | Distroless Java, non-root                                                |
 
 The exact versions are in the repository.
 
@@ -110,15 +110,15 @@ Each refusal throws an exception carrying an HTTP status and a **stable error co
 
 Everything that depends on the environment comes in through **environment variables**: the image is identical everywhere. A missing required variable **makes startup fail**. The main families:
 
-| Family | Example settings |
-| --- | --- |
-| Database | host, database, schema, credentials, pool size, maximum lock wait |
-| Identity provider | OIDC addresses, confidential and public clients, timeouts and maximum connections, redirect allowlists |
-| Server | API and management ports, log level, CORS origins, `Secure` cookies |
-| Security | rate limits (authentication, export, search, project creation), trusted proxies, principal cache duration |
-| Audit | queue size, read deduplication window |
-| Features | documentation, observability, email invitation |
-| Business | tolerance on a movement's future time, alert criticality thresholds, search caps, purge schedule and thresholds |
+| Family            | Example settings                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------------- |
+| Database          | host, database, schema, credentials, pool size, maximum lock wait                                               |
+| Identity provider | OIDC addresses, confidential and public clients, timeouts and maximum connections, redirect allowlists          |
+| Server            | API and management ports, log level, CORS origins, `Secure` cookies                                             |
+| Security          | rate limits (authentication, export, search, project creation), trusted proxies, principal cache duration       |
+| Audit             | queue size, read deduplication window                                                                           |
+| Features          | documentation, observability, email invitation                                                                  |
+| Business          | tolerance on a movement's future time, alert criticality thresholds, search caps, purge schedule and thresholds |
 
 The exhaustive list, with default values, is kept up to date in the **backend repository README** — it is the reference.
 
@@ -126,13 +126,13 @@ The exhaustive list, with default values, is kept up to date in the **backend re
 
 `./gradlew build` compiles, tests, checks coverage (enforced Kover threshold) and produces the report.
 
-| Level | Tools and purpose |
-| --- | --- |
-| Unit | JUnit, `mockito-kotlin`, `StepVerifier`; behavior is checked, not just calls |
-| Parameterized | `@ParameterizedTest`, named cases |
-| Integration | Testcontainers PostgreSQL and `WebTestClient`: real database, real filter chain |
-| Security | access rules of every endpoint, alignment of injected permissions with constants, refusal without option, automatically generated cross-project isolation, CSRF/CORS/headers through the real chain, rate counters under concurrency |
-| Architecture | ArchUnit, as above |
+| Level         | Tools and purpose                                                                                                                                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Unit          | JUnit, `mockito-kotlin`, `StepVerifier`; behavior is checked, not just calls                                                                                                                                                         |
+| Parameterized | `@ParameterizedTest`, named cases                                                                                                                                                                                                    |
+| Integration   | Testcontainers PostgreSQL and `WebTestClient`: real database, real filter chain                                                                                                                                                      |
+| Security      | access rules of every endpoint, alignment of injected permissions with constants, refusal without option, automatically generated cross-project isolation, CSRF/CORS/headers through the real chain, rate counters under concurrency |
+| Architecture  | ArchUnit, as above                                                                                                                                                                                                                   |
 
 ## Backend-specific conventions {#backend-specific-conventions}
 

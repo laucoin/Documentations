@@ -13,17 +13,17 @@ This is Registry's security baseline. Every feature page refers to it, and no fe
 
 This legend is used throughout the functional documentation.
 
-| Abbreviation | Meaning |
-| --- | --- |
-| **R_A** | `USER_ADMINISTRATOR` application role |
-| **R_U** | `USER` application role |
-| **RP_A** | `PROJECT_ADMINISTRATOR` project role |
-| **RP_C** | `PROJECT_COORDINATOR` project role |
-| **RP_P** | `PROJECT_PARTICIPANT` project role |
-| **O_V** | `VEHICLE` project option required |
-| **O_A** | `ACTIVITY` project option required |
-| **O_C** | `COMMUNICATION` project option required |
-| **O_E** | `ALERT` project option required |
+| Abbreviation | Meaning                                 |
+| ------------ | --------------------------------------- |
+| **R_A**      | `USER_ADMINISTRATOR` application role   |
+| **R_U**      | `USER` application role                 |
+| **RP_A**     | `PROJECT_ADMINISTRATOR` project role    |
+| **RP_C**     | `PROJECT_COORDINATOR` project role      |
+| **RP_P**     | `PROJECT_PARTICIPANT` project role      |
+| **O_V**      | `VEHICLE` project option required       |
+| **O_A**      | `ACTIVITY` project option required      |
+| **O_C**      | `COMMUNICATION` project option required |
+| **O_E**      | `ALERT` project option required         |
 
 When no option is stated, no option is required.
 
@@ -37,36 +37,36 @@ Registry is **private**. Authentication is delegated to an external **identity p
 
 ## Two permission planes {#two-permission-planes}
 
-| Plane | Question it answers | Examples |
-| --- | --- | --- |
-| **Global (application)** | What can this user do across the whole platform? | Manage accounts; create a project. |
-| **Per project** | What can this user do _in this specific project_? | Record a movement in project X. |
+| Plane                    | Question it answers                               | Examples                           |
+| ------------------------ | ------------------------------------------------- | ---------------------------------- |
+| **Global (application)** | What can this user do across the whole platform?  | Manage accounts; create a project. |
+| **Per project**          | What can this user do _in this specific project_? | Record a movement in project X.    |
 
 A project permission is always tied to **a single** project: holding it in one project grants nothing in another. This is what lets many independent projects coexist on the same platform.
 
 ## Application roles
 
-| Role | Level | Who holds it | Purpose |
-| --- | --- | --- | --- |
-| **`USER_ADMINISTRATOR`** (R_A) | 0 | The platform team | Administer accounts, read all projects, join a project as support, run purges. |
-| **`USER`** (R_U) | 9000 | Everyone, by default | Create projects and work in them according to their profiles. |
+| Role                           | Level | Who holds it         | Purpose                                                                        |
+| ------------------------------ | ----- | -------------------- | ------------------------------------------------------------------------------ |
+| **`USER_ADMINISTRATOR`** (R_A) | 0     | The platform team    | Administer accounts, read all projects, join a project as support, run purges. |
+| **`USER`** (R_U)               | 9000  | Everyone, by default | Create projects and work in them according to their profiles.                  |
 
 A lower level means more power. A non-human technical account (`SERVICE_ACCOUNT`) carries the `USER_ADMINISTRATOR` role to run purges; it cannot be assigned to a person.
 
 ### Global access matrix {#global-access-matrix}
 
-| Capability | R_A | R_U |
-| --- | :-: | :-: |
-| View the user directory | ✓ | — |
-| Change a user's application role | ✓ | — |
-| Block / unblock a user | ✓ | — |
-| Delete a user | ✓ | — |
-| Export a user's (GDPR) data | ✓ | — |
-| **Create a project** | ✓ | ✓ |
-| See all projects, including without a profile | ✓ | — |
-| Join a project as support | ✓ | — |
-| Run retention purges | ✓ | — |
-| Manage one's preferences, export and delete one's own account | ✓ | ✓ |
+| Capability                                                    | R_A | R_U |
+| ------------------------------------------------------------- | :-: | :-: |
+| View the user directory                                       |  ✓  |  —  |
+| Change a user's application role                              |  ✓  |  —  |
+| Block / unblock a user                                        |  ✓  |  —  |
+| Delete a user                                                 |  ✓  |  —  |
+| Export a user's (GDPR) data                                   |  ✓  |  —  |
+| **Create a project**                                          |  ✓  |  ✓  |
+| See all projects, including without a profile                 |  ✓  |  —  |
+| Join a project as support                                     |  ✓  |  —  |
+| Run retention purges                                          |  ✓  |  —  |
+| Manage one's preferences, export and delete one's own account |  ✓  |  ✓  |
 
 **Any signed-in user can create a project** and automatically becomes its administrator (RP_A): teams get started without involving the platform team.
 
@@ -74,28 +74,28 @@ A lower level means more power. A non-human technical account (`SERVICE_ACCOUNT`
 
 Assigned per project when a user is invited (or when they create the project).
 
-| Role | Level | What it is for |
-| --- | --- | --- |
-| **`PROJECT_ADMINISTRATOR`** (RP_A) | 0 | Full control of the project, including its members, its settings and permanent deletions. |
-| **`PROJECT_COORDINATOR`** (RP_C) | 10 | Runs operations: participants, groups, movements, vehicles, activities, communications, alerts; restores deleted items and views histories. Views the member list without managing it. |
-| **`PROJECT_PARTICIPANT`** (RP_P) | 20 | Field team: registers people, records check-ins/check-outs, communicates and handles alerts. Has no access to vehicles, the activity list, members or histories. |
+| Role                               | Level | What it is for                                                                                                                                                                         |
+| ---------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`PROJECT_ADMINISTRATOR`** (RP_A) | 0     | Full control of the project, including its members, its settings and permanent deletions.                                                                                              |
+| **`PROJECT_COORDINATOR`** (RP_C)   | 10    | Runs operations: participants, groups, movements, vehicles, activities, communications, alerts; restores deleted items and views histories. Views the member list without managing it. |
+| **`PROJECT_PARTICIPANT`** (RP_P)   | 20    | Field team: registers people, records check-ins/check-outs, communicates and handles alerts. Has no access to vehicles, the activity list, members or histories.                       |
 
 ### Project access matrix {#project-access-matrix}
 
 Action legend: **C** create · **R** read · **U** update · **S** delete (soft delete, reversible) · **Re** restore and see deleted items · **D** permanently delete · **H** view movement history. A dash means no access.
 
-| Resource | RP_A | RP_C | RP_P |
-| --- | :-: | :-: | :-: |
-| Project (settings, options) | R U S Re D | R | R |
-| Members (profiles) | C R U S Re D | R (without blocked profiles) | — |
-| Participants | C R U S Re D H + GDPR export | C R U S Re H | C R U S |
-| Groups | C R U S Re D | C R U S Re | C R U S |
-| Check-ins & check-outs | C R U S Re D | C R U S Re | C R U S |
-| O_V Vehicles | C R U S Re D H | C R U S Re H | — |
-| O_A Activities | C R U S Re D H | C R U S Re H | — ¹ |
-| O_C Communications | C R U S Re D | C R U S Re | C R U S |
-| O_E Alerts | C R U S Re D | C R U S Re | C R U S |
-| Project home and live headcounts | R | R | R |
+| Resource                         |             RP_A             |             RP_C             |  RP_P   |
+| -------------------------------- | :--------------------------: | :--------------------------: | :-----: |
+| Project (settings, options)      |          R U S Re D          |              R               |    R    |
+| Members (profiles)               |         C R U S Re D         | R (without blocked profiles) |    —    |
+| Participants                     | C R U S Re D H + GDPR export |         C R U S Re H         | C R U S |
+| Groups                           |         C R U S Re D         |          C R U S Re          | C R U S |
+| Check-ins & check-outs           |         C R U S Re D         |          C R U S Re          | C R U S |
+| O_V Vehicles                     |        C R U S Re D H        |         C R U S Re H         |    —    |
+| O_A Activities                   |        C R U S Re D H        |         C R U S Re H         |   — ¹   |
+| O_C Communications               |         C R U S Re D         |          C R U S Re          | C R U S |
+| O_E Alerts                       |         C R U S Re D         |          C R U S Re          | C R U S |
+| Project home and live headcounts |              R               |              R               |    R    |
 
 ¹ The participant does not view the activity list, but sees the available activities among a check-out's reasons and can pick one. Likewise, they can assign a vehicle to a movement ("vehicles" step) without accessing the vehicle list.
 
@@ -114,12 +114,12 @@ Reading between the lines:
 
 Four **optional modules** are enabled per project. A disabled module is invisible and closed, whatever the role. **Disabling a module deletes no data**: everything reappears when it is re-enabled.
 
-| Option | Brings | Requires |
-| --- | --- | --- |
-| **`VEHICLE`** (O_V) | Vehicles, their presence and their assignment in movements | — |
-| **`ACTIVITY`** (O_A) | Planned activities, usable as a check-out reason | — |
-| **`COMMUNICATION`** (O_C) | Messages attached to check-outs and alerts | `ACTIVITY` |
-| **`ALERT`** (O_E) | Incident reporting and tracking | `COMMUNICATION` (hence `ACTIVITY`) |
+| Option                    | Brings                                                     | Requires                           |
+| ------------------------- | ---------------------------------------------------------- | ---------------------------------- |
+| **`VEHICLE`** (O_V)       | Vehicles, their presence and their assignment in movements | —                                  |
+| **`ACTIVITY`** (O_A)      | Planned activities, usable as a check-out reason           | —                                  |
+| **`COMMUNICATION`** (O_C) | Messages attached to check-outs and alerts                 | `ACTIVITY`                         |
+| **`ALERT`** (O_E)         | Incident reporting and tracking                            | `COMMUNICATION` (hence `ACTIVITY`) |
 
 The core — projects, members, participants, groups, check-ins/check-outs and the project home — is always present.
 

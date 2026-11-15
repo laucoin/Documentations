@@ -16,23 +16,23 @@ Runs entirely as the invoking macOS user. The only privilege escalation that can
 
 The `main` function runs these steps in order:
 
-| # | Step | What it does |
-| - | ---- | ------------ |
-| 0 | **macOS guard** | Exit immediately if the OS is not Darwin. |
-| 1 | `ensure_homebrew` | Use an existing `brew`, or install Homebrew, then load its shell environment. |
-| 2 | `load` / `prompt` / `save` choices | Load persisted choices, ask (or skip) the container-runtime and browser questions, persist the answers. |
-| 3 | `build_effective_brewfile` + `brew bundle` | Compose the base Brewfile with the interactive selections and install everything. |
-| 4 | `apply_dotfiles_if_available` | Run `chezmoi apply` if chezmoi and a source directory are present. |
-| 5 | `setup_shell` | Symlink zsh/starship/ssh config; install `zsh-autosuggestions` and `zsh-syntax-highlighting`. |
-| 6 | `setup_python` | Install the latest stable Python via pyenv and set it global. |
-| 7 | `setup_node` | Install Node LTS via nvm and set it default. |
-| 8 | `setup_java` | Install SDKMAN and the pinned Java LTS. |
-| 9 | `setup_fonts` | Install the Hack Nerd Font cask. |
-| 10 | `setup_git` | Rewrite the global Git config, aliases, and template directory. |
-| 11 | `setup_vim` | Symlink the vimrc and install the Dracula theme. |
-| 12 | `setup_vscode` | Symlink settings/keybindings and install the curated extensions. |
-| 13 | `setup_opencode` | Symlink the Opencode config and TUI files. |
-| 14 | `restart_affected_apps` | `killall` Finder, Dock and SystemUIServer so changes take effect. |
+| #   | Step                                       | What it does                                                                                            |
+| --- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| 0   | **macOS guard**                            | Exit immediately if the OS is not Darwin.                                                               |
+| 1   | `ensure_homebrew`                          | Use an existing `brew`, or install Homebrew, then load its shell environment.                           |
+| 2   | `load` / `prompt` / `save` choices         | Load persisted choices, ask (or skip) the container-runtime and browser questions, persist the answers. |
+| 3   | `build_effective_brewfile` + `brew bundle` | Compose the base Brewfile with the interactive selections and install everything.                       |
+| 4   | `apply_dotfiles_if_available`              | Run `chezmoi apply` if chezmoi and a source directory are present.                                      |
+| 5   | `setup_shell`                              | Symlink zsh/starship/ssh config; install `zsh-autosuggestions` and `zsh-syntax-highlighting`.           |
+| 6   | `setup_python`                             | Install the latest stable Python via pyenv and set it global.                                           |
+| 7   | `setup_node`                               | Install Node LTS via nvm and set it default.                                                            |
+| 8   | `setup_java`                               | Install SDKMAN and the pinned Java LTS.                                                                 |
+| 9   | `setup_fonts`                              | Install the Hack Nerd Font cask.                                                                        |
+| 10  | `setup_git`                                | Rewrite the global Git config, aliases, and template directory.                                         |
+| 11  | `setup_vim`                                | Symlink the vimrc and install the Dracula theme.                                                        |
+| 12  | `setup_vscode`                             | Symlink settings/keybindings and install the curated extensions.                                        |
+| 13  | `setup_opencode`                           | Symlink the Opencode config and TUI files.                                                              |
+| 14  | `restart_affected_apps`                    | `killall` Finder, Dock and SystemUIServer so changes take effect.                                       |
 
 ## 4. Business rules
 

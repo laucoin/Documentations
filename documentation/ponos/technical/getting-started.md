@@ -4,12 +4,12 @@ This is the procedure to run Ponos on a macOS machine. It is safe to run on both
 
 ## Prerequisites
 
-| Requirement | Notes |
-| ----------- | ----- |
-| **macOS** | The script guards on `uname -s == Darwin` and exits on anything else. |
-| **Command Line Tools / `git`** | Needed to clone the repo and for the shell-plugin/theme clones. macOS prompts to install the Command Line Tools on first `git` use if absent. |
-| **Network access** | Bootstrapping fetches Homebrew, packages, plugins and language runtimes (see [Actors & Trust Boundary → Network access](/ponos/functional/roles-and-permissions#network-access)). |
-| **Git identity in `~/.zshenv`** | Required for the Git configuration step (see below). |
+| Requirement                     | Notes                                                                                                                                                                             |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **macOS**                       | The script guards on `uname -s == Darwin` and exits on anything else.                                                                                                             |
+| **Command Line Tools / `git`**  | Needed to clone the repo and for the shell-plugin/theme clones. macOS prompts to install the Command Line Tools on first `git` use if absent.                                     |
+| **Network access**              | Bootstrapping fetches Homebrew, packages, plugins and language runtimes (see [Actors & Trust Boundary → Network access](/ponos/functional/roles-and-permissions#network-access)). |
+| **Git identity in `~/.zshenv`** | Required for the Git configuration step (see below).                                                                                                                              |
 
 Homebrew itself is **not** a prerequisite — the script installs it if missing.
 

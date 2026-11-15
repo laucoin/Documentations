@@ -20,5 +20,5 @@ For repos that already existed before the template was set, [`rhooks`](/ponos/te
 ## Consequences
 
 - **Pros:** New repositories are governed automatically with zero per-repo setup. The hooks are versioned in one place and propagated (`rhooks`) to existing repos. Commit hygiene and push safety are enforced by the machine, consistently.
-- **Cons / trade-offs:** `init.templateDir` only affects *new* repos, so existing ones need the manual `rhooks` step. `pre-push` inferring the force flag from `~/.zsh_history` is fragile — it assumes zsh and that the last history line is the push command. The hooks are Python, so they depend on Python + `colorlog` being present. `rhooks`'s `copytree` fails on an existing hooks directory unless `--force` is given.
+- **Cons / trade-offs:** `init.templateDir` only affects _new_ repos, so existing ones need the manual `rhooks` step. `pre-push` inferring the force flag from `~/.zsh_history` is fragile — it assumes zsh and that the last history line is the push command. The hooks are Python, so they depend on Python + `colorlog` being present. `rhooks`'s `copytree` fails on an existing hooks directory unless `--force` is given.
 - **Alternatives rejected:** A managed framework like `pre-commit` (extra dependency and per-repo config file) and documenting a manual copy step (relies on discipline, drifts immediately).

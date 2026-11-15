@@ -13,11 +13,11 @@ description: 'Plan activities, use them as a check-out reason and track their st
 
 ## 2. Roles and permissions
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| RP_A | Create, read, update, delete, restore, permanently delete, history | Permanent deletion only without any recorded movement. |
-| RP_C | Create, read, update, delete, restore, history | — |
-| RP_P | — | Sees the available activities among a check-out's reasons. |
+| Role | Permitted actions                                                  | Conditions / scope                                         |
+| ---- | ------------------------------------------------------------------ | ---------------------------------------------------------- |
+| RP_A | Create, read, update, delete, restore, permanently delete, history | Permanent deletion only without any recorded movement.     |
+| RP_C | Create, read, update, delete, restore, history                     | —                                                          |
+| RP_P | —                                                                  | Sees the available activities among a check-out's reasons. |
 
 ## 3. Business rules
 

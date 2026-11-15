@@ -13,10 +13,10 @@ description: 'Administer the user directory: role, blocking, GDPR export and del
 
 ## 2. Roles and permissions
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| R_A | Read the directory, change the role, block, unblock, delete, GDPR export | Never on their own account via the directory; last-administrator safeguard. |
-| R_U, R_A | Export and delete their own account | From "My account". |
+| Role     | Permitted actions                                                        | Conditions / scope                                                          |
+| -------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| R_A      | Read the directory, change the role, block, unblock, delete, GDPR export | Never on their own account via the directory; last-administrator safeguard. |
+| R_U, R_A | Export and delete their own account                                      | From "My account".                                                          |
 
 Accounts are not created here: they are created **automatically on first sign-in**, with the R_U role (see [Roles and permissions](/registry/functional/roles-and-permissions#authentication-model)).
 

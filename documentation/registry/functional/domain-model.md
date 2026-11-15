@@ -121,28 +121,28 @@ When a bound is a plain date:
 
 These are the enumerations that appear throughout the product.
 
-| Enumeration | Values | Meaning |
-| --- | --- | --- |
-| **Movement type** | `IN`, `OUT` | Direction of a check-in/check-out. |
-| **Participant type** | `REGISTERED`, `GUEST` | Registered participant or visitor — they move in opposite directions. |
-| **Presence status** | `IN`, `OUT`, `UNAVAILABLE`, `OVERDUE` | The live state of a participant or a vehicle, derived from movements and the availability window. `OVERDUE` only concerns participants: they have arrived, have not definitively left, and their planned end has passed. |
-| **Availability status** | `AVAILABLE`, `UNAVAILABLE` | Whether a project, participant, group, vehicle, activity or profile is within its active window — its own if set, otherwise inherited (see [Availability windows: priority and date resolution](#availability-windows-priority-and-date-resolution)). |
-| **Profile status** | `INVITED`, `ACCEPTED`, `REJECTED`, `BLOCKED` | Lifecycle of a project invitation. `BLOCKED` is never stored: it is the label shown for a blocked profile, which keeps its original status (see [Profile](#profile)). |
-| **Alert status** | `IN_PROGRESS`, `RESOLVED`, `CANCELED` | Lifecycle of an incident. |
-| **Alert criticality** | `RECENT`, `REINFORCED`, `HIGH` | Age of an in-progress alert (by default reinforced after 6 h, high after 18 h). |
-| **Refresh mode** | `OFF`, `ECO`, `NORMAL`, `FAST` | A user preference: how often the displayed data reloads on its own. |
-| **Movement reason** | `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT`, `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` | Why a movement happened. Each reason is only valid for a given direction and participant type. |
-| **Project option** | `VEHICLE`, `ACTIVITY`, `COMMUNICATION`, `ALERT` | The optional modules an event can enable. |
-| **User type** | `USER`, `SERVICE_ACCOUNT` | A human account or the system's own job runner. |
-| **Theme** | `SYSTEM`, `LIGHT`, `DARK` | A user's interface preference. |
+| Enumeration             | Values                                                                                                         | Meaning                                                                                                                                                                                                                                               |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Movement type**       | `IN`, `OUT`                                                                                                    | Direction of a check-in/check-out.                                                                                                                                                                                                                    |
+| **Participant type**    | `REGISTERED`, `GUEST`                                                                                          | Registered participant or visitor — they move in opposite directions.                                                                                                                                                                                 |
+| **Presence status**     | `IN`, `OUT`, `UNAVAILABLE`, `OVERDUE`                                                                          | The live state of a participant or a vehicle, derived from movements and the availability window. `OVERDUE` only concerns participants: they have arrived, have not definitively left, and their planned end has passed.                              |
+| **Availability status** | `AVAILABLE`, `UNAVAILABLE`                                                                                     | Whether a project, participant, group, vehicle, activity or profile is within its active window — its own if set, otherwise inherited (see [Availability windows: priority and date resolution](#availability-windows-priority-and-date-resolution)). |
+| **Profile status**      | `INVITED`, `ACCEPTED`, `REJECTED`, `BLOCKED`                                                                   | Lifecycle of a project invitation. `BLOCKED` is never stored: it is the label shown for a blocked profile, which keeps its original status (see [Profile](#profile)).                                                                                 |
+| **Alert status**        | `IN_PROGRESS`, `RESOLVED`, `CANCELED`                                                                          | Lifecycle of an incident.                                                                                                                                                                                                                             |
+| **Alert criticality**   | `RECENT`, `REINFORCED`, `HIGH`                                                                                 | Age of an in-progress alert (by default reinforced after 6 h, high after 18 h).                                                                                                                                                                       |
+| **Refresh mode**        | `OFF`, `ECO`, `NORMAL`, `FAST`                                                                                 | A user preference: how often the displayed data reloads on its own.                                                                                                                                                                                   |
+| **Movement reason**     | `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT`, `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` | Why a movement happened. Each reason is only valid for a given direction and participant type.                                                                                                                                                        |
+| **Project option**      | `VEHICLE`, `ACTIVITY`, `COMMUNICATION`, `ALERT`                                                                | The optional modules an event can enable.                                                                                                                                                                                                             |
+| **User type**           | `USER`, `SERVICE_ACCOUNT`                                                                                      | A human account or the system's own job runner.                                                                                                                                                                                                       |
+| **Theme**               | `SYSTEM`, `LIGHT`, `DARK`                                                                                      | A user's interface preference.                                                                                                                                                                                                                        |
 
 ### How reasons pair with direction and type {#how-reasons-pair-with-direction-and-type}
 
 A movement's reason must be consistent with its direction and the participant type — this is enforced, not just advised:
 
-| Reason | Applies to | Direction |
-| --- | --- | --- |
-| `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` | Registered participants leaving | `OUT` |
-| `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT` | Guests arriving | `IN` |
+| Reason                                                 | Applies to                      | Direction |
+| ------------------------------------------------------ | ------------------------------- | --------- |
+| `SHOPPING`, `MEDICAL`, `DEFINITIVE_DEPARTURE`, `OTHER` | Registered participants leaving | `OUT`     |
+| `EMERGENCY`, `LOGISTICS`, `PARTNER_ANIMATION`, `VISIT` | Guests arriving                 | `IN`      |
 
 A registered participant with no reason or activity is assumed to be **coming back** (`IN`); a guest with no reason is assumed to be **leaving** (`OUT`). The [Movements feature](/registry/functional/features/movements) details these rules.

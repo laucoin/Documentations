@@ -15,9 +15,9 @@ description: 'A user’s personal settings: theme, language and refresh frequenc
 
 This is a **global**, per-user feature: it uses the `USER_ADMINISTRATOR` and `USER` platform roles. Both have **identical** rights here — each acting only on their own preferences. See [Roles and permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain model → User](/registry/functional/domain-model#user) for where preferences live.
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| `USER` (global, default) | **R U** (their own) | Can read and change **their own** theme, language and refresh mode. No special permission needed — being authenticated is enough. |
+| Role                          | Permitted actions   | Conditions / scope                                                                                                                          |
+| ----------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `USER` (global, default)      | **R U** (their own) | Can read and change **their own** theme, language and refresh mode. No special permission needed — being authenticated is enough.           |
 | `USER_ADMINISTRATOR` (global) | **R U** (their own) | Identical rights, and only on their **own** preferences. Being a platform administrator grants **no** access to another user's preferences. |
 
 ## 3. Business rules

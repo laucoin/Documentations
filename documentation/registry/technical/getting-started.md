@@ -9,12 +9,12 @@ This is the guided procedure to run the whole Registry stack locally: PostgreSQL
 
 ## Prerequisites
 
-| Tool | Version | For |
-| --- | --- | --- |
-| **JDK** | The one in `jvmToolchain` in `build.gradle.kts` | Compiling and running the backend |
-| **Docker + Compose** | Recent | Running PostgreSQL and the OIDC provider locally |
-| **Node.js** | The one in `.nvmrc` and in the `engines` of `package.json` | Compiling and running the frontend |
-| **pnpm** | The one in `packageManager` in `package.json` | Frontend package management |
+| Tool                 | Version                                                    | For                                              |
+| -------------------- | ---------------------------------------------------------- | ------------------------------------------------ |
+| **JDK**              | The one in `jvmToolchain` in `build.gradle.kts`            | Compiling and running the backend                |
+| **Docker + Compose** | Recent                                                     | Running PostgreSQL and the OIDC provider locally |
+| **Node.js**          | The one in `.nvmrc` and in the `engines` of `package.json` | Compiling and running the frontend               |
+| **pnpm**             | The one in `packageManager` in `package.json`              | Frontend package management                      |
 
 The backend builds with the provided Gradle wrapper (`./gradlew`), so a system-wide Gradle is not needed.
 
@@ -100,10 +100,7 @@ The frontend is **environment-agnostic**: it loads its configuration at runtime 
       "/api/v2/authentication/token",
       "/api/v2/authentication/token/refresh"
     ],
-    "credentialFreePaths": [
-      "/api/v2/metadata/",
-      "/api/v2/authentication/login/uri"
-    ]
+    "credentialFreePaths": ["/api/v2/metadata/", "/api/v2/authentication/login/uri"]
   },
   "hosting": { "providerName": null, "providerAddress": null }
 }
@@ -129,9 +126,9 @@ pnpm start          # ng serve, on http://localhost:4200
 
 ## Build outputs and images
 
-| Service | Local build | Container image |
-| --- | --- | --- |
-| Backend | `./gradlew build` → JVM jar | Distroless Java, non-root, `:8081` |
+| Service  | Local build                   | Container image                                       |
+| -------- | ----------------------------- | ----------------------------------------------------- |
+| Backend  | `./gradlew build` → JVM jar   | Distroless Java, non-root, `:8081`                    |
 | Frontend | `pnpm build` → `dist/browser` | Unprivileged nginx serving the static bundle, `:8080` |
 
 Both images are produced and published by CI via semantic-release ([ADR 009](/registry/technical/adr/009-container-delivery-semantic-release)); you rarely build them by hand.

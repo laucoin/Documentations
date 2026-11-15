@@ -13,11 +13,11 @@ description: 'Group participants to move them, count them and give them shared d
 
 ## 2. Roles and permissions
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| RP_A | Create, read, update, manage members, delete, restore, permanently delete | — |
-| RP_C | Create, read, update, manage members, delete, restore | Sees deleted groups. |
-| RP_P | Create, read, update, manage members, delete | Does not see deleted groups. |
+| Role | Permitted actions                                                         | Conditions / scope           |
+| ---- | ------------------------------------------------------------------------- | ---------------------------- |
+| RP_A | Create, read, update, manage members, delete, restore, permanently delete | —                            |
+| RP_C | Create, read, update, manage members, delete, restore                     | Sees deleted groups.         |
+| RP_P | Create, read, update, manage members, delete                              | Does not see deleted groups. |
 
 ## 3. Business rules
 

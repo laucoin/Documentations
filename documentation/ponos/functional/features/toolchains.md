@@ -13,12 +13,12 @@ All runtimes install under `$HOME` (`~/.pyenv`, `~/.nvm`, `~/.sdkman`); no syste
 
 ## 3. What is installed
 
-| Toolchain | Manager | Behaviour |
-| --------- | ------- | --------- |
-| **Python** | pyenv | Detects the **latest stable** `3.x.y` from `pyenv install --list`, installs it, sets it global, upgrades pip, and installs the `click` and `colorlog` libraries the CLI extensions and hooks depend on. |
-| **Node.js** | nvm | Installs the current **LTS** and aliases `default` to `lts/*`. |
-| **Java** | SDKMAN | Installs SDKMAN if absent, then installs the **pinned Java LTS** (Temurin) and sets it as default. |
-| **Font** | Homebrew cask | Installs the **Hack Nerd Font** (`font-hack-nerd-font`). |
+| Toolchain   | Manager       | Behaviour                                                                                                                                                                                               |
+| ----------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Python**  | pyenv         | Detects the **latest stable** `3.x.y` from `pyenv install --list`, installs it, sets it global, upgrades pip, and installs the `click` and `colorlog` libraries the CLI extensions and hooks depend on. |
+| **Node.js** | nvm           | Installs the current **LTS** and aliases `default` to `lts/*`.                                                                                                                                          |
+| **Java**    | SDKMAN        | Installs SDKMAN if absent, then installs the **pinned Java LTS** (Temurin) and sets it as default.                                                                                                      |
+| **Font**    | Homebrew cask | Installs the **Hack Nerd Font** (`font-hack-nerd-font`).                                                                                                                                                |
 
 ## 4. Business rules
 

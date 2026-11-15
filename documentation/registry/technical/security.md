@@ -32,18 +32,18 @@ flowchart LR
     B --> IdP["Identity provider (OIDC)"]
 ```
 
-| Layer | Question it answers | Mechanisms |
-| --- | --- | --- |
-| Network and transport | Who can reach what, and is the communication encrypted? | HTTPS + HSTS, isolated management port, CORS |
-| Identity | Who is the caller? | Delegated OIDC, verified JWT, `HttpOnly` cookies |
-| Session integrity | Does the request really come from our application? | Stateless CSRF, `SameSite`, redirect allowlist |
-| Authorization | Are they allowed to do _this_, _in this project_? | Two-plane RBAC, per-project namespaces, options, visibility |
-| Business rules | Does the action leave the data in a valid state? | Validation, last-administrator safeguards, row locks |
-| Abuse | Is someone trying to abuse the service? | Rate limiting, input bounds |
-| Traceability | Who accessed personal data, and when? | Audit log, _log_ versioning |
-| Data | Do we keep only what is needed? | GDPR export, deletion, retention purges |
-| Browser | Can a booby-trapped page hijack the application? | Nonce-based CSP, hardening headers |
-| Runtime | Can an attacker who gets in go far? | Minimal non-root images, secrets outside the image |
+| Layer                 | Question it answers                                     | Mechanisms                                                  |
+| --------------------- | ------------------------------------------------------- | ----------------------------------------------------------- |
+| Network and transport | Who can reach what, and is the communication encrypted? | HTTPS + HSTS, isolated management port, CORS                |
+| Identity              | Who is the caller?                                      | Delegated OIDC, verified JWT, `HttpOnly` cookies            |
+| Session integrity     | Does the request really come from our application?      | Stateless CSRF, `SameSite`, redirect allowlist              |
+| Authorization         | Are they allowed to do _this_, _in this project_?       | Two-plane RBAC, per-project namespaces, options, visibility |
+| Business rules        | Does the action leave the data in a valid state?        | Validation, last-administrator safeguards, row locks        |
+| Abuse                 | Is someone trying to abuse the service?                 | Rate limiting, input bounds                                 |
+| Traceability          | Who accessed personal data, and when?                   | Audit log, _log_ versioning                                 |
+| Data                  | Do we keep only what is needed?                         | GDPR export, deletion, retention purges                     |
+| Browser               | Can a booby-trapped page hijack the application?        | Nonce-based CSP, hardening headers                          |
+| Runtime               | Can an attacker who gets in go far?                     | Minimal non-root images, secrets outside the image          |
 
 ## 1. Authentication: knowing who the caller is {#authentication}
 
@@ -80,11 +80,11 @@ sequenceDiagram
 
 A token can be stolen, expired, or issued for another application. The backend therefore checks, on every call:
 
-| Check | What it prevents |
-| --- | --- |
-| **Signature** (the provider's public keys, fetched and cached) | A token forged or modified by an attacker |
-| **Expiry** | Reuse of an old stolen token |
-| **Audience**: the token must be intended for a trusted Registry client | Use of a token issued by the same provider for _another_ application |
+| Check                                                                                              | What it prevents                                                        |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Signature** (the provider's public keys, fetched and cached)                                     | A token forged or modified by an attacker                               |
+| **Expiry**                                                                                         | Reuse of an old stolen token                                            |
+| **Audience**: the token must be intended for a trusted Registry client                             | Use of a token issued by the same provider for _another_ application    |
 | **Issuer**: scheme, host and port must match the configured origin **exactly** (not just a prefix) | A token issued by a fake provider whose address looks like the real one |
 
 Outbound calls to the provider (code exchange, refresh, revocation) go through a **bounded** HTTP client: capped number of connections and connection and response timeouts. A slow or failing provider makes the request fail quickly ("failed dependency" error) instead of tying up all the server's resources.
@@ -122,12 +122,12 @@ Important security points:
 
 **The solution.** The backend puts the tokens in **two cookies** that JavaScript cannot read:
 
-| Attribute | Effect |
-| --- | --- |
-| `HttpOnly` | The cookie is invisible to JavaScript: a malicious script cannot steal it. |
-| `Secure` | The cookie only travels over HTTPS (can be disabled **only** in local development). |
-| `SameSite=Lax` | The browser does not send the cookie on requests triggered by another site (booby-trapped form, image…), except top-level navigation. |
-| Path scope | The refresh cookie is only sent to the authentication endpoints, never to the rest of the API. It is therefore exposed as little as possible. |
+| Attribute      | Effect                                                                                                                                        |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HttpOnly`     | The cookie is invisible to JavaScript: a malicious script cannot steal it.                                                                    |
+| `Secure`       | The cookie only travels over HTTPS (can be disabled **only** in local development).                                                           |
+| `SameSite=Lax` | The browser does not send the cookie on requests triggered by another site (booby-trapped form, image…), except top-level navigation.         |
+| Path scope     | The refresh cookie is only sent to the authentication endpoints, never to the rest of the API. It is therefore exposed as little as possible. |
 
 The frontend never reads or stores a token. The only use of browser storage is to remember the page to return to after sign-in.
 
@@ -190,11 +190,11 @@ Tests also check that the permissions injected into the database match the code'
 
 Each resource has distinct permissions to **(soft) delete**, **restore** and **permanently delete** ([ADR 017](/registry/technical/adr/017-soft-delete-and-restore-permissions)):
 
-| Action | Effect | Who (in general) |
-| --- | --- | --- |
-| Delete | Hides the item (reversible) | administrator, coordinator, participant |
-| Restore | Makes it visible again | administrator, coordinator |
-| Permanently delete | Erases it from the database | administrator |
+| Action             | Effect                      | Who (in general)                        |
+| ------------------ | --------------------------- | --------------------------------------- |
+| Delete             | Hides the item (reversible) | administrator, coordinator, participant |
+| Restore            | Makes it visible again      | administrator, coordinator              |
+| Permanently delete | Erases it from the database | administrator                           |
 
 The **restore** permission also serves as the **visibility key**: only those who hold it can list or view deleted items. For everyone else, the backend silently forces the filter to "visible items", whatever parameter is sent. A participant therefore cannot discover a deleted item by editing the URL.
 
@@ -243,12 +243,12 @@ Alerts, check-ins/check-outs and communications are **traces** of real events. B
 
 **The solution.** Four in-memory **sliding window** limiters ([ADR 012](/registry/technical/adr/012-per-instance-rate-limit-caffeine)):
 
-| Limiter | Counted per | Default | What it slows down |
-| --- | --- | --- | --- |
-| Token exchange and refresh | client IP address | 10 / minute | Brute force on the only unauthenticated surface |
-| Personal data exports (user or participant) | user | 5 / hour | Mass extraction of personal data |
-| Search for a user to invite | user | 30 / minute | Enumeration of the platform's directory |
-| Project creation | user | 10 / hour | Abusive project creation |
+| Limiter                                     | Counted per       | Default     | What it slows down                              |
+| ------------------------------------------- | ----------------- | ----------- | ----------------------------------------------- |
+| Token exchange and refresh                  | client IP address | 10 / minute | Brute force on the only unauthenticated surface |
+| Personal data exports (user or participant) | user              | 5 / hour    | Mass extraction of personal data                |
+| Search for a user to invite                 | user              | 30 / minute | Enumeration of the platform's directory         |
+| Project creation                            | user              | 10 / hour   | Abusive project creation                        |
 
 Beyond that, the response is `429 Too Many Requests` with a wait delay (`Retry-After`). An export refused for exceeding the limit is also **written to the audit log**. The number of tracked clients is capped, so that a flood of different addresses cannot saturate memory.
 
@@ -270,15 +270,15 @@ Counters are specific to each instance and reset on restart; with N instances, t
 
 **The solution.** A dedicated audit table records every access to personal data ([ADR 019](/registry/technical/adr/019-personal-data-access-audit)):
 
-| Field | Content |
-| --- | --- |
-| Action | read or export |
+| Field    | Content                                                              |
+| -------- | -------------------------------------------------------------------- |
+| Action   | read or export                                                       |
 | Resource | user, participant or movement (and its identifier if it is a record) |
-| Project | the project concerned, if any |
-| Actor | the user who made the request |
-| Outcome | succeeded, denied (`403`) or rate-limited (`429`) |
-| Context | real IP address and browser (User-Agent) |
-| Date | the instant of access |
+| Project  | the project concerned, if any                                        |
+| Actor    | the user who made the request                                        |
+| Outcome  | succeeded, denied (`403`) or rate-limited (`429`)                    |
+| Context  | real IP address and browser (User-Agent)                             |
+| Date     | the instant of access                                                |
 
 What is traced: reading the records and lists of users, participants (including birthdays, timelines and histories) and movements, as well as **every GDPR export**. The viewed **content** is never copied into the audit — only the fact that it was viewed.
 
@@ -301,16 +301,16 @@ These headers tell the browser how to protect itself.
 
 ### Frontend side (nginx)
 
-| Header | Role |
-| --- | --- |
-| `Content-Security-Policy` | Lists what the page is allowed to load and run. Scripts and styles must come from the site itself **and** carry a **nonce** (a random value that differs on every page load): a script injected by an attacker does not have the right nonce and does not run. Network calls are limited to the site and to the backend's origin, read when the container starts. No `unsafe-eval`, no embedded objects, no embedding in a frame. |
-| `X-Frame-Options: DENY` and `frame-ancestors 'none'` | Forbid displaying the application in another site's `iframe` ("clickjacking"). |
-| `Strict-Transport-Security` | Forces the browser to use only HTTPS for one year. |
-| `X-Content-Type-Options: nosniff` | Prevents the browser from "guessing" that a file is a script. |
-| `Referrer-Policy` | Limits the URL information passed to other sites. |
-| `Permissions-Policy` | Disables geolocation, camera, microphone, payment and USB, which are useless here. |
-| `Cross-Origin-Opener-Policy` / `Cross-Origin-Resource-Policy` | Isolate the application's window and resources from other sites. |
-| `server_tokens off` | Does not reveal the nginx version. |
+| Header                                                        | Role                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy`                                     | Lists what the page is allowed to load and run. Scripts and styles must come from the site itself **and** carry a **nonce** (a random value that differs on every page load): a script injected by an attacker does not have the right nonce and does not run. Network calls are limited to the site and to the backend's origin, read when the container starts. No `unsafe-eval`, no embedded objects, no embedding in a frame. |
+| `X-Frame-Options: DENY` and `frame-ancestors 'none'`          | Forbid displaying the application in another site's `iframe` ("clickjacking").                                                                                                                                                                                                                                                                                                                                                    |
+| `Strict-Transport-Security`                                   | Forces the browser to use only HTTPS for one year.                                                                                                                                                                                                                                                                                                                                                                                |
+| `X-Content-Type-Options: nosniff`                             | Prevents the browser from "guessing" that a file is a script.                                                                                                                                                                                                                                                                                                                                                                     |
+| `Referrer-Policy`                                             | Limits the URL information passed to other sites.                                                                                                                                                                                                                                                                                                                                                                                 |
+| `Permissions-Policy`                                          | Disables geolocation, camera, microphone, payment and USB, which are useless here.                                                                                                                                                                                                                                                                                                                                                |
+| `Cross-Origin-Opener-Policy` / `Cross-Origin-Resource-Policy` | Isolate the application's window and resources from other sites.                                                                                                                                                                                                                                                                                                                                                                  |
+| `server_tokens off`                                           | Does not reveal the nginx version.                                                                                                                                                                                                                                                                                                                                                                                                |
 
 Missing configuration files answer `404` (instead of the home page) and are never cached.
 

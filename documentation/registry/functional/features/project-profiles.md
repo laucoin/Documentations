@@ -13,13 +13,13 @@ description: 'Invite and manage a project’s members, reply to one’s invitati
 
 ## 2. Roles and permissions
 
-| Role | Permitted actions | Conditions / scope |
-| --- | --- | --- |
-| RP_A | Invite, read, update, block, unblock, delete | Within the limit of their role level; last-permanent-administrator safeguard. |
-| RP_C | Read | Does not see blocked profiles; no actions. |
-| RP_P | — | No access to the member list. |
-| Any signed-in user | Read their profiles, accept / decline an invitation, leave a project | Accept or decline only from the "invited" state. |
-| R_A | Join as support | **One-hour** administrator profile, on any project. |
+| Role               | Permitted actions                                   | Conditions / scope                                                            |
+| ------------------ | --------------------------------------------------- | ----------------------------------------------------------------------------- |
+| RP_A               | Invite, read, update, block, unblock, delete        | Within the limit of their role level; last-permanent-administrator safeguard. |
+| RP_C               | Read                                                | Does not see blocked profiles; no actions.                                    |
+| RP_P               | —                                                   | No access to the member list.                                                 |
+| Any signed-in user | Read their profiles, accept / decline an invitation | Accept or decline only from the "invited" state.                              |
+| R_A                | Join as support                                     | **One-hour** administrator profile, on any project.                           |
 
 ## 3. Business rules
 
