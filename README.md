@@ -2,8 +2,8 @@
 
 [![Deploy](https://github.com/laucoin/Documentations/actions/workflows/deploy.yml/badge.svg)](https://github.com/laucoin/Documentations/actions/workflows/deploy.yml)
 [![VitePress](https://img.shields.io/badge/VitePress-2.0.0--alpha-646cff?style=flat-square&logo=vite&logoColor=white)](https://vitepress.dev/)
-[![pnpm](https://img.shields.io/badge/pnpm-11-F69220?style=flat-square&logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![Node](https://img.shields.io/badge/Node-24+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-12-F69220?style=flat-square&logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![Node](https://img.shields.io/badge/Node-26+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License: CC BY-NC-ND 4.0](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-lightgrey.svg?style=flat-square)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
@@ -23,7 +23,7 @@ Live at [doc.laucoin.fr](https://doc.laucoin.fr).
 
 ### Prerequisites
 
-Install [Node.js 24 or later](https://nodejs.org/) and [pnpm 11 or later](https://pnpm.io/installation)
+Install [Node.js 26 or later](https://nodejs.org/) and [pnpm 12 or later](https://pnpm.io/installation)
 
 ### Build and run locally
 
@@ -83,10 +83,21 @@ pnpm lint          # ESLint check (pnpm lint:fix to auto-fix)
 pnpm format        # Prettier write (pnpm format:check to verify only)
 ```
 
+#### Git hooks
+
+[Husky](https://typicode.github.io/husky/) installs the Git hooks from `.husky/` on `pnpm install`:
+
+- **commit-msg** — enforces [Conventional Commits](https://www.conventionalcommits.org/). A bare message is prefixed
+  from the branch name (`laucoin/chore/deps` → `chore(deps): …`); a message starting with `wip` gets `[skip ci]`.
+- **pre-push** — asks for confirmation before pushing to `main`, force-pushing or deleting a remote branch.
+- **post-checkout / post-merge / post-rewrite** — run `pnpm install` when `package.json`, the lockfile or the pnpm
+  config changed.
+
 ## Project structure 🗂️
 
 ```text
 .
+├── .husky/                     # Git hooks (commit message, push guard, auto install)
 ├── .vitepress/
 │   └── config.mts              # VitePress config (nav, sidebar, footer, search)
 ├── documentation/

@@ -1,0 +1,2 @@
+[ "$1" = "rebase" ] && sh .husky/scripts/install-deps.sh ORIG_HEAD HEAD
+exit 0
