@@ -1,115 +1,80 @@
+---
+title: 'Feature: Participants'
+description: 'Register participants, track their presence and history, and export their data.'
+---
+
 # Feature: Participants
 
 ## 1. Overview
 
-- **Goal:** A participant is a person taking part in the event — the unit Registry counts, moves and displays on the live headcount. Staff register each person once, with a name, a birthday and an availability window, and mark them as *registered* (enrolled) or a *guest* (visitor). From there the dashboard derives who is present, splits majors from minors, and highlights today's birthdays, all without anyone maintaining a status by hand.
-- **Who uses it:** All three roles register, read and edit participants; `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` additionally review movement history, and only `PROJECT_ADMINISTRATOR` can permanently delete one.
-- **Option required:** None — always available. Participants are part of the core.
+- **Goal:** A participant is a person taking part in the event — the unit Registry counts and moves. They are **registered** (enrolled, normally present) or a **guest** (visitor, created on arrival). From their planned dates and their movements, Registry derives their presence, separates adults from minors, and flags birthdays and presences to regularize.
+- **Who uses it:** all three project roles register, edit and delete; RP_A and RP_C restore and view the history; RP_A permanently deletes and exports.
+- **Option required:** none.
 
-## 2. Roles & Permissions
+## 2. Roles and permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — plus *History* (view a participant's movement history). See [Roles & Permissions](/registry/functional/roles-and-permissions) and [Domain Model → Participant](/registry/functional/domain-model#participant).
-
-| Role | Permitted actions | Conditions / Scope |
-| ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Only role that can permanently delete a participant — and only while that participant has **no movement history** (see §3); also registers, edits and views movement history (`REGISTRY_...PARTICIPANT_C/R/U/D`, `REGISTRY_PROJECT_PARTICIPANT_HISTORY_R`). |
-| `PROJECT_COORDINATOR` | **C R U** + History | Registers, edits, disables/enables and views movement history, same as the administrator — but cannot delete a participant. |
-| `PROJECT_PARTICIPANT` | **C R U** | Registers, reads, edits and disables/enables participants — same floor as the coordinator — but cannot delete one or view movement history. |
+| Role | Permitted actions | Conditions / scope |
+| --- | --- | --- |
+| RP_A | Create, read, update, delete, restore, permanently delete, history, GDPR export | Permanent deletion only without any recorded movement. |
+| RP_C | Create, read, update, delete, restore, history | Sees deleted participants. |
+| RP_P | Create, read, update, delete | Does not see deleted participants; no history. When editing, does not change the linked user, except to remove their own link. |
+| Linked user | GDPR export | For the participant linked to them. |
 
 ## 3. Business rules
 
-- **`firstName` and `lastName`** identify the participant.
-- **`birthday` is required** and **cannot be in the future** (`@PastOrPresent`).
-- **Availability window is optional.** With no window of its own, a participant inherits their group's window (union across all groups they belong to, if several), falling back to the project's if that's also unset — see [Domain Model → Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution). When both `start` and `end` are set, `start` must be **before** `end` (`@StartBeforeEnd`). **When the participant defines no window, belongs to no group, and the project itself defines no window, there is nothing left to inherit and the participant is permanently available** — until a `DEFINITIVE_DEPARTURE` movement, which ends their participation for good independently of any window.
-- **Type.** Each participant is `REGISTERED` or `GUEST`. A `REGISTERED` participant's normal state is *present* (they generate `OUT` movements when leaving); a `GUEST`'s normal state is *off-site* (they generate `IN` movements when arriving). See [Domain Model → Participant](/registry/functional/domain-model#participant).
-- **Optional user link.** A participant may or may not be linked to a real user account; **most are not**. Linking pre-fills the participant's name from the account and **locks** the name fields.
-- **Disabling is a soft, reversible action.** A disabled participant is hidden but can be re-enabled.
-- **A participant with history cannot be deleted — by anyone.** Once a participant appears in **any** movement, deleting them would rewrite the headcount history, so the request is refused for every role, `PROJECT_ADMINISTRATOR` included. `DELETE` exists only to remove a participant registered by mistake, before they have any movement. To take an active participant out of circulation, **disable** them (or record a `DEFINITIVE_DEPARTURE`).
-- **Derived presence.** Presence status (`IN` / `OUT` / `UNAVAILABLE`) is computed from the participant's latest movement and their availability window — it is never set directly. **With no movement yet recorded, the participant is `OUT`** — *not yet arrived* — whatever their type. A `REGISTERED` participant's "normal state is *present*" describes how movements are justified (leaving needs a reason, returning does not), not a presence the system assumes before the first `IN`.
-- **Derived age split.** Major vs minor is computed from `birthday`, driving the dashboard "majors vs minors" panel and the today's-birthdays panel.
+- **Identity**: first name and last name required (not blank, 150 characters maximum each); date of birth required, not in the future. Age determines the adults / minors split (only an adult can be responsible for a vehicle).
+- **Linked user** optional: it prefills the first and last name. Only users with (past, current or future) access to the project are offered, and a user is linked to only one participant per project.
+  When editing, only RP_A and RP_C change the linked user (set, replace or remove a link); an RP_P can only remove their own link. Without this rule, an RP_P could link themselves to each participant in turn to export their data, history and deleted items included. On creation, anyone can link a user: a brand-new participant has no past to reveal.
+  Linking oneself to one's own participant unlocks, for that user:
+  - the **GDPR export** of that participant, from the participant list's actions menu, even without the project's export right. This right applies to **their** participant only: they cannot link themselves to another existing participant to export that participant's data, since only RP_A and RP_C change this link (see above);
+  - the **"My groups"** tab of participant tracking, shown first: that participant's groups that have members on site;
+  - the inclusion of that participant in the **export of their own data**, from "My account".
+- **Groups**: multiple selection, optional (never for a guest).
+- **Planned dates** (availability start and end) optional; without dates of their own, the participant refers to their groups (see [Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution)). They stay within the project's period.
+- **Effective dates**: effective arrival (first check-in) and effective departure (definitive check-out), updated automatically by movements (see [Movements](/registry/functional/features/movements#effective-dates)).
+- **Presence status** derived, never entered: present, absent, unavailable, or **overdue** (arrived, not definitively left, planned end passed — they then appear in the presences to regularize). Without any movement, a participant is "not yet arrived".
+- **Deletion**: soft and reversible. **Permanent deletion** is refused as soon as the participant appears in a movement — the headcount history must never be rewritten; they are then "soft" deleted or their definitive departure is recorded.
+- **GDPR export**: all the data held on the participant in the project. The confirmation reminds that the file must be permanently deleted after it is sent to the requesting participant. Each export is traced (who requested it, not its content) and limited to 5 per hour and per user (see [Audit and traceability](/registry/functional/features/audit)).
 
-## 4. Behavioral scenarios (BDD)
+## 4. Screens
 
-```gherkin
-Scenario: Check-in staff register a new participant
-  Given I am a PROJECT_PARTICIPANT on a project
-  When I register "Jordan Lee" born 2010-05-04 as a REGISTERED participant
-  Then the participant is created
-  And their normal state is "present" — leaving will later require a justification
-  And their derived presence is OUT until their first check-in — not yet arrived
-```
+### 4.1 "Participants" list {#participants-list}
 
-```gherkin
-Scenario: A birthday in the future is rejected
-  Given I am registering a participant
-  When I set the birthday to a date after today
-  Then the request is rejected by the @PastOrPresent validator
-  And no participant is created
-```
+Shared behaviors: see [Lists](/registry/functional/screens#common-list-behaviors).
 
-```gherkin
-Scenario: A missing birthday is rejected
-  Given I am registering a participant
-  When I submit without a birthday
-  Then the request is rejected because birthday is required
-```
+- **Filters** [RP_A, RP_C, RP_P]: text, presence status; [RP_A, RP_C] deleted / not deleted.
+- [RP_A, RP_C, RP_P] The "Create" button opens the creation form.
+- **Each row** [RP_A, RP_C, RP_P] shows:
+  - the avatar and the full name, truncated with "…";
+  - the first group and, if there are several, a "+ N others" button that opens the groups drawer;
+  - the availability range start → end ("…" if a bound is missing);
+  - the presence status;
+  - the "Movement history" primary button [RP_A, RP_C].
+- [RP_A, RP_C] A deleted participant is grayed out and carries the "Deleted" tag.
+- **Actions menu**:
+  - [RP_A, RP_C] "Movement history";
+  - [RP_A, or the user linked to the participant] "GDPR export", with confirmation;
+  - [RP_A, RP_C, RP_P] "Edit": prefilled form;
+  - [RP_A, RP_C, RP_P] "Delete" if not deleted, with confirmation;
+  - [RP_A, RP_C] "Restore" if deleted, with confirmation;
+  - [RP_A] "Permanently delete", with confirmation.
 
-```gherkin
-Scenario: The availability start must be before its end
-  Given I am registering a participant
-  When I set the availability start after its end
-  Then the request is rejected by the @StartBeforeEnd validator
-```
+### 4.2 A participant's check-in/check-out history {#participant-history}
 
-```gherkin
-Scenario: Linking a participant to a user locks the name
-  Given I am editing a participant
-  When I link the participant to a user account
-  Then the first and last name are pre-filled from the account
-  And the name fields become read-only
-```
+[RP_A, RP_C]
 
-```gherkin
-Scenario: A participant can edit a participant but not delete one
-  Given I am a PROJECT_PARTICIPANT on a project
-  And an existing participant "Jordan Lee"
-  When I correct Jordan Lee's birthday
-  Then the update is accepted
-  When I then attempt to delete Jordan Lee
-  Then the request is refused for lack of REGISTRY_PROJECT_PARTICIPANT_D
-```
+- The header recalls the participant's identity, truncated with "…".
+- Same filters, rows and actions as the ["Check-ins & check-outs" list](/registry/functional/features/movements#movements-list), restricted to the participant's movements.
+- **Statistics** above the list:
+  - **planned timeline**: the project's duration with the participant's planned presence range(s);
+  - **actual timeline**: the project's duration with the ranges when the participant was out.
 
-```gherkin
-Scenario: A coordinator cannot delete a participant either
-  Given I am a PROJECT_COORDINATOR on a project
-  And an existing participant "Jordan Lee"
-  When I attempt to delete Jordan Lee
-  Then the request is refused for lack of REGISTRY_PROJECT_PARTICIPANT_D
-```
+### 4.3 Participant form {#participant-form}
 
-```gherkin
-Scenario: A participant who already has movement history cannot be deleted
-  Given I am the PROJECT_ADMINISTRATOR of a project
-  And a participant "Jordan Lee" who appears in at least one recorded movement
-  When I attempt to delete Jordan Lee
-  Then the request is refused to preserve the movement history
-  And disabling the participant is offered instead
-```
+[RP_A, RP_C, RP_P] Shared rules: see [Forms](/registry/functional/screens#common-form-behaviors).
 
-```gherkin
-Scenario: A coordinator reviews a participant's movement history
-  Given I am a PROJECT_COORDINATOR on a project
-  When I open a participant's movement history
-  Then I see their past check-in and check-out movements
-```
-
-```gherkin
-Scenario: Today's-birthdays panel lists participants born on this day
-  Given several participants are registered with various birthdays
-  When the dashboard requests today's birthdays
-  Then it returns only the participants whose birthday falls on today's date
-```
-
-## 5. API surface
-
-The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.
+- **First name**, **last name**: required, 150 characters maximum.
+- **Date of birth**: required.
+- **Linked user**: optional, prefills first and last name; searches among users with access to the project. When editing, the field is locked for RP_P, with help text; they can only clear their own link there.
+- **Groups**: optional, multiple selection.
+- **Availability start** and **end**: optional.

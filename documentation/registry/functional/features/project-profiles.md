@@ -1,114 +1,67 @@
-# Feature: Project Profiles (Membership)
+---
+title: 'Feature: Members and profiles'
+description: 'Invite and manage a project’s members, reply to one’s invitations and join a project as support.'
+---
+
+# Feature: Members and profiles
 
 ## 1. Overview
 
-- **Goal:** A profile is a user's membership of one project — the link that says *this person may access this event, in this role, during this window*. The feature has two sides that share one entity: administrators build and maintain their event's staff list, and every user manages their own invitations and memberships. Because only an `ACCEPTED` profile inside its access window grants permissions, profiles are also the switch that turns project-scoped access on and off over time.
-- **Who uses it:** `PROJECT_ADMINISTRATOR` manages the member list; `PROJECT_COORDINATOR` can view it; every signed-in user manages their own profiles; a platform `USER_ADMINISTRATOR` (holding `REGISTRY_PROFILE_C`) can mint a **support profile** — a self-expiring administrator access whose real purpose is to leave an auditable trace of the intervention.
-- **Option required:** None — always available. Membership is part of the core.
+- **Goal:** A profile is a user's membership of a project: _this person accesses this project, with this role, during this window_. Administrators build the team; each user manages their own invitations. Since only an accepted profile within its window grants rights, the profile is the switch for access over time.
+- **Who uses it:** RP_A manages members; RP_C views the list (without blocked profiles); RP_P has no access to it; each user manages their invitations; R_A can join a project as support.
+- **Option required:** none.
 
-## 2. Roles & Permissions
+## 2. Roles and permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) and [Domain Model → Profile](/registry/functional/domain-model#profile).
-
-### Admin side — managing a project's members (`/projects/{projectId}/profiles`)
-
-| Role | Permitted actions | Conditions / Scope |
-| ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + block/unblock | Full membership control (`REGISTRY_PROJECT_PROFILE_C/R/U/D`); searches users and assignable roles via `REGISTRY_PROJECT_PROFILE_METADATA_R`. |
-| `PROJECT_COORDINATOR` | **R** | Read-only (`REGISTRY_PROJECT_PROFILE_R`): can see who is in the event, cannot invite, edit, block or remove. |
-| `PROJECT_PARTICIPANT` | — | No access to the member list. |
-
-### Self side — managing my own memberships (`/users/profiles`)
-
-| Role | Permitted actions | Conditions / Scope |
-| ---- | ----------------- | ------------------ |
-| Any authenticated `USER` | **R** own · accept/reject · leave (**D** own) | List my profiles; accept or reject an invitation (only from `INVITED`); delete my own profile to leave a project. |
-| `USER_ADMINISTRATOR` (global) | **C** support | May create a temporary **1-hour** "support" administrator profile on any project (`REGISTRY_PROFILE_C`). |
+| Role | Permitted actions | Conditions / scope |
+| --- | --- | --- |
+| RP_A | Invite, read, update, block, unblock, delete | Within the limit of their role level; last-permanent-administrator safeguard. |
+| RP_C | Read | Does not see blocked profiles; no actions. |
+| RP_P | — | No access to the member list. |
+| Any signed-in user | Read their profiles, accept / decline an invitation, leave a project | Accept or decline only from the "invited" state. |
+| R_A | Join as support | **One-hour** administrator profile, on any project. |
 
 ## 3. Business rules
 
-- **Inviting is a batch action.** Choose one or more users, **one** role, and an optional access window → the system creates an `INVITED` profile for each selected user.
-- **Editing a member** changes their **role** and/or their **access window**.
-- **Access window is optional.** A profile with no window is **permanent**. When both `start` and `end` are set, `start` must be **before** `end` (`@StartBeforeEnd`).
-- **Role ceiling.** A user may only assign roles **at or below their own level** — administrator (0) > coordinator (10) > participant (20). A coordinator can never mint an administrator.
-- **Last-permanent-administrator safety.** The system refuses to remove or demote the **last permanent** `PROJECT_ADMINISTRATOR` — the last level-0 profile with **no end date**. A temporary administrator (one with an end date, e.g. a support profile) does not count toward this safeguard. A project can never be left with only expiring administrators.
-- **Accept/reject is constrained.** A user may only accept or reject a profile while it is `INVITED`, and the new value must be `ACCEPTED` or `REJECTED` (`@ProfileAcceptOrReject`).
-- **Permissions require an accepted, in-window profile.** Only an `ACCEPTED` profile whose current moment sits inside its access window grants any project permission. `INVITED`, `REJECTED` and `BLOCKED` profiles grant nothing.
-- **Support access is about traceability, not gate-keeping.** A `USER_ADMINISTRATOR` can already read *any* project at any moment (global `REGISTRY_PROJECT_R`) and can mint a support profile whenever they choose — so the profile is not what *grants* the ability to intervene. Its point is to **leave an auditable trace**: it is a full `PROJECT_ADMINISTRATOR` profile, recorded like any other membership (who, when), that **auto-expires after one hour** so the elevated write access never lingers. It stays visible on the member list afterwards as the record that the intervention happened.
+- **Inviting is a bulk action**: one or more users or email addresses, **one** role, an optional access window → one "invited" profile per target.
+- **Search by exact email.** The user to invite is found by their exact address (case-insensitive, 0 or 1 result), never by a name fragment. Since any signed-in user can create a project, and therefore invite, a broader search would let anyone indirectly extract the list of all the platform's users. This search is rate-limited (30 per minute and per user).
+- **Inviting an unknown address** (feature that can be enabled): an account is pre-created and attached to the person on their first sign-in, if the identity provider certifies their email.
+- **No overlap**: a user cannot have two invited or accepted profiles whose windows overlap on the same project.
+- **Access window** optional, independent of the project's dates; without a window, the profile is permanent. The start must be strictly before the end.
+- **Role ceiling**: one only invites, changes, blocks and deletes roles of a level equal to or lower than one's own (administrator 0 > coordinator 10 > participant 20).
+- **Last permanent administrator**: removing, blocking, demoting or adding an end date to the last RP_A without an end date is refused. A temporary (support) administrator does not count.
+- **Blocking** removes all rights without deleting the profile; unblocking restores it.
+- **Support access**: an accepted RP_A profile, valid for one hour from its creation, recorded like any membership. Its purpose is to **leave a trace** of the intervention; it stays visible in the member list after expiry.
 
-## 4. Behavioral scenarios (BDD)
+## 4. Screens
 
-```gherkin
-Scenario: An administrator invites several users in one action
-  Given I am the PROJECT_ADMINISTRATOR of a project
-  When I invite users "alice" and "bob" as PROJECT_PARTICIPANT for the window 2026-07-10 to 2026-07-24
-  Then a profile is created for each user with status INVITED
-  And neither user yet holds any permission on the project
-```
+### 4.1 A project's "Members" list {#members-list}
 
-```gherkin
-Scenario: A coordinator cannot manage membership
-  Given I am a PROJECT_COORDINATOR of a project
-  When I list the project's members
-  Then I can read the member list
-  But I cannot invite, edit, block or remove any member
-```
+Shared behaviors: see [Lists](/registry/functional/screens#common-list-behaviors).
 
-```gherkin
-Scenario: A user accepts an invitation and gains access
-  Given the current date is 2026-09-02
-  And I have an INVITED profile on a project, valid from 2026-08-15 to 2026-12-20
-  When I accept the invitation
-  Then my profile status becomes ACCEPTED
-  And I hold my role's permissions, because 2026-09-02 sits inside the access window
-```
+- **Filters** [RP_A, RP_C]: text (user), date/time, status, availability; [RP_A] blocked / not blocked.
+- [RP_A] The "Invite" button opens the invitation form.
+- **Each row** [RP_A, RP_C] shows:
+  - the avatar, green for the signed-in user's profile;
+  - the favorite star, if the profile can be favorited (the signed-in user's);
+  - the name;
+  - the access range;
+  - the role tag.
+- [RP_A] A blocked profile is grayed out and carries the "Blocked" tag (an RP_C does not see blocked profiles).
+- [RP_A, RP_C] For a profile awaiting a reply:
+  - if the invitation targets the signed-in user, the "Decline" (danger) and "Accept" (success) buttons are shown, each with confirmation;
+  - otherwise, a message indicates that the user's reply is awaited.
+- **Actions menu** [RP_A]: "Edit" (prefilled form), "Block" if not blocked, "Unblock" if blocked, "Delete" — each with confirmation, except "Edit".
 
-```gherkin
-Scenario: Accepting is only allowed from the INVITED status
-  Given my profile on a project is already ACCEPTED
-  When I try to accept it again
-  Then the request is rejected by the @ProfileAcceptOrReject validator
-```
+### 4.2 My invitations
 
-```gherkin
-Scenario: A coordinator cannot promote someone above their own level
-  Given I am a PROJECT_COORDINATOR (level 10)
-  When I try to assign the PROJECT_ADMINISTRATOR (level 0) role to a member
-  Then the request is refused because the target role is above my level
-```
+Each user finds their pending invitations in "My account" and on the [application home](/registry/functional/screens#application-home), with the same "Accept" / "Decline" buttons and their confirmation.
 
-```gherkin
-Scenario: The last permanent administrator cannot be removed
-  Given I am the only PROJECT_ADMINISTRATOR of a project, with no end date on my profile
-  When I try to remove my own profile or demote it to PROJECT_COORDINATOR
-  Then the request is refused to avoid orphaning the project
-```
+### 4.3 Invitation form {#invitation-form}
 
-```gherkin
-Scenario: A temporary support administrator does not block demoting the permanent one
-  Given a project has one permanent PROJECT_ADMINISTRATOR and a temporary support PROJECT_ADMINISTRATOR (with an end date)
-  When the permanent administrator tries to demote their own profile to PROJECT_COORDINATOR
-  Then the request is still refused
-  Because the temporary support profile does not count as a permanent administrator
-```
+[RP_A] Step 3 of project creation, and from the member list. Shared rules: see [Forms](/registry/functional/screens#common-form-behaviors).
 
-```gherkin
-Scenario: A blocked member loses access without losing the profile
-  Given a member holds an ACCEPTED profile on my project
-  When I block that profile
-  Then its status becomes BLOCKED
-  And the member retains no permission on the project until I unblock it
-```
-
-```gherkin
-Scenario: Platform staff mints temporary support access
-  Given I am a global USER_ADMINISTRATOR with no profile on project C
-  When I create a support profile on project C
-  Then I receive a PROJECT_ADMINISTRATOR profile that expires after one hour
-  And the profile is recorded on project C's member list as a trace of the intervention
-  And that record remains visible after the profile has expired
-```
-
-## 5. API surface
-
-The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.
+- **At least one user or email address** is required.
+- **Role** required: RP_A, RP_C or RP_P.
+- **Access start and end** optional (they can fall outside the project's period).
+- **When editing**, only the role and the access window can be changed; demoting an RP_A requires that they are not the last RP_A without an access end.

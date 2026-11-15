@@ -1,111 +1,61 @@
+---
+title: 'Feature: Activities'
+description: 'Plan activities, use them as a check-out reason and track their statistics.'
+---
+
 # Feature: Activities
 
 ## 1. Overview
 
-- **Goal:** An activity is a planned outing or event within the event — a hike, a workshop, a visit. It has a **name**, a **description**, a **duration** and an **allowed-participants range** (minimum / maximum). Beyond planning, an activity can be used as the **justification of a [movement](/registry/functional/features/movements)**: selecting it as the movement's "reason" ties an outing to exactly the people who went on it, so the record shows not just that participants left, but *what they left for*.
-- **Who uses it:** `PROJECT_ADMINISTRATOR` and `PROJECT_COORDINATOR` plan activities and review each activity's movement history. `PROJECT_PARTICIPANT` has **no access** to activity management (though they may select an existing activity while recording a movement).
-- **Option required:** **`ACTIVITY`.** Every activity endpoint is gated by this option — if it is off, the whole feature is closed regardless of role.
+- **Goal:** An activity is a planned outing or session — a hike, a workshop, a visit. It has a name, a description, a duration and a participant range. Chosen as a check-out's reason, it links that check-out to the people who took part, and becomes the author of the messages exchanged about it.
+- **Who uses it:** RP_A and RP_C plan activities and view their histories; RP_A permanently deletes. RP_P does not view the list, but picks an activity as a check-out reason.
+- **Option required:** **O_A `ACTIVITY`.**
 
-## 2. Roles & Permissions
+## 2. Roles and permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete — plus *History* (an activity's movement history). See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Activity](/registry/functional/domain-model#activity-option) for the entity.
-
-| Role | Permitted actions | Conditions / Scope |
-| ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** + History | Only role that can permanently delete an activity; also plans, edits and views movement history (`REGISTRY_PROJECT_ACTIVITY_C/R/U/D`, `REGISTRY_PROJECT_ACTIVITY_HISTORY_R`). Requires the `ACTIVITY` option. |
-| `PROJECT_COORDINATOR` | **C R U** + History | Plans, edits, disables/enables and views movement history, same as the administrator — but cannot delete an activity (`REGISTRY_PROJECT_ACTIVITY_C/R/U`, `REGISTRY_PROJECT_ACTIVITY_HISTORY_R`). Requires the `ACTIVITY` option. |
-| `PROJECT_PARTICIPANT` | — | No access to activity management. May still select an existing activity as a movement's justification. |
-
-> **Option gating first.** All rows above assume the project has the `ACTIVITY` option enabled. With the option off, the API is closed for every role — see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating).
+| Role | Permitted actions | Conditions / scope |
+| --- | --- | --- |
+| RP_A | Create, read, update, delete, restore, permanently delete, history | Permanent deletion only without any recorded movement. |
+| RP_C | Create, read, update, delete, restore, history | — |
+| RP_P | — | Sees the available activities among a check-out's reasons. |
 
 ## 3. Business rules
 
-- **Name and description.** An activity has a required **name** and a **description** of at most **2000 characters**.
-- **Duration and availability.** It carries a **duration** and an optional availability window; with no window of its own, an activity inherits the project's (see [Domain Model → Availability windows](/registry/functional/domain-model#availability-windows-priority-and-date-resolution)). When both `start` and `end` are set, **start must be before the end** (`@StartBeforeEnd`).
-- **Allowed-participants range** (`@MinUpperMax`). The **minimum must be less than or equal to the maximum**, and the **minimum must be at least 1**.
-- **Used as a movement justification.** Selecting an activity in a movement is **mutually exclusive with a free reason** (`@BothCannotBeDefined`) — a movement is justified by an activity *or* a reason, never both. See [Movements → Business rules](/registry/functional/features/movements#3-business-rules).
-- **Disabling is soft and reversible.** An activity can be disabled (hidden from selection) and later re-enabled without losing its history.
+- **Name** required (not blank), 150 characters maximum; **description** optional (not blank if provided), 2000 characters maximum.
+- **Duration** optional.
+- **Participant range** optional: minimum and maximum are filled in **together**, with minimum ≤ maximum (minimum of at least 1).
+- **Availability** optional, within the project's period; without dates, the activity is permanently available. Only the activities available at a check-out's date are offered as a reason.
+- **Reason or activity**: a check-out is justified by one or the other, never both.
+- **Deletion** soft and reversible; a deleted activity is no longer offered as a reason. Permanent deletion refused if it has been used.
 
-## 4. Behavioral scenarios (BDD)
+## 4. Screens
 
-```gherkin
-Scenario: A coordinator plans an activity but cannot delete one
-  Given the project has the ACTIVITY option enabled
-  And I hold the PROJECT_COORDINATOR role
-  When I create an activity "Mountain Hike" with a description under 2000 characters
-  And an allowed-participants range of minimum 4 and maximum 12
-  Then the activity is created
-  And it can be selected as a movement justification
-  When I then attempt to delete "Mountain Hike"
-  Then the request is refused for lack of REGISTRY_PROJECT_ACTIVITY_D
-```
+### 4.1 "Activities" list {#activities-list}
 
-```gherkin
-Scenario: The minimum must not exceed the maximum
-  Given the project has the ACTIVITY option enabled
-  When I create an activity with minimum 10 and maximum 4
-  Then the request is rejected by the @MinUpperMax validator
-  And no activity is created
-```
+Shared behaviors: see [Lists](/registry/functional/screens#common-list-behaviors). Reserved for RP_A and RP_C.
 
-```gherkin
-Scenario: The minimum must be at least one
-  Given the project has the ACTIVITY option enabled
-  When I create an activity with minimum 0
-  Then the request is rejected
-  Because the allowed-participants minimum must be at least 1
-```
+- **Filters**: text, date/time, status; deleted / not deleted.
+- The "Create" button opens the creation form.
+- **Each row** shows the name (truncated with "…"), the duration, the participant range (min–max), the availability range and the "Movement history" primary button.
+- A deleted activity is grayed out and carries the "Deleted" tag.
+- **Actions menu**: "Edit", "Delete", "Restore", [RP_A] "Permanently delete" — depending on the state, with confirmation.
 
-```gherkin
-Scenario: The availability start must be before the end
-  Given the project has the ACTIVITY option enabled
-  When I create an activity whose availability starts 2026-07-24 and ends 2026-07-10
-  Then the request is rejected by the @StartBeforeEnd validator
-```
+### 4.2 An activity's check-in/check-out history {#activity-history}
 
-```gherkin
-Scenario: An activity justifies a movement instead of a reason
-  Given the project has the ACTIVITY option enabled
-  And an activity "Mountain Hike"
-  When I record an OUT movement for registered participants justified by "Mountain Hike"
-  And I supply no free reason
-  Then the movement is accepted
-  And the movement appears in the activity's movement history
-```
+[RP_A, RP_C]
 
-```gherkin
-Scenario: An activity and a free reason cannot both justify a movement
-  Given the project has the ACTIVITY option enabled
-  When I record a movement carrying both the activity "Mountain Hike" and reason SHOPPING
-  Then the request is rejected by the @BothCannotBeDefined validator
-```
+- The header recalls the activity, truncated with "…".
+- Same filters, rows and actions as the ["Check-ins & check-outs" list](/registry/functional/features/movements#movements-list), restricted to the activity's movements.
+- **Statistics** above the list:
+  - **percentage of the project's participants** who took part in the activity at least once;
+  - **hours spent out** for this activity: in movement terms (sum of check-out durations) and in participant terms (hours × people).
 
-```gherkin
-Scenario: The feature is closed when the ACTIVITY option is off
-  Given the project does not have the ACTIVITY option enabled
-  When I attempt to list activities
-  Then the request is refused because the feature is closed
-  Regardless of my role
-```
+### 4.3 Activity form
 
-```gherkin
-Scenario: A participant cannot manage activities
-  Given the project has the ACTIVITY option enabled
-  And I hold the PROJECT_PARTICIPANT role
-  When I attempt to create an activity
-  Then the request is refused for lack of REGISTRY_PROJECT_ACTIVITY_C
-```
+[RP_A, RP_C] Shared rules: see [Forms](/registry/functional/screens#common-form-behaviors).
 
-```gherkin
-Scenario: Disabling an activity hides it without losing history
-  Given an activity "Mountain Hike" used to justify past movements
-  When I disable it
-  Then it is no longer offered as a movement justification
-  And its movement history remains readable
-  When I enable it again
-  Then it can be selected once more
-```
-
-## 5. API surface
-
-The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.
+- **Name**: required, 150 characters maximum.
+- **Description**: optional, 2000 characters maximum.
+- **Duration**: optional.
+- **Participant range**: optional, min and max together, min ≤ max.
+- **Availability start** and **end**: optional.

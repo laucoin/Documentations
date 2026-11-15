@@ -1,105 +1,47 @@
+---
+title: 'Feature: Communications'
+description: 'The messages attached to check-outs and alerts, displayed as a conversation.'
+---
+
 # Feature: Communications
 
 ## 1. Overview
 
-- **Goal:** A communication is a short, timestamped message pinned to an operational event — a movement or an alert. Together, the messages on one target form its **discussion thread**: the running commentary staff use to coordinate around a check-in/out or an incident. A message written on a movement can be **escalated into an alert**, turning a passing note into a tracked incident. Communications keep the "who said what, and when" beside the record it concerns instead of in a separate chat.
-- **Who uses it:** Everyone on the project. All three roles write, read, correct and disable/enable messages; only `PROJECT_ADMINISTRATOR` can permanently remove one.
-- **Option required:** `COMMUNICATION`. The module is enabled per project and itself requires `ACTIVITY` (see [Roles & Permissions → Project options](/registry/functional/roles-and-permissions#project-options-gating)). While the option is off, every endpoint below is closed regardless of role.
+- **Goal:** A communication is a short timestamped message attached to a **check-out** or an **alert**. The messages of a given target form its thread, displayed as a conversation: the team follows an ongoing check-out ("back in ten minutes") or an incident there, without a separate messaging tool. A message can also **create an alert**.
+- **Who uses it:** all three project roles write, correct and delete; RP_A and RP_C restore; RP_A permanently deletes.
+- **Option required:** **O_C `COMMUNICATION`**, which requires O_A. Links to alerts require O_E.
 
-## 2. Roles & Permissions
+## 2. Roles and permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Communication](/registry/functional/domain-model#communication-option) for the entity.
-
-| Role | Permitted actions | Conditions / Scope |
-| ---- | ----------------- | ------------------ |
-| `PROJECT_ADMINISTRATOR` | **C R U D** | Scoped to the project. Only role that can permanently delete a message; also posts, edits and disables/enables. Requires the `COMMUNICATION` option. |
-| `PROJECT_COORDINATOR` | **C R U** | Scoped to the project. Posts, edits and disables/enables messages, same as the administrator — but cannot delete. Requires the `COMMUNICATION` option. |
-| `PROJECT_PARTICIPANT` | **C R U** | Scoped to the project. Posts, reads, edits and disables/enables messages — same floor as the coordinator — but cannot delete. Requires the `COMMUNICATION` option. |
+| Role | Permitted actions | Conditions / scope |
+| --- | --- | --- |
+| RP_A | Create, read, update, delete, restore, permanently delete | — |
+| RP_C | Create, read, update, delete, restore | — |
+| RP_P | Create, read, update, delete | Does not see deleted messages. |
 
 ## 3. Business rules
 
-- **A message must have a target.** Every communication references a **movement and/or an alert** — at least one of the two (`@AtLeastOneIsDefined`). A message with neither target is rejected.
-- **Message is required and ≤ 250 characters.** The form requires a non-blank message; the server rejects anything over **250 characters** (`COMMUNICATION_MESSAGE_TOO_LONG`, and the column is `VARCHAR(250)`).
-- **Timestamped.** Each message carries a timestamp; a thread is read in chronological order.
-- **Escalation.** A message in a movement thread can be turned into an [alert](/registry/functional/features/alerts), which then carries its own thread. The original message stays on the movement.
-- **Thread attribution is derived, not chosen.** The stored record always keeps its real author — the signed-in user who created it (audit `created_by`). In the discussion thread the message is *displayed* as coming from: the linked movement's **reason or activity** when it has one (a note on a movement justified by the activity "Hike" shows under "Hike"); otherwise its **author**, rendered as your own message when that author is you; or **"no author"** if the author account was later removed. There is no separate author picker — you influence attribution only by choosing which movement the message is pinned to.
-- **Disabling is a soft, reversible action, open to all three roles.** Disabling hides a message without deleting it; it can be re-enabled. Deletion is permanent and **administrator only**.
-- **Gated by the option.** If the `COMMUNICATION` option is disabled on the project, the whole feature is invisible and its API is closed.
+- **Message** required (not blank), 250 characters maximum.
+- **Attachment**: to a **registered check-out** (optionally linked to an activity) and/or to an existing O_E **alert**, or creation of a **new O_E alert**, in which case a **title** is required (not blank, 50 characters maximum). A message is always attached to at least one of the two.
+- **Chronology**: a message cannot be dated before the check-out or alert it is attached to.
+- **Displayed author**: for a message attached to a check-out linked to an activity, the **activity** is the displayed author; otherwise it is the user who wrote it. The real author is always kept. A deleted author is shown as "Deleted user".
+- **Link with an alert**: the message also appears in the alert's thread; seen in an activity's thread, it is shown linked to the alert, like a reply.
+- **History**: _log_-type item — each change keeps the previous version.
+- **Deletion** soft and reversible; permanent deletion reserved for RP_A.
 
-## 4. Behavioral scenarios (BDD)
+## 4. Screens
 
-```gherkin
-Scenario: A participant posts a message on a movement thread
-  Given I am a PROJECT_PARTICIPANT on a project with the COMMUNICATION option enabled
-  And a movement has been recorded
-  When I post the message "Bus running 15 minutes late" on that movement
-  Then the communication is created with a timestamp
-  And it appears in the movement's discussion thread
-```
+### 4.1 Communications drawer
 
-```gherkin
-Scenario: A message with no target is rejected
-  Given I am a PROJECT_COORDINATOR on a project with the COMMUNICATION option enabled
-  When I post a communication that references neither a movement nor an alert
-  Then the request is rejected by the @AtLeastOneIsDefined validator
-  And no communication is created
-```
+Described in [Screens → Communications drawer](/registry/functional/screens#communications-drawer): chat from oldest (top) to most recent (bottom), progressive loading upwards, sending with the button or with Cmd/Ctrl + Enter.
 
-```gherkin
-Scenario: A message longer than 250 characters is rejected
-  Given I am a PROJECT_PARTICIPANT on a project with the COMMUNICATION option enabled
-  When I post a message of 251 characters on a movement
-  Then the request is rejected for exceeding the maximum length
-  And no communication is created
-```
+It opens from the operational tracking on the project home ("Communication details"), and from the open alerts and the alert list ("Communicate").
 
-```gherkin
-Scenario: A message on an activity movement is attributed to the activity in the thread
-  Given I am a PROJECT_PARTICIPANT on a project with the COMMUNICATION option enabled
-  And a movement justified by the activity "Hike"
-  When I post "Back in ten minutes" on that movement
-  Then the communication is stored with me as its author
-  And the thread displays it as coming from "Hike"
-```
+### 4.2 Communication form
 
-```gherkin
-Scenario: A message with no movement reason is attributed to its author
-  Given I am a PROJECT_COORDINATOR on a project with the COMMUNICATION option enabled
-  When I post a message on an alert thread
-  Then the thread displays it as coming from me
-```
+[RP_A, RP_C, RP_P] Shared rules: see [Forms](/registry/functional/screens#common-form-behaviors).
 
-```gherkin
-Scenario: A participant can edit and disable a message, but not delete it
-  Given I am a PROJECT_PARTICIPANT on a project with the COMMUNICATION option enabled
-  And a message exists in a thread
-  When I correct a typo in that message
-  Then the update is accepted
-  When I disable that message
-  Then it is hidden from the thread, and I can re-enable it later
-  When I attempt to delete that message
-  Then the request is refused for lack of permission
-  And the message remains in the thread
-```
-
-```gherkin
-Scenario: A coordinator disables a message reversibly, but cannot delete it either
-  Given I am a PROJECT_COORDINATOR on a project with the COMMUNICATION option enabled
-  And a message exists in a thread
-  When I disable that message
-  Then the message is hidden from the thread
-  And I can re-enable it later to restore it
-  When I attempt to delete that message
-  Then the request is refused for lack of permission
-```
-
-```gherkin
-Scenario: The feature is closed when the option is disabled
-  Given I am a PROJECT_ADMINISTRATOR on a project with the COMMUNICATION option disabled
-  When I attempt to read a movement's discussion thread
-  Then the request is refused because the option is not enabled
-```
-
-## 5. API surface
-
-The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.
+- **Message**: required, 250 characters maximum.
+- **Title**: required when creating an alert, 50 characters maximum.
+- **Link** to a check-out (and its activity) and/or an alert.
+- Sending with the button, or Cmd/Ctrl + Enter.

@@ -35,11 +35,12 @@ lastUpdated: false
         </div>
       </div>
     </div>
-    <!-- Registry -->
-    <div class="card card--portal">
+    <!-- Registry (archived) -->
+    <div class="card card--portal card--archived">
       <div class="card-icon">📋</div>
       <div class="card-body">
         <h3 class="card-title">Registry (Presence Platform)</h3>
+        <p class="card-status"><span class="badge badge--archived">Archived</span><span class="card-status-reason">Donated to the Scouts et Guides de France</span></p>
         <p class="card-description">Multi-tenant participant &amp; event registry: register people, organize groups, record check-in/out movements, and track live presence — behind SSO with fine-grained, per-event permissions.</p>
         <div class="card-actions">
           <a href="https://registry.sgdf.fr" target="_blank" class="btn btn--alt">Explore</a>
@@ -116,6 +117,25 @@ lastUpdated: false
   cursor: pointer;
 }
 
+/* Status line: badge + reason */
+.card-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px 0;
+}
+
+/* Badge: structural base object */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .portal-footer {
   margin-top: 48px;
   text-align: center;
@@ -149,6 +169,33 @@ lastUpdated: false
 
 .card--portal:hover {
   border-color: var(--vp-c-brand-soft);
+}
+
+/* Archived card skin: greyed out */
+.card--archived {
+  filter: grayscale(1);
+  opacity: 0.6;
+  transition: opacity 0.3s ease, border-color 0.3s ease;
+}
+
+.card--archived:hover {
+  opacity: 0.85;
+  border-color: var(--vp-c-divider);
+}
+
+.card-status-reason {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--vp-c-text-2);
+}
+
+/* Archived badge skin */
+.badge--archived {
+  background-color: var(--vp-c-default-soft);
+  color: var(--vp-c-text-2);
+  border: 1px solid var(--vp-c-divider);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .card-icon {

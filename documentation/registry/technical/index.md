@@ -1,16 +1,21 @@
-# Technical Documentation
+---
+title: 'Technical documentation'
+description: 'Overview of Registry’s engineering and map of the technical documentation.'
+---
 
-This section covers the engineering of Registry: the two-service architecture, the reactive backend, the Angular frontend, the data model and API contracts, the security model, and the Architecture Decision Records that justify each choice. It assumes the [Functional Documentation](/registry/functional/) — especially the [Roles & Permissions](/registry/functional/roles-and-permissions) baseline — is understood.
+# Technical documentation
 
-## System at a glance
+This section covers Registry's engineering: the two-service architecture, the reactive backend, the Angular frontend, the data model and API contracts, the security model, and the Architecture Decision Records (ADRs) that justify each choice. It assumes the [functional documentation](/registry/functional/) — in particular the [Roles and permissions](/registry/functional/roles-and-permissions) baseline — is understood.
 
-Registry is delivered as **two independently versioned services** plus two supporting infrastructure components:
+## The system at a glance
+
+Registry ships as **two independently versioned services** and two supporting infrastructure components:
 
 ```mermaid
 flowchart LR
     Browser["Browser (SPA)"]
     subgraph Frontend["Frontend · nginx :8080"]
-      SPA["Angular 22 SPA<br/>NGXS · PrimeNG"]
+      SPA["Angular SPA<br/>Signal stores · @sgdf/ui"]
     end
     subgraph Backend["Backend · JVM :8081"]
       API["Spring WebFlux (reactive)<br/>Hexagonal · R2DBC"]
@@ -19,42 +24,48 @@ flowchart LR
     DB[("PostgreSQL")]
 
     Browser --> SPA
-    SPA -- "REST /api/v1 (HttpOnly cookies + CSRF header)" --> API
+    SPA -- "REST /api/v2 (HttpOnly cookies + CSRF header)" --> API
     Browser -. "login redirect" .-> IdP
     SPA -- "code / refresh exchange" --> API
     API -- "validate JWT (JWKS) · code/refresh grants" --> IdP
     API -- "R2DBC (runtime) · JDBC (Flyway)" --> DB
 ```
 
-The browser loads the SPA from nginx, which calls the backend over REST, authenticating via `HttpOnly` cookies rather than a token held in JavaScript. Authentication is delegated to an external OIDC provider; the backend both validates JWTs (as a resource server) and brokers the code/refresh exchanges (as a confidential client). All state lives in a single PostgreSQL database. See [Security](/registry/technical/security) for the cookie/CSRF mechanics and the separate, unauthenticated management port that carries health/metrics/docs.
+The browser loads the SPA from nginx, which calls the backend over REST, authenticating with `HttpOnly` cookies rather than a token kept in JavaScript. Authentication is delegated to an external OIDC provider; the backend both validates JWTs (as a resource server) and orchestrates the code/refresh exchanges (as a confidential client). All state lives in a single PostgreSQL database. See [Security](/registry/technical/security) for the cookie/CSRF mechanics and the separate, unauthenticated management port that carries health, metrics and documentation.
 
 ## Documentation map
 
 | Page | Purpose |
-| ---- | ------- |
-| [Getting Started](/registry/technical/getting-started) | Run the whole stack locally: prerequisites, dependencies, and configuration |
-| [Architecture](/registry/technical/architecture) | The hexagonal backend, the Angular frontend, and how a request flows end to end |
-| [Security](/registry/technical/security) | Authentication flow, JWT-to-user mapping, and how the project-scoped RBAC is enforced |
-| [Data Model](/registry/technical/data-model) | The PostgreSQL schema, entity relationships, auditing, and trigram search |
-| [API Reference](/registry/technical/api-reference) | Every `/api/v1` endpoint, grouped by domain, with its required permission |
-| [ADR index](/registry/technical/adr/) | All Architecture Decision Records, in causal order |
+| --- | --- |
+| [Getting started](/registry/technical/getting-started) | Run the whole stack locally: prerequisites, dependencies and configuration |
+| [Architecture](/registry/technical/architecture) | The hexagonal backend, the Angular frontend, and the end-to-end path of a request |
+| [Backend](/registry/technical/backend) · [Frontend](/registry/technical/frontend) | How each service is built, tested and configured |
+| [E2E tests](/registry/technical/e2e) | The Playwright suite that checks user journeys in a real browser, and its conventions |
+| [Development conventions](/registry/technical/conventions) | The rules shared by the repositories: writing code, tests, reviews, branches and commits |
+| [Security](/registry/technical/security) | Each security mechanism, what it is for and what it prevents (beginner-friendly) |
+| [Data model](/registry/technical/data-model) | The PostgreSQL schema, entity relationships, history, audit and search |
+| [API contract](/registry/technical/api-reference) | The shared conventions of `/api/v2` and its organization by domain (the details are in OpenAPI) |
+| [Glossary](/registry/technical/glossary) | The technical terms, jargon and acronyms used in the documentation, with their definitions |
+| [ADR index](/registry/technical/adr/) | All the Architecture Decision Records, in causal order |
 
 ## Stack summary
 
-Versions are given to the major only; the source repositories hold the exact pins.
+Versions are given to the major version; the source repositories contain the exact versions.
 
-| Layer | Backend                                             | Frontend |
-| ----- |-----------------------------------------------------| -------- |
-| Language | Kotlin 2 (JVM toolchain 25)                         | TypeScript 6 |
-| Framework | Spring Boot 4 · WebFlux (reactive)                  | Angular 22 (standalone components) |
-| Architecture | Hexagonal (ports & adapters), ArchUnit-enforced     | Domain-driven folders, per-route lazy state |
-| State / data | R2DBC (reactive) + Flyway migrations                | NGXS (`selectSignal`) behind per-domain facades |
-| UI | —                                                   | PrimeNG + `@primeuix/themes` + Bootstrap grid |
+| Layer | Backend | Frontend |
+| --- | --- | --- |
+| Language | Kotlin (JVM toolchain pinned by Gradle) | TypeScript |
+| Framework | Spring Boot · WebFlux (reactive) | Angular (standalone, zoneless) |
+| Architecture | Hexagonal (ports and adapters), checked by ArchUnit | core / pages / shared, stores loaded on demand per route |
+| State / data | R2DBC (reactive) + Flyway migrations | `@ngrx/signals` stores behind per-domain facades |
+| UI | — | `@sgdf/ui` web components + Tailwind CSS (layout only) |
 | Auth | OAuth2 resource server + confidential client (OIDC), HttpOnly cookies, stateless HMAC CSRF | `withCredentials` HTTP interceptor relaying the CSRF header, route guards |
-| API docs | springdoc OpenAPI (feature-flagged)                 | — |
-| i18n | Spring `MessageSource` (en, fr)                     | `@ngx-translate` (en, fr) |
-| Observability | Actuator + Micrometer/Prometheus                    | — |
-| Build | Gradle (Kotlin DSL)                                 | Angular CLI + pnpm |
-| Runtime image | Distroless Java 25, non-root, JVM jar               | Unprivileged nginx serving the static bundle |
-| Persistence | PostgreSQL (`pg_trgm` trigram search)               | — |
-| Release | semantic-release → GHCR (retain 5)                  | semantic-release → GHCR (retain 5) |
+| Traceability | Audit log of access to personal data, _log_ history | — |
+| Hardening | Rate limiting, security headers, isolated management port | nginx: nonce-based CSP, hardening headers |
+| API docs | springdoc OpenAPI 3.0 (enabled by feature flag) | — |
+| i18n | Spring `MessageSource` (en, fr) | Transloco (fr, en) |
+| Observability | Actuator + Micrometer/Prometheus | — |
+| Build | Gradle (Kotlin DSL) | Angular CLI + pnpm |
+| Runtime image | Distroless Java, non-root, JVM jar | Unprivileged nginx serving the static bundle |
+| Persistence | PostgreSQL (`pg_trgm` trigram search) | — |
+| Release | semantic-release → GHCR (retention of 5) | semantic-release → GHCR (retention of 5) |

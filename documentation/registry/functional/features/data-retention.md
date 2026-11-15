@@ -1,97 +1,89 @@
-# Feature: Data Retention
+---
+title: 'Feature: Data retention'
+description: 'The five nightly purges that delete data beyond its retention period.'
+---
 
-> Registry holds names, birthdays and the movements of minors. Keeping that forever is not caution, it is a liability.
-> So every night, four sweeps ask the same question — *is anything here older than we agreed to keep?* — and remove what
-> has aged out.
+# Feature: Data retention
 
-**Who this is for:** nobody, in the usual sense. This is the only feature whose operator is a scheduled job rather than
-a person.
+> Registry holds names, dates of birth and the movements of minors. Keeping that indefinitely is not
+> caution, it is a risk. So every night, five sweeps ask the same question — _is there anything here
+> older than what we agreed to keep?_ — and delete what is stale.
+
+**Who it is for:** no one, in the usual sense. It is the only feature whose operator is a scheduled job
+rather than a person. The nightly runs are triggered by a scheduler inside the application;
+the same sweeps can also be run by hand.
 
 ## Who can do what
 
-| Role                                       | May do                                            | Limits                                 |
-|--------------------------------------------|---------------------------------------------------|----------------------------------------|
-| The **service account** (`REGISTRY_JOB_C`) | Trigger any of the four sweeps                    | The account exists solely for this     |
-| `USER_ADMINISTRATOR`                       | The same, by virtue of holding the job permission | Useful for running a dry run on demand |
-| Everyone else                              | Nothing                                           | —                                      |
+| Role | Can do | Limits |
+| --- | --- | --- |
+| The **scheduler** (internal) | Runs the five sweeps every night | Real purges, configured threshold |
+| The **service account** | Triggers any of the five sweeps on demand | The account exists only for this |
+| `USER_ADMINISTRATOR` | The same, since it holds the job permission | Useful to run a dry run on demand |
+| Everyone else | Nothing | — |
 
-Purging is a global operation. It is the one thing in Registry that reaches across every project at once, which is
-exactly why it is behind a permission nobody holds by accident.
+Purging is a global operation. It is the only thing in Registry that crosses all projects at once, and that is
+precisely why it sits behind a permission no one holds by accident.
 
-## Four sweeps, in a deliberate order
+## Five sweeps, in a deliberate order
 
-| Sweep                     | Removes                                       | Default schedule | Default threshold |
-|---------------------------|-----------------------------------------------|------------------|-------------------|
-| **Users**                 | Accounts with no sign-in since the threshold  | 01:00 daily      | 12 months         |
-| **Projects**              | Projects untouched since the threshold        | 01:30 daily      | 12 months         |
-| **Project content**       | Movements, communications and alerts          | 02:00 daily      | 12 months         |
-| **Project configuration** | Vehicles, activities, groups and participants | 02:30 daily      | 12 months         |
+| Sweep | Deletes | Default schedule | Default threshold |
+| --- | --- | --- | --- |
+| **Users** | Accounts with no sign-in since the threshold | 01:00 every day | 12 months |
+| **Projects** | Projects not modified since the threshold | 01:30 every day | 12 months |
+| **Project content** | Movements, communications and alerts | 02:00 every day | 12 months |
+| **Project configuration** | Vehicles, activities, participants, then groups that became empty | 02:30 every day | 12 months |
+| **Audit** | Events of the [audit log](/registry/functional/features/audit) | 03:00 every day | 12 months |
 
-The half-hour gaps are not decoration — the order matters:
+The half-hour gaps are not decorative — the order matters:
 
-**Content is purged before configuration**, because participants, vehicles and activities all refuse deletion while a
-movement still references them. Remove the movements first and the configuration becomes removable; do it the other way
-round and the configuration sweep achieves nothing.
+**The audit is purged last**, because it itself contains personal data (IP addresses) and must cover the night's purges.
 
-Within the content sweep the same logic applies internally: communications whose movement and alert have both gone are
-removed as **orphans**, and alerts that still carry communications are protected until those communications are cleared.
+**Content is purged before configuration**, because participants, vehicles and activities all refuse to be
+deleted while a movement references them. Delete the movements first and the configuration becomes deletable;
+do the reverse and the configuration sweep achieves nothing.
+
+Within the content sweep, the same logic applies: communications whose movement and alert are both
+gone are deleted as **orphans**, and alerts that still carry communications are
+protected until those communications are erased.
 
 ## Dry run first
 
-Every sweep takes a **dry run** flag, and it defaults to **on**. A dry run reports exactly which records would be
-removed and touches nothing.
+Each sweep takes a **dry run** flag, enabled **by default**. A dry run reports
+exactly which records would be deleted and touches nothing.
 
-That default is the point: an accidental call does no damage. Deleting requires deliberately asking for it.
+That default is the key point: an accidental call does no damage. Deleting requires asking for it deliberately.
 
-Each sweep also accepts an explicit **date threshold**, overriding the configured default — useful for a one-off deeper
-clean, or for asking "what would a six-month policy remove?" without committing to one.
-
-```gherkin
-Scenario: Previewing what a sweep would remove
-  Given I hold the job permission
-  When I run the user purge as a dry run
-  Then I get the list of accounts that would be removed
-  And no account is deleted
-
-Scenario: Running a sweep for real
-  When I run the user purge with the dry run flag turned off
-  Then the dormant accounts are deleted
-
-Scenario: Overriding the threshold
-  When I run the project purge with an explicit date threshold
-  Then that date is used instead of the configured default
-
-Scenario: Denying a purge to a user without the job permission
-  Given I am a project administrator with no job permission
-  When I try to trigger a purge
-  Then the request is denied
-```
+Each sweep also accepts an explicit **date threshold**, which overrides the configured default — useful for a
+one-off deeper cleanup, or to ask "what would a six-month policy delete?" without committing to it.
 
 ## What "dormant" means
 
 Each sweep has its own definition, and they are not interchangeable:
 
-| Sweep         | Considered dormant when                                                          |
-|---------------|----------------------------------------------------------------------------------|
-| Users         | The account's **last sign-in** predates the threshold                            |
-| Projects      | The project has not been **modified** since the threshold                        |
-| Content       | The movement, communication or alert predates the threshold                      |
-| Configuration | The element has been **unused** since the threshold — no movement, no membership |
+| Sweep | Considered dormant when |
+| --- | --- |
+| Users | The account's **last sign-in** is older than the threshold |
+| Projects | The project has not been **modified** since the threshold |
+| Content | The movement, communication or alert is older than the threshold |
+| Configuration | The item has been **unused** since the threshold — no movement, no membership |
+| Audit | The event is older than the threshold |
 
-An account that signs in every month is never purged, however old it is. A project touched last week survives regardless
-of when it was created. Retention here measures **activity**, not age.
+An account that signs in every month is never purged, however old it is. A project touched last week
+survives whatever its creation date. Retention here measures **activity**, not age.
 
 ## What survives a purge
 
-Two things deliberately do not disappear:
+- **The last administrator** of the platform or of a project is never deleted by the users sweep.
+- **Groups that still have members** are not deleted by the configuration sweep: only empty groups **not modified since the retention threshold** are. A group created empty, or emptied recently, is therefore kept.
+- **The _log_ history** follows its item: it disappears with the purged movement, alert or communication.
 
-- **Anonymised accounts** stay as rows. Their identity is already gone; the row keeps the history they authored
-  coherent. See [Users](/registry/functional/features/users).
-- **Groups that still have members** are not removed by the configuration sweep — only empty and unused ones are, on the
-  same principle that a group is never allowed to be empty.
+::: warning First purge on an existing database
+The content and configuration sweeps each run in one go: the first run can delete a large backlog. Measure it first with a dry run, then run it by hand outside usage hours.
+:::
 
-## Related
+## See also
 
-- [Users](/registry/functional/features/users) — anonymisation, the other half of the data-protection story
+- [Users](/registry/functional/features/users) — deletion and export, the other half of data protection
+- [Audit and traceability](/registry/functional/features/audit) — the trace of access to personal data
 - [Projects](/registry/functional/features/projects) — disabling and deleting a project by hand
-- [Workflows](/registry/functional/workflows) — where the nightly pass sits in the platform's life

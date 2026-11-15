@@ -1,95 +1,77 @@
+---
+title: 'Feature: Projects'
+description: 'Create and configure a project, its dates and options, and browse the project list.'
+---
+
 # Feature: Projects
 
 ## 1. Overview
 
-- **Goal:** A project is the event a user came to Registry to manage — a camp, a trip, a gathering — and the tenant boundary that owns everything else. Creating one gives a user a private workspace with a name, an optional start and end, and a set of optional modules they turn on; from there they invite staff, register people, and track presence. Because any signed-in user can create a project and instantly becomes its administrator, teams get running without a platform operator in the loop.
-- **Who uses it:** Every signed-in user can create a project. Once created, its settings (name, dates, options, enable/disable, delete) are owned solely by its `PROJECT_ADMINISTRATOR`; the `PROJECT_COORDINATOR` and `PROJECT_PARTICIPANT` are read-only on the project itself while running its day-to-day operations. For support, it is also visible to a global `USER_ADMINISTRATOR`.
-- **Option required:** None — always available. Projects are the core; options are configured *on* a project rather than gating access to it.
+- **Goal:** A project is the event a user comes to manage — a camp, a trip, a gathering — and the boundary that contains everything else. It has a name, an optional start and end, and optional modules. Any signed-in user can create one and immediately becomes its administrator.
+- **Who uses it:** any signed-in user (creation); RP_A for settings; RP_C and RP_P read-only; R_A for support.
+- **Option required:** none — options are configured _on_ a project.
 
-## 2. Roles & Permissions
+## 2. Roles and permissions
 
-Actions use CRUD shorthand — **C**reate, **R**ead, **U**pdate, **D**elete. See [Roles & Permissions](/registry/functional/roles-and-permissions) for the full model, and [Domain Model → Project](/registry/functional/domain-model#project) for the entity.
+See the [legend](/registry/functional/roles-and-permissions#legend) and the [full matrix](/registry/functional/roles-and-permissions#project-access-matrix).
 
-| Role | Permitted actions | Conditions / Scope |
-| ---- | ----------------- | ------------------ |
-| `USER` (global) | **C** | Any signed-in user may create a project (`REGISTRY_PROJECT_C`); the creator automatically becomes its `PROJECT_ADMINISTRATOR`. Also reads project metadata (available options). |
-| `USER_ADMINISTRATOR` (global) | **R** | May read *any* project on the platform (`REGISTRY_PROJECT_R` global), independent of a profile — used for support. |
-| `PROJECT_ADMINISTRATOR` | **R U D** + enable/disable | Scoped to the project (`REGISTRY_PROJECT_R/U/D`). Only role with any write access to the project itself — including enable/disable and delete. |
-| `PROJECT_COORDINATOR` | **R** | Scoped to the project (`REGISTRY_PROJECT_R`). No `REGISTRY_PROJECT_U`: cannot update, enable/disable or delete. Read-only on project settings, despite running its operations. |
-| `PROJECT_PARTICIPANT` | **R** | Scoped to the project (`REGISTRY_PROJECT_R`). Read-only on project settings. |
+| Role | Permitted actions | Conditions / scope |
+| --- | --- | --- |
+| R_U, R_A | Create | The creator becomes the project's RP_A. At most 10 creations per hour and per user. |
+| R_A | Read all projects, join as support | Sees all projects ("with profile" filter), even without a profile. |
+| RP_A | Read, update, delete, restore, permanently delete | Only role that can edit the project itself. |
+| RP_C, RP_P | Read | Read-only access to settings; they run day-to-day operations. |
+| All | Add / remove favorites | On a project they can read. |
 
 ## 3. Business rules
 
-- **Name** is required and at most **150 characters**.
-- **`begin`** and **`end`** are optional; each, if set, is a date with an optional time. When both are set, `begin` must be **strictly before** `end` (`@StartBeforeEnd`). With neither set, the project is permanently available.
-- **Enabled options** are a subset of `VEHICLE`, `ACTIVITY`, `COMMUNICATION`, `ALERT`, subject to dependencies (`@ProjectOptionDependencies`): `COMMUNICATION` requires `ACTIVITY`; `ALERT` requires `ACTIVITY` **and** `COMMUNICATION`. A request that breaks a dependency is rejected with error `PROJECT_OPTIONS_MISSING`, listing the missing options.
-- **Availability is derived, not stored.** A project is `AVAILABLE` when the current moment is within the `begin`–`end` window, otherwise `UNAVAILABLE`. A project with no `begin`/`end` is permanently `AVAILABLE`.
-- **Disabling is a soft, reversible action** (`visibility = false`). While a project is disabled, non-administrators lose **all** authority on it; the administrator keeps only read, re-enable and delete. See [Roles & Permissions → Visibility gating](/registry/functional/roles-and-permissions#rules-that-shape-access-over-time).
-- **The project list is scoped to the caller.** A user sees only the projects they hold a profile on; a global `USER_ADMINISTRATOR` sees them all.
+- **Name** required (not blank), 150 characters maximum.
+- **Start and end** optional, each a date with an optional time; the start must be strictly before the end. Without dates, the project is permanent.
+- **Changing the dates** is refused if existing items (participants, groups, vehicles, activities, movements…) would fall outside the new period.
+- **Options**: `VEHICLE` and `ACTIVITY` are independent; `COMMUNICATION` requires `ACTIVITY`; `ALERT` requires `COMMUNICATION` (hence `ACTIVITY`). The backend refuses an incomplete combination by listing the missing options.
+- **Status** derived, never stored: upcoming, in progress or finished according to the start and end.
+- **Soft delete**: the project is grayed out, carries the "Deleted" tag and can no longer be joined. Non-administrators lose all authority over it; RP_A keeps only read, restore and permanent deletion.
+- **Favorites** are personal: not shared, they disappear with the user or the project.
 
-## 4. Behavioral scenarios (BDD)
+## 4. Screens
 
-```gherkin
-Scenario: Any signed-in user creates a project and becomes its administrator
-  Given I am a signed-in user
-  And the current date is 2026-09-02
-  When I create a project named "Summer Gathering 2026" beginning 2026-07-10 and ending 2026-07-24
-  Then the project is created with derived status UNAVAILABLE, because 2026-09-02 is past its end date
-  And I am granted a PROJECT_ADMINISTRATOR profile on it
-  And the project appears in my project list
-```
+### 4.1 "My projects" list {#projects-list}
 
-```gherkin
-Scenario: The begin date must be strictly before the end date
-  Given I am creating a project
-  When I set begin to 2026-07-24 and end to 2026-07-10
-  Then the request is rejected by the @StartBeforeEnd validator
-  And no project is created
-```
+Shared behaviors: see [Lists](/registry/functional/screens#common-list-behaviors).
 
-```gherkin
-Scenario: Enabling ALERT without its dependencies is rejected
-  Given I am creating a project
-  When I enable the ALERT option without enabling ACTIVITY and COMMUNICATION
-  Then the request is rejected with error PROJECT_OPTIONS_MISSING
-  And the error lists ACTIVITY and COMMUNICATION as missing
-```
+- **Filters** [R_A, R_U]: text, date/time (projects active at that instant), favorite.
+- **Additional filter** [R_A, RP_A]: deleted / not deleted.
+- **Additional filter** [R_A]: "with profile", on by default.
+- **Each row** [R_A, R_U] shows:
+  - the favorite star (toggles without navigating);
+  - the name, truncated with "…";
+  - the dates;
+  - the status tag;
+  - an "Options" button if more than one option is enabled;
+  - a "Join" button if the user has a valid profile;
+  - [R_A] without a profile, the "Create support" button;
+  - [R_A, RP_A] a deleted project is grayed out, tagged "Deleted", and a click opens a dialog explaining that it cannot be joined.
+- **Actions menu**:
+  - [R_A] "Join as support", with confirmation;
+  - [RP_A] "Edit" if the project is not deleted: opens the prefilled form;
+  - [RP_A] "Delete" if the project is not deleted, with confirmation;
+  - [RP_A] "Restore" if the project is deleted, with confirmation;
+  - [RP_A] "Permanently delete", with confirmation.
+- [R_A, R_U] The "Create" button leads to the creation form.
 
-```gherkin
-Scenario: Enabling COMMUNICATION pulls in ACTIVITY as a requirement
-  Given I am editing a project that has no options enabled
-  When I enable COMMUNICATION and ACTIVITY together
-  Then the update succeeds
-  And both options are enabled on the project
-```
+### 4.2 Project settings {#project-configuration}
 
-```gherkin
-Scenario: Disabling a project freezes it for non-administrators
-  Given I am the PROJECT_ADMINISTRATOR of an enabled project
-  And a PROJECT_COORDINATOR has access to it
-  When I disable the project
-  Then its visibility becomes false
-  And the coordinator loses all authority on the project
-  And I retain only the ability to read, re-enable or delete it
-```
+- [RP_A, RP_C, RP_P] Shows the project's information.
+- [RP_A] Project edit button.
+- One **tile per section**, with a counter, leading to the matching list: [RP_A, RP_C, RP_P] participants, groups, members; [RP_A, RP_C] O_V vehicles and O_A activities.
+- [RP_A] **Danger zone**: (soft) deletion and permanent deletion of the project.
 
-```gherkin
-Scenario: The project list only shows projects I have a profile on
-  Given I hold profiles on project A and project B
-  And project C exists but I have no profile on it
-  When I list my projects
-  Then I see project A and project B
-  And I do not see project C
-```
+### 4.3 Project form (creation and editing) {#project-form}
 
-```gherkin
-Scenario: A platform administrator can read any project for support
-  Given I am a global USER_ADMINISTRATOR
-  And I hold no profile on project C
-  When I read project C by its identifier
-  Then the project is returned
-```
+[R_A, R_U] Shared rules: see [Forms](/registry/functional/screens#common-form-behaviors).
 
-## 5. API surface
-
-The endpoints backing this feature — their paths, methods and the permission each one requires — are specified in [Technical → API Reference](/registry/technical/api-reference), and kept there only so the transport contract never drifts from this spec. The authority for each action is in §2; the rules it must satisfy are in §3.
+- **Name**: required (not blank), 150 characters maximum.
+- **Start date and time**, **end date and time**: optional, subject to the date rules.
+- **Options**: dependency constraints above, returned by the backend.
+- **3-step stepper**: at step 2 of 3, the project is created and the user becomes its RP_A; step 3 is the [invitation form](/registry/functional/features/project-profiles#invitation-form).
+- When editing, the form is identical.
